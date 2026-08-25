@@ -1,0 +1,8 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+httpx>=0.27.0
+pydantic>=2.9.0
+# Ghost Tab fate telemetry (tab_events) — see ghost_telemetry.py.
+asyncpg>=0.30.0
+# Match k8s/playwright image tag for WS connect (Wave 9.1 / wave9b).
+playwright==1.49.1

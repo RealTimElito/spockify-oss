@@ -1,0 +1,16 @@
+# Override to build and run the Spockify OpenWebUI fork (Canvas, hybrid TTS,
+# LTX video, router SSE attribution) instead of stock upstream.
+#
+# Build + run:
+#   docker compose -f docker-compose.yml -f docker-compose.fork.yml up -d --build
+#
+# The fork image bakes in Spockify branding, so no runtime rename is needed.
+
+services:
+  openwebui:
+    build:
+      context: ./services/openwebui
+      args:
+        BUILD_HASH: spockify-oss
+    image: ${SPOCKIFY_OPENWEBUI_IMAGE:-spockify-openwebui:local}
+    command: ["bash", "start.sh"]

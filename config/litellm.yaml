@@ -1,0 +1,449 @@
+# LiteLLM proxy — OSS models via Ollama/vLLM, Gemma 4 orchestrator routing.
+# Source of truth; synced to k8s/litellm ConfigMap via kustomize.
+# Docs: https://docs.litellm.ai/docs/proxy/configs
+#
+# Ollama chat models use ollama_chat/ (POST /api/chat) not ollama/ (/api/generate).
+# LiteLLM <1.66 with ollama/ drops multi-turn history after assistant turns (issue #9822).
+
+model_list:
+  # --- Orchestrator (Gemma 4 classifies task → worker model) ---
+  - model_name: orchestrator
+    litellm_params:
+      model: ollama_chat/nemotron-3-nano:4b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 45
+    model_info:
+      mode: orchestration
+
+  - model_name: orchestrator-fallback
+    litellm_params:
+      model: ollama_chat/llama3.2:3b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 45
+    model_info:
+      mode: orchestration
+
+  # --- Coding (Mistral Codestral + alternatives) ---
+  - model_name: codestral
+    litellm_params:
+      model: ollama_chat/spockify-coder
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+
+  - model_name: codestral-latest
+    litellm_params:
+      model: ollama_chat/spockify-coder
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+
+  - model_name: codestral-22b
+    litellm_params:
+      model: ollama_chat/codestral:22b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+
+  - model_name: codellama-7b
+    litellm_params:
+      model: ollama_chat/codellama:7b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+
+  - model_name: codellama-13b
+    litellm_params:
+      model: ollama_chat/codellama:13b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+
+  - model_name: codellama-34b
+    litellm_params:
+      model: ollama_chat/codellama:34b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+
+  - model_name: codegemma-7b
+    litellm_params:
+      model: ollama_chat/codegemma:7b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+
+  # vLLM-backed Codestral (enable when vLLM serves codestral)
+  - model_name: codestral-vllm
+    litellm_params:
+      model: openai/codestral
+      api_base: os.environ/VLLM_API_BASE
+      api_key: os.environ/VLLM_API_KEY
+      timeout: 300
+
+  # Optional Grok-1 via vLLM — requires a large multi-GPU node; not runnable on a single-GPU host.
+  # Download: ./scripts/pull-grok1.sh — Deploy: k8s/vllm-grok1.yaml (replicas: 0 until 8× GPU node).
+  # Uncomment when vllm-grok1 is scaled up on a multi-GPU host:
+  # - model_name: grok-1-vllm
+  #   litellm_params:
+  #     model: openai/grok-1
+  #     api_base: http://vllm-grok1.spockify.svc.cluster.local:8001/v1
+  #     api_key: os.environ/VLLM_API_KEY
+  #     timeout: 600
+  #   model_info:
+  #     description: "xAI Grok-1 MoE — manual multi-GPU vLLM only (~750GB disk, 8× GPU VRAM)"
+
+  # --- Google Gemma 4 (orchestrator + reasoning) ---
+  - model_name: gemma4-12b
+    litellm_params:
+      model: ollama_chat/gemma4:12b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  - model_name: gemma4-26b
+    litellm_params:
+      model: ollama_chat/gemma4:26b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+
+  - model_name: gemma4-31b
+    litellm_params:
+      model: ollama_chat/gemma4:31b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+
+  # --- Google Gemma 3 (legacy aliases → Gemma 4 weights) ---
+  - model_name: gemma3-4b
+    litellm_params:
+      model: ollama_chat/gemma4:12b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 90
+
+  - model_name: gemma3-12b
+    litellm_params:
+      model: ollama_chat/gemma4:12b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  - model_name: gemma3-27b
+    litellm_params:
+      model: ollama_chat/gemma4:26b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+
+  # --- Meta Llama ---
+  - model_name: llama3.1-8b
+    litellm_params:
+      model: ollama_chat/llama3.1:8b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  - model_name: llama3.2-1b
+    litellm_params:
+      model: ollama_chat/llama3.2:1b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 60
+
+  - model_name: llama3.2-3b
+    litellm_params:
+      model: ollama_chat/llama3.2:3b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 60
+
+  - model_name: spockify-chat
+    litellm_params:
+      model: ollama_chat/spockify-chat
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 90
+    model_info:
+      description: "Fast chat (llama3.2:3b wrapper) — answers latest user message with history"
+
+  - model_name: llama3.3-70b
+    litellm_params:
+      model: ollama_chat/llama3.3:70b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+
+  - model_name: llama3.3-70b-vllm
+    litellm_params:
+      model: openai/llama3.3-70b
+      api_base: os.environ/VLLM_API_BASE
+      api_key: os.environ/VLLM_API_KEY
+      timeout: 300
+
+  # --- Mistral ---
+  - model_name: mistral-7b
+    litellm_params:
+      model: ollama_chat/spockify-mistral-7b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+    model_info:
+      description: "Mistral 7B chat (spockify wrapper; prefer mistral-nemo for instruct chat)"
+
+  - model_name: mistral-nemo
+    litellm_params:
+      model: ollama_chat/mistral-nemo
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  - model_name: mistral-small
+    litellm_params:
+      model: ollama_chat/mistral-small3.1
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  - model_name: mistral-small3.2
+    litellm_params:
+      model: ollama_chat/mistral-small3.2:24b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+
+  - model_name: mixtral-8x7b
+    litellm_params:
+      model: ollama_chat/mixtral:8x7b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+
+  # --- NVIDIA Nemotron ---
+  - model_name: nemotron-nano-4b
+    litellm_params:
+      model: ollama_chat/nemotron-3-nano:4b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 45
+
+  - model_name: nemotron-nano-30b
+    litellm_params:
+      model: ollama_chat/nemotron-3-nano:30b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+
+  - model_name: nemotron-mini
+    litellm_params:
+      model: ollama_chat/nemotron-mini
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  - model_name: nemotron-8b
+    litellm_params:
+      model: ollama_chat/nemotron:latest
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  - model_name: nemotron-70b
+    litellm_params:
+      model: ollama_chat/nemotron:latest
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+    model_info:
+      description: "NVIDIA Llama-3.1-Nemotron-70B-Instruct (~43GB)"
+
+  # --- OpenAI GPT-OSS ---
+  - model_name: gpt-oss-20b
+    litellm_params:
+      model: ollama_chat/gpt-oss:20b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+    model_info:
+      description: "OpenAI gpt-oss-20b — agentic reasoning MoE (MXFP4)"
+
+  - model_name: gpt-oss-120b
+    litellm_params:
+      model: ollama_chat/gpt-oss:120b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+    model_info:
+      description: "OpenAI gpt-oss-120b — flagship reasoning (~65GB; prefer solo load)"
+
+  # --- Mistral extras ---
+  - model_name: mathstral
+    litellm_params:
+      model: ollama_chat/mathstral
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+    model_info:
+      description: "Mistral MathΣtral 7B — math and scientific reasoning"
+
+  # --- AI2 OLMo ---
+  - model_name: olmo2-7b
+    litellm_params:
+      model: ollama_chat/olmo2:7b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+    model_info:
+      description: "AI2 OLMo 2 7B — fully open weights"
+
+  # --- IBM Granite ---
+  - model_name: granite
+    litellm_params:
+      model: ollama_chat/granite3.3:8b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  - model_name: granite-2b
+    litellm_params:
+      model: ollama_chat/granite3.3:2b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 90
+
+  - model_name: granite3.2-8b
+    litellm_params:
+      model: ollama_chat/granite3.2:8b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  # --- Microsoft Phi ---
+  - model_name: phi4
+    litellm_params:
+      model: ollama_chat/phi4
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 90
+
+  - model_name: phi4-mini
+    litellm_params:
+      model: ollama_chat/phi4-mini
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 60
+
+  - model_name: phi3-3.8b
+    litellm_params:
+      model: ollama_chat/phi3:3.8b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 90
+
+  - model_name: phi3-14b
+    litellm_params:
+      model: ollama_chat/phi3:14b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  # --- Vision / multimodal ---
+  - model_name: llama3.2-vision
+    litellm_params:
+      model: ollama_chat/llama3.2-vision:11b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+    model_info:
+      description: "Broken on current Ollama Linux (mllama arch); use llava-llama3 instead"
+
+  - model_name: llava-7b
+    litellm_params:
+      model: ollama_chat/llava:7b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+
+  - model_name: llava-13b
+    litellm_params:
+      model: ollama_chat/llava:13b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+
+  - model_name: llava-llama3
+    litellm_params:
+      model: ollama_chat/llava-llama3
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+
+  - model_name: granite-vision
+    litellm_params:
+      model: ollama_chat/granite3.2-vision:2b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 120
+
+  # --- Embeddings (RAG) ---
+  - model_name: nomic-embed
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 60
+    model_info:
+      mode: embedding
+
+  - model_name: mxbai-embed
+    litellm_params:
+      model: ollama/mxbai-embed-large
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 60
+    model_info:
+      mode: embedding
+
+  # --- Auto-routed: Gemma router delegates SearXNG search then worker model ---
+  - model_name: spockify-auto
+    litellm_params:
+      model: openai/spockify-auto
+      api_base: http://spockify-router.spockify.svc.cluster.local:4100/v1
+      api_key: os.environ/LITELLM_MASTER_KEY
+      timeout: 300
+    model_info:
+      description: "slow/smart — pattern route or orchestrator, then worker"
+
+  # --- Multi-agent room: Researcher → Coder → Critic (Wave 4) ---
+  - model_name: spockify-room
+    litellm_params:
+      model: openai/spockify-room
+      api_base: http://spockify-router.spockify.svc.cluster.local:4100/v1
+      api_key: os.environ/LITELLM_MASTER_KEY
+      timeout: 600
+    model_info:
+      description: "Multi-agent: researcher + coder + critic"
+
+  # --- Parallel agents + synthesis ---
+  - model_name: spockify-agents
+    litellm_params:
+      model: openai/spockify-agents
+      api_base: http://spockify-router.spockify.svc.cluster.local:4100/v1
+      api_key: os.environ/LITELLM_MASTER_KEY
+      timeout: 900
+    model_info:
+      description: "Parallel multi-agent workers + synthesis"
+
+  # --- Web-search enabled models (SearXNG) ---
+  - model_name: web-codestral
+    litellm_params:
+      model: ollama_chat/spockify-coder
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+    model_info:
+      supports_web_search: true
+
+  - model_name: web-gemma
+    litellm_params:
+      model: ollama_chat/gemma4:12b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+    model_info:
+      supports_web_search: true
+
+  - model_name: web-llama
+    litellm_params:
+      model: ollama_chat/llama3.1:8b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+    model_info:
+      supports_web_search: true
+
+router_settings:
+  routing_strategy: simple-shuffle
+  model_group_alias:
+    code: ["gpt-oss-120b", "gpt-oss-20b", "codestral", "codestral-latest", "codestral-22b", "codestral-vllm", "codegemma-7b", "codellama-7b", "codellama-13b", "codellama-34b", "mathstral"]
+    chat: ["spockify-chat", "llama3.1-8b", "llama3.2-3b", "mistral-nemo", "mistral-small", "mistral-small3.2", "mistral-7b", "phi4", "phi4-mini", "granite", "olmo2-7b", "gpt-oss-20b"]
+    reasoning: ["gpt-oss-120b", "gpt-oss-20b", "llama3.3-70b", "nemotron-70b", "gemma4-26b", "gemma4-12b", "gemma4-31b", "gemma3-27b", "gemma3-12b", "phi3-14b", "mixtral-8x7b", "nemotron-nano-30b"]
+    fast: ["spockify-chat", "phi4-mini", "phi3-3.8b", "nemotron-nano-4b", "nemotron-mini", "llama3.2-1b", "llama3.2-3b", "llama3.1-8b", "granite-2b"]
+    vision: ["gemma4-26b", "mistral-small3.2", "llava-llama3", "llava-13b", "llava-7b", "granite-vision"]
+    embed: ["nomic-embed", "mxbai-embed"]
+    web: ["web-codestral", "web-gemma", "web-llama"]
+
+search_tools:
+  - search_tool_name: spockify-searxng
+    litellm_params:
+      search_provider: searxng
+      api_base: http://searxng.spockify.svc.cluster.local:8080
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+  success_callback: ["postgres"]
+  failure_callback: ["postgres"]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true
+  proxy_batch_write_at: 60
+  cors_allow_origins:
+    - "https://spockify.eu"
+  cors_allow_credentials: false
+  cors_allow_methods: ["GET", "POST", "OPTIONS"]
+  cors_allow_headers: ["Authorization", "Content-Type", "X-Request-ID", "X-Spockify-Web-Search", "X-Spockify-Worker", "X-Spockify-Routing-Path"]

@@ -1,0 +1,77 @@
+openapi: 3.1.0
+info:
+  title: Spockify Web Search (MCP-style HTTP)
+  description: |
+    Self-hosted SearXNG search exposed via LiteLLM /v1/search.
+    Use as an MCP HTTP tool or direct REST call from agents.
+  version: 1.0.0
+servers:
+  - url: https://spockify.eu
+    description: Production ingress (LiteLLM proxy)
+  - url: http://litellm.spockify.svc.cluster.local:4000
+    description: In-cluster LiteLLM
+paths:
+  /v1/search/spockify-searxng:
+    post:
+      operationId: webSearch
+      summary: Search documentation and the web via SearXNG
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+                max_results:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                  default: 5
+                search_domain_filter:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 20
+      responses:
+        "200":
+          description: Perplexity-compatible search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  object:
+                    type: string
+                    example: search
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        title:
+                          type: string
+                        url:
+                          type: string
+                        snippet:
+                          type: string
+                        date:
+                          type: string
+        "401":
+          description: Missing or invalid API key
+        "429":
+          description: Rate limit exceeded
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: LiteLLM master key or virtual key with search tool access

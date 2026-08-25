@@ -1,0 +1,61 @@
+{
+  "_comment": "WS-C fragment — merge into extensions/spockify/package.json (owned by WS-B). Do not replace the whole package.json with this file.",
+  "contributes": {
+    "viewsContainers": {
+      "secondarySidebar": [
+        {
+          "id": "spockify",
+          "title": "Chat",
+          "icon": "$(chat-sparkle)"
+        }
+      ]
+    },
+    "views": {
+      "spockify": [
+        {
+          "type": "webview",
+          "id": "spockify.chatView",
+          "name": "Chat",
+          "contextualTitle": "Spockify Chat",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "spockify.chat.focus",
+        "title": "Spockify: Focus Chat",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.chat.new",
+        "title": "Spockify: New Chat",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.chat.openFull",
+        "title": "Open Full Chat in Browser",
+        "category": "Spockify",
+        "icon": "$(link-external)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "spockify.chat.new",
+          "when": "view == spockify.chatView",
+          "group": "navigation"
+        },
+        {
+          "command": "spockify.chat.openFull",
+          "when": "view == spockify.chatView",
+          "group": "1_spockify"
+        }
+      ]
+    }
+  },
+  "activationEventsHint": [
+    "onView:spockify.chatView",
+    "onCommand:spockify.chat.focus"
+  ]
+}

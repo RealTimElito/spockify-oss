@@ -1,0 +1,1 @@
+"""Spockify MCP test package."""

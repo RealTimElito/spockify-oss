@@ -1,0 +1,1438 @@
+{
+  "name": "spockify",
+  "displayName": "Spockify",
+  "description": "Open-source Cursor alternative — chat, tab complete, Ctrl+K, composer, agents, terminal agent via spockify.eu",
+  "version": "0.9.14",
+  "publisher": "spockify",
+  "license": "MIT",
+  "icon": "media/spockify-icon.png",
+  "enabledApiProposals": [
+    "terminalSelection",
+    "terminalDataWriteEvent"
+  ],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "extensionKind": [
+    "ui"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Spockify Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/spockify-dark-color-theme.json"
+      },
+      {
+        "label": "Spockify Light",
+        "uiTheme": "vs",
+        "path": "./themes/spockify-light-color-theme.json"
+      }
+    ],
+    "viewsContainers": {
+      "secondarySidebar": [
+        {
+          "id": "spockify",
+          "title": "Chat",
+          "icon": "media/spockify-activity.svg"
+        },
+        {
+          "id": "spockify-composer",
+          "title": "Composer",
+          "icon": "$(edit)"
+        },
+        {
+          "id": "spockify-agents",
+          "title": "Agents",
+          "icon": "$(organization)"
+        },
+        {
+          "id": "spockify-terminal",
+          "title": "Terminal Agent",
+          "icon": "$(terminal)"
+        }
+      ]
+    },
+    "views": {
+      "spockify": [
+        {
+          "type": "webview",
+          "id": "spockify.chatView",
+          "name": "Chat",
+          "contextualTitle": "Spockify Chat",
+          "visibility": "visible"
+        }
+      ],
+      "spockify-composer": [
+        {
+          "type": "webview",
+          "id": "spockify.composerPanel",
+          "name": "Composer",
+          "contextualTitle": "Spockify Composer",
+          "visibility": "visible"
+        },
+        {
+          "id": "spockify.composerView",
+          "name": "Pending",
+          "contextualTitle": "Composer Pending",
+          "visibility": "visible"
+        }
+      ],
+      "spockify-agents": [
+        {
+          "id": "spockify.agents",
+          "name": "Agents",
+          "contextualTitle": "Spockify Agents",
+          "visibility": "visible"
+        }
+      ],
+      "spockify-terminal": [
+        {
+          "id": "spockify.terminalSessions",
+          "name": "Sessions",
+          "contextualTitle": "Terminal Agent Sessions",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "spockify.chat",
+        "title": "Spockify: Chat",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.chat.focus",
+        "title": "Spockify: Focus Chat",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.chat.new",
+        "title": "Spockify: New Chat",
+        "category": "Spockify",
+        "icon": "$(add)"
+      },
+      {
+        "command": "spockify.chat.nextTab",
+        "title": "Spockify: Next Chat Tab",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.chat.previousTab",
+        "title": "Spockify: Previous Chat Tab",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.chat.openFull",
+        "title": "Open Full Chat in Browser",
+        "category": "Spockify",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "spockify.chat.stop",
+        "title": "Spockify: Stop Chat Generation",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.chat.retry",
+        "title": "Spockify: Retry Last Chat Message",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.fixWithAgent",
+        "title": "Fix with agent",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.chat.history",
+        "title": "Spockify: Open Chat History",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.help",
+        "title": "Spockify: Help & Tips",
+        "category": "Spockify",
+        "icon": "$(question)"
+      },
+      {
+        "command": "spockify.settings.open",
+        "title": "Spockify: Open Settings",
+        "category": "Spockify",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "spockify.web.openVault",
+        "title": "Spockify: Open Vault (Web)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.web.openScheduledAgents",
+        "title": "Spockify: Open Scheduled Agents (Web)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.web.openFamilySettings",
+        "title": "Spockify: Open Family / Guest Settings (Web)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.web.openIdeSite",
+        "title": "Spockify: Open IDE Site",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineEdit",
+        "title": "Spockify: Inline Edit",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineEdit.terminal",
+        "title": "Spockify: Terminal Inline Command (Ctrl+K)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.complete",
+        "title": "Spockify: Complete (Ghost)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.apply",
+        "title": "Spockify: Apply / Edit Selection",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.applyUndo",
+        "title": "Spockify: Undo Last Apply",
+        "category": "Spockify",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "spockify.diffReview",
+        "title": "Spockify: Diff Review (Apply)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineReview.acceptFile",
+        "title": "Spockify: Accept File (Inline Review)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineReview.rejectFile",
+        "title": "Spockify: Reject File (Inline Review)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineReview.acceptHunk",
+        "title": "Spockify: Accept Hunk (Inline Review)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineReview.rejectHunk",
+        "title": "Spockify: Reject Hunk (Inline Review)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineReview.acceptAll",
+        "title": "Spockify: Accept All (Inline Review)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineReview.rejectAll",
+        "title": "Spockify: Reject All (Inline Review)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineReview.showDiff",
+        "title": "Spockify: Show Diff (Inline Review)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineReview.openReview",
+        "title": "Spockify: Open Diff Review Panel",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.composer",
+        "title": "Spockify: Composer (Multi-file)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.composer.inputBox",
+        "title": "Spockify: Composer (InputBox fallback)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.composer.verify",
+        "title": "Spockify: Composer Verify (tests)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.composer.gcShadows",
+        "title": "Spockify: GC Composer Shadows",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.composer.listShadows",
+        "title": "Spockify: List Composer Shadows",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.composer.focus",
+        "title": "Spockify: Focus Composer",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.composer.acceptPending",
+        "title": "Spockify: Accept Pending File",
+        "category": "Spockify",
+        "icon": "$(check)"
+      },
+      {
+        "command": "spockify.composer.discardPending",
+        "title": "Spockify: Discard Pending File",
+        "category": "Spockify",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "spockify.composer.diffPending",
+        "title": "Spockify: Diff Pending File",
+        "category": "Spockify",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "spockify.composer.acceptAllPending",
+        "title": "Spockify: Accept All Pending",
+        "category": "Spockify",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "spockify.composer.discardAllPending",
+        "title": "Spockify: Discard All Pending",
+        "category": "Spockify",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "spockify.composer.diffReviewPending",
+        "title": "Spockify: Diff Review Pending",
+        "category": "Spockify",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "spockify.applyCodeBlock",
+        "title": "Spockify: Apply Code Block",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.remoteSsh.connect",
+        "title": "Spockify: Connect to Host (SSH config)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.remoteSsh.connectCurrentWindow",
+        "title": "Spockify: Connect Current Window to Host",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.remoteSsh.openConfig",
+        "title": "Spockify: Open SSH Configuration File",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.remoteSsh.focusExplorer",
+        "title": "Spockify: Focus Remote SSH Explorer",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.terminalAgent",
+        "title": "Spockify: Terminal Agent",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.terminalAgent.rewind",
+        "title": "Spockify: Terminal Agent Rewind",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.terminalAgent.auditLog",
+        "title": "Spockify: Terminal Agent Audit Log",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.terminalAgent.sessions",
+        "title": "Spockify: Terminal Agent Sessions",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.terminalAgent.sessions.refresh",
+        "title": "Spockify: Refresh Terminal Sessions",
+        "category": "Spockify",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "spockify.terminalAgent.openSession",
+        "title": "Spockify: Open Terminal Agent Session",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.terminalAgent.continue",
+        "title": "Spockify: Continue Terminal Agent Session",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.terminalAgent.policyStatus",
+        "title": "Spockify: Terminal Agent Policy Status",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.terminalAgent.checkSandbox",
+        "title": "Spockify: Check OS Sandbox",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.sync.now",
+        "title": "Spockify: Sync Now",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.sync.toggle",
+        "title": "Spockify: Toggle Settings Sync",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.update.check",
+        "title": "Spockify: Check for Updates",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.update.openDownload",
+        "title": "Spockify: Open Update Releases Page",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.update.openDirectDownload",
+        "title": "Spockify: Direct Download AppImage Update",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.update.openReleaseNotes",
+        "title": "Spockify: Open Update Release Notes",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.codebase.status",
+        "title": "Spockify: Codebase Index Status",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.agents.history",
+        "title": "Spockify: Agent Run History",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.agents.focus",
+        "title": "Spockify: Focus Agents",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.agents.refresh",
+        "title": "Spockify: Refresh Agent Runs",
+        "category": "Spockify",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "spockify.agents.newRun",
+        "title": "Spockify: New Parallel Agent Run",
+        "category": "Spockify",
+        "icon": "$(add)"
+      },
+      {
+        "command": "spockify.agents.newRoom",
+        "title": "Spockify: New Room Agent Run",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.agents.cancel",
+        "title": "Spockify: Stop Agent Run",
+        "category": "Spockify",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "spockify.agents.cancelById",
+        "title": "Spockify: Stop Agent Run by Id",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.agents.cancelAll",
+        "title": "Spockify: Stop All Live Agent Runs",
+        "category": "Spockify",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "spockify.agents.openRun",
+        "title": "Spockify: Open Agent Run (Markdown)",
+        "category": "Spockify",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "spockify.agents.openRunPanel",
+        "title": "Spockify: Open Agent Run (Live)",
+        "category": "Spockify",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "spockify.agents.copyRunId",
+        "title": "Spockify: Copy Agent Run Id",
+        "category": "Spockify",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "spockify.agents.spawnFromPrompt",
+        "title": "Spockify: Spawn Agents From Prompt",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.git.generateCommitMessage",
+        "title": "Spockify: Generate Commit Message",
+        "category": "Spockify",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "spockify.signIn",
+        "title": "Spockify: Sign In",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.signOut",
+        "title": "Spockify: Sign Out",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.accountMenu",
+        "title": "Spockify: Account Menu",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.setApiKey",
+        "title": "Spockify: Set API Key",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.clearApiKey",
+        "title": "Spockify: Clear Credentials",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.health",
+        "title": "Spockify: Check API Health",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.listModels",
+        "title": "Spockify: List Models",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.codebase.reindex",
+        "title": "Spockify: Reindex Codebase",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.codebase.configure",
+        "title": "Spockify: Configure Codebase Index Depth",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.codebase.search",
+        "title": "Spockify: Search Codebase",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.rules.show",
+        "title": "Spockify: Show Effective Rules",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.rules.editUser",
+        "title": "Spockify: Edit User Rules",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.memories.add",
+        "title": "Spockify: Add Memory",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.memories.list",
+        "title": "Spockify: List Memories",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.checkpoints.list",
+        "title": "Spockify: Checkpoints / Restore",
+        "category": "Spockify",
+        "icon": "$(history)"
+      },
+      {
+        "command": "spockify.checkpoints.restore",
+        "title": "Spockify: Restore Checkpoint",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.checkpoints.create",
+        "title": "Spockify: Create Checkpoint",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.mcp.configure",
+        "title": "Spockify: MCP Configure Servers",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.mcp.addFromCatalog",
+        "title": "Spockify: MCP Add Server (Catalog)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.mcp.refresh",
+        "title": "Spockify: MCP Refresh Servers",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.mcp.listTools",
+        "title": "Spockify: MCP List Tools",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.mcp.callTool",
+        "title": "Spockify: MCP Call Tool",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.agent.listTools",
+        "title": "Spockify: List Agent Runtime Tools",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.agent.cancel",
+        "title": "Spockify: Cancel Agent Session",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.agent.pause",
+        "title": "Spockify: Stop Agent Session (pause removed)",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.agent.resume",
+        "title": "Spockify: Resume removed — send again",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.agent.setMode",
+        "title": "Spockify: Set Agent Mode",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.chrome.keybindings",
+        "title": "Spockify: Shortcut / Keybinding Audit",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineEdit.accept",
+        "title": "Spockify: Accept Inline Edit",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineEdit.reject",
+        "title": "Spockify: Reject Inline Edit",
+        "category": "Spockify"
+      },
+      {
+        "command": "spockify.inlineEdit.followUp",
+        "title": "Spockify: Follow-up Inline Edit",
+        "category": "Spockify"
+      }
+    ],
+    "configurationDefaults": {
+      "terminal.integrated.allowChords": false,
+      "terminal.integrated.commandsToSkipShell": [
+        "spockify.chat",
+        "spockify.inlineEdit.terminal"
+      ],
+      "npm.packageManager": "npm"
+    },
+    "keybindings": [
+      {
+        "command": "spockify.chat",
+        "key": "ctrl+l",
+        "mac": "cmd+l",
+        "when": "!terminalFocus && !terminalTextFocus"
+      },
+      {
+        "command": "-workbench.action.terminal.clear",
+        "key": "ctrl+l",
+        "mac": "cmd+l",
+        "when": "terminalFocus || terminalTextFocus"
+      },
+      {
+        "command": "-workbench.action.terminal.clearSelection",
+        "key": "ctrl+l",
+        "mac": "cmd+l",
+        "when": "terminalFocus || terminalTextFocus"
+      },
+      {
+        "command": "-workbench.action.terminal.clearLong",
+        "key": "ctrl+l",
+        "mac": "cmd+l",
+        "when": "terminalFocus || terminalTextFocus"
+      },
+      {
+        "command": "spockify.chat",
+        "key": "ctrl+l",
+        "mac": "cmd+l",
+        "when": "terminalFocus || terminalTextFocus"
+      },
+      {
+        "command": "-workbench.action.terminal.clear",
+        "key": "ctrl+k",
+        "mac": "cmd+k",
+        "when": "terminalFocus || terminalTextFocus"
+      },
+      {
+        "command": "spockify.inlineEdit",
+        "key": "ctrl+k",
+        "mac": "cmd+k",
+        "when": "editorTextFocus && !inlineEditIsVisible && !suggestWidgetVisible"
+      },
+      {
+        "command": "editor.action.inlineSuggest.commit",
+        "key": "tab",
+        "mac": "tab",
+        "when": "editorTextFocus && !editorReadonly && !spockify.inlineEditPreviewActive && (inlineSuggestionVisible || inlineSuggestWidgetVisible || inlineCompletionVisible)"
+      },
+      {
+        "command": "spockify.inlineEdit.terminal",
+        "key": "ctrl+k",
+        "mac": "cmd+k",
+        "when": "(terminalFocus || terminalTextFocus) && !spockify.inlineEditPreviewActive"
+      },
+      {
+        "command": "spockify.composer",
+        "key": "ctrl+i",
+        "mac": "cmd+i",
+        "when": "!terminalFocus && !terminalTextFocus"
+      },
+      {
+        "command": "spockify.composer.focus",
+        "key": "ctrl+shift+i",
+        "mac": "cmd+shift+i",
+        "when": "!terminalFocus && !terminalTextFocus"
+      },
+      {
+        "command": "spockify.chat.focus",
+        "key": "ctrl+shift+l",
+        "mac": "cmd+shift+l",
+        "when": "!terminalFocus && !terminalTextFocus"
+      },
+      {
+        "command": "spockify.chat.new",
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n",
+        "when": "view == spockify.chatView && !terminalFocus && !terminalTextFocus"
+      },
+      {
+        "command": "spockify.chat.nextTab",
+        "key": "ctrl+alt+right",
+        "mac": "cmd+alt+right",
+        "when": "view == spockify.chatView && !terminalFocus && !terminalTextFocus"
+      },
+      {
+        "command": "spockify.chat.previousTab",
+        "key": "ctrl+alt+left",
+        "mac": "cmd+alt+left",
+        "when": "view == spockify.chatView && !terminalFocus && !terminalTextFocus"
+      },
+      {
+        "command": "spockify.terminalAgent",
+        "key": "ctrl+shift+'",
+        "mac": "cmd+shift+'",
+        "when": "!terminalFocus && !terminalTextFocus"
+      },
+      {
+        "command": "spockify.apply",
+        "key": "ctrl+shift+k",
+        "mac": "cmd+shift+k",
+        "when": "editorTextFocus && editorHasSelection"
+      },
+      {
+        "command": "spockify.inlineEdit.accept",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "spockify.inlineEditPreviewActive"
+      },
+      {
+        "command": "spockify.inlineEdit.reject",
+        "key": "escape",
+        "when": "spockify.inlineEditPreviewActive"
+      },
+      {
+        "command": "spockify.composer.acceptAllPending",
+        "key": "ctrl+shift+enter",
+        "mac": "cmd+shift+enter",
+        "when": "spockify.composer.hasPending"
+      },
+      {
+        "command": "spockify.chat.stop",
+        "key": "ctrl+shift+backspace",
+        "mac": "cmd+shift+backspace",
+        "when": "!terminalFocus && !terminalTextFocus"
+      },
+      {
+        "command": "spockify.applyUndo",
+        "key": "ctrl+alt+z",
+        "mac": "cmd+alt+z",
+        "when": "spockify.apply.canUndo"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "spockify.chat.new",
+          "when": "view == spockify.chatView",
+          "group": "navigation"
+        },
+        {
+          "command": "spockify.chat.openFull",
+          "when": "view == spockify.chatView",
+          "group": "1_spockify"
+        },
+        {
+          "command": "spockify.help",
+          "when": "view == spockify.chatView",
+          "group": "1_spockify@2"
+        },
+        {
+          "command": "spockify.settings.open",
+          "when": "view == spockify.chatView",
+          "group": "navigation@0"
+        },
+        {
+          "command": "spockify.composer",
+          "when": "view == spockify.composerPanel || view == spockify.composerView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "spockify.composer.acceptAllPending",
+          "when": "(view == spockify.composerPanel || view == spockify.composerView) && spockify.composer.hasPending",
+          "group": "navigation@2"
+        },
+        {
+          "command": "spockify.composer.diffReviewPending",
+          "when": "(view == spockify.composerPanel || view == spockify.composerView) && spockify.composer.hasPending",
+          "group": "navigation@3"
+        },
+        {
+          "command": "spockify.composer.discardAllPending",
+          "when": "(view == spockify.composerPanel || view == spockify.composerView) && spockify.composer.hasPending",
+          "group": "navigation@4"
+        },
+        {
+          "command": "spockify.agents.newRun",
+          "when": "view == spockify.agents",
+          "group": "navigation@1"
+        },
+        {
+          "command": "spockify.agents.newRoom",
+          "when": "view == spockify.agents",
+          "group": "navigation@2"
+        },
+        {
+          "command": "spockify.agents.history",
+          "when": "view == spockify.agents",
+          "group": "navigation@3"
+        },
+        {
+          "command": "spockify.agents.refresh",
+          "when": "view == spockify.agents",
+          "group": "navigation@4"
+        },
+        {
+          "command": "spockify.agents.cancelAll",
+          "when": "view == spockify.agents",
+          "group": "navigation@5"
+        },
+        {
+          "command": "spockify.terminalAgent",
+          "when": "view == spockify.terminalSessions",
+          "group": "navigation"
+        },
+        {
+          "command": "spockify.terminalAgent.sessions.refresh",
+          "when": "view == spockify.terminalSessions",
+          "group": "navigation"
+        },
+        {
+          "command": "spockify.terminalAgent.policyStatus",
+          "when": "view == spockify.terminalSessions",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "spockify.composer.acceptPending",
+          "when": "view == spockify.composerView && viewItem == spockify.composer.pendingFile",
+          "group": "inline@1"
+        },
+        {
+          "command": "spockify.composer.diffPending",
+          "when": "view == spockify.composerView && viewItem == spockify.composer.pendingFile",
+          "group": "inline@2"
+        },
+        {
+          "command": "spockify.composer.discardPending",
+          "when": "view == spockify.composerView && viewItem == spockify.composer.pendingFile",
+          "group": "inline@3"
+        },
+        {
+          "command": "spockify.agents.cancel",
+          "when": "view == spockify.agents && viewItem =~ /spockify\\.agentRun\\.(pending|running|synthesizing)/",
+          "group": "inline@1"
+        },
+        {
+          "command": "spockify.agents.openRunPanel",
+          "when": "view == spockify.agents && viewItem =~ /spockify\\.agentRun\\./",
+          "group": "inline@2"
+        },
+        {
+          "command": "spockify.agents.openRunPanel",
+          "when": "view == spockify.agents && viewItem =~ /spockify\\.agentRun\\./",
+          "group": "navigation@1"
+        },
+        {
+          "command": "spockify.agents.openRun",
+          "when": "view == spockify.agents && viewItem =~ /spockify\\.agentRun\\./",
+          "group": "navigation@2"
+        },
+        {
+          "command": "spockify.agents.copyRunId",
+          "when": "view == spockify.agents && viewItem =~ /spockify\\.agentRun\\./",
+          "group": "navigation@3"
+        },
+        {
+          "command": "spockify.terminalAgent.openSession",
+          "when": "view == spockify.terminalSessions && viewItem =~ /spockify\\.terminalSession\\.(active|history)\\./",
+          "group": "inline@1"
+        },
+        {
+          "command": "spockify.terminalAgent.continue",
+          "when": "view == spockify.terminalSessions && viewItem =~ /spockify\\.terminalSession\\.history\\./",
+          "group": "inline@2"
+        },
+        {
+          "command": "spockify.terminalAgent.rewind",
+          "when": "view == spockify.terminalSessions && viewItem =~ /spockify\\.terminalSession\\.history\\./",
+          "group": "inline@3"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "spockify.inlineEdit",
+          "when": "editorHasSelection",
+          "group": "spockify@1"
+        },
+        {
+          "command": "spockify.composer",
+          "group": "spockify@2"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "spockify.git.generateCommitMessage",
+          "when": "scmProvider == git",
+          "group": "navigation@9"
+        }
+      ],
+      "scm/inputBox": [
+        {
+          "command": "spockify.git.generateCommitMessage",
+          "when": "scmProvider == git"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Spockify",
+      "properties": {
+        "spockify.baseUrl": {
+          "type": "string",
+          "default": "https://spockify.eu",
+          "markdownDescription": "Spockify product root (not `/v1`). Default https://spockify.eu."
+        },
+        "spockify.provider": {
+          "type": "string",
+          "default": "remote",
+          "enum": [
+            "remote",
+            "local"
+          ],
+          "enumDescriptions": [
+            "Spockify cloud (spockify.eu)",
+            "Local models — coming soon"
+          ]
+        },
+        "spockify.defaultModel": {
+          "type": "string",
+          "default": "spockify-auto",
+          "description": "Default OSS model for chat / composer / terminal agent."
+        },
+        "spockify.inlineEdit.widgetPanel": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ctrl+K uses a split editor panel for instruction + Accept/Reject (Cursor-like; disable for classic InputBox)."
+        },
+        "spockify.inlineEdit.widgetPlacement": {
+          "type": "string",
+          "default": "float",
+          "enum": [
+            "float",
+            "beside"
+          ],
+          "enumDescriptions": [
+            "Compact floating card in split column; editor keeps focus (default).",
+            "Full-height beside panel."
+          ],
+          "description": "Ctrl+K widget layout when widgetPanel is enabled."
+        },
+        "spockify.chat.attachTerminal": {
+          "type": "boolean",
+          "default": true,
+          "description": "Attach integrated terminal output to chat (@terminal chip) on Send and Ctrl+L."
+        },
+        "spockify.chat.terminalContextLines": {
+          "type": "number",
+          "default": 120,
+          "minimum": 20,
+          "maximum": 500,
+          "description": "Max terminal lines included in @terminal chat context."
+        },
+        "spockify.agent.mode": {
+          "type": "string",
+          "default": "agent",
+          "enum": [
+            "ask",
+            "agent",
+            "strict"
+          ],
+          "enumDescriptions": [
+            "Read-only — mutating tools (apply/terminal/write) blocked",
+            "Full tools; terminal still uses terminalAgent.policy",
+            "Only tools listed in spockify.agent.strictAllowlist"
+          ],
+          "markdownDescription": "Runtime tool policy (`ask` / `agent` / `strict`). Chat UI also offers Cursor-like **Plan** / **Debug** / **Multitask**, which map to `agent` plus system hints (see composerModes)."
+        },
+        "spockify.agentPermissionMode": {
+          "type": "string",
+          "default": "askEveryTime",
+          "enum": [
+            "allowAll",
+            "askEveryTime",
+            "autoRunReviewFiles"
+          ],
+          "enumDescriptions": [
+            "Allow all (unsandboxed) — auto-approve shell and file edits",
+            "Ask every time — confirm shell commands and review file edits",
+            "Auto-run tools, review file edits — shell auto-runs; Accept / Reject patches in the editor"
+          ],
+          "markdownDescription": "Composer tool/file permission mode (Cursor-like). **Ask** agent mode stays read-only regardless. Legacy `spockify.runAllUnsandboxed` maps to `allowAll` when true."
+        },
+        "spockify.composer.queueMessageDefaultBehavior": {
+          "type": "string",
+          "default": "queue",
+          "enum": [
+            "queue",
+            "stop-and-send"
+          ],
+          "enumDescriptions": [
+            "Queue follow-ups while the agent is streaming (Enter queues; Ctrl/Cmd+Enter stop-and-sends)",
+            "Stop the current turn and send immediately (Enter stop-and-sends; Ctrl/Cmd+Enter queues)"
+          ],
+          "markdownDescription": "Cursor-like behavior when sending while Agent is streaming. Modifier key flips the other way."
+        },
+        "spockify.runAllUnsandboxed": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "**Deprecated.** Prefer `spockify.agentPermissionMode`. When true (and mode unset), treated as **Allow all (unsandboxed)**. Ignored in Ask mode."
+        },
+        "spockify.chat.maxMode": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "MAX Mode preference (Cursor-like). Stored for the model picker; larger-context / higher-effort routing may use this later."
+        },
+        "spockify.chat.pipeline.enabled": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Run a single-turn multi-model chat pipeline: work/plan model first, then explain model for the final user-visible answer."
+        },
+        "spockify.chat.pipeline.workModel": {
+          "type": "string",
+          "default": "codestral",
+          "markdownDescription": "Worker model used for internal planning/implementation in the chat pipeline."
+        },
+        "spockify.chat.pipeline.explainModel": {
+          "type": "string",
+          "default": "gemma4-12b",
+          "markdownDescription": "User-facing model used to produce the final polished answer in the chat pipeline."
+        },
+        "spockify.chat.pipeline.postProcess": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Apply final output cleanup before rendering the assistant message in chat."
+        },
+        "spockify.chat.pipeline.hideIntermediate": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Hide intermediate worker notes/thinking from chat UI and only show the final polished response."
+        },
+        "spockify.chat.pipeline.devLog": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Emit pipeline debug logs (model stages and token lengths) to router logs."
+        },
+        "spockify.agent.strictAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Tool names allowed in **strict** mode (e.g. `terminal_run`, `apply_patch`, `mcp__server__tool`)."
+        },
+        "spockify.models.ossOnly": {
+          "type": "boolean",
+          "default": true,
+          "description": "Strip closed models from catalog and completions."
+        },
+        "spockify.completions.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Inline Tab ghost-text completions via Ghost complete API."
+        },
+        "spockify.completions.debounceMs": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "description": "Base debounce before Ghost Tab LLM complete (adaptive ~15–80ms; local heuristics skip debounce)."
+        },
+        "spockify.completions.adaptiveDebounce": {
+          "type": "boolean",
+          "default": true,
+          "description": "Faster debounce after punctuation/newline; slower while typing an identifier (capped ~80ms)."
+        },
+        "spockify.completions.maxLines": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "description": "Max lines for multi-line ghost completions (short FIM)."
+        },
+        "spockify.completions.logLatency": {
+          "type": "boolean",
+          "default": true,
+          "description": "Log Tab complete latency to Output → Spockify."
+        },
+        "spockify.completions.warmOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ping Ghost complete on IDE start to keep the completion model warm."
+        },
+        "spockify.completions.speculative": {
+          "type": "boolean",
+          "default": true,
+          "description": "Fire Ghost complete early while typing; cancel stale in-flight requests immediately."
+        },
+        "spockify.completions.telemetry": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report suggestion outcomes (accepted/rejected/partial) to spockify.eu to improve Tab quality."
+        },
+        "spockify.mcp.servers": {
+          "type": "array",
+          "default": [],
+          "description": "MCP server configs: { name, command, args?, env?, allowlist? }.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "command": {
+                "type": "string"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "allowlist": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "spockify.codebase.indexOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Build or load the local codebase BM25 index when the extension starts."
+        },
+        "spockify.codebase.autoAttach": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Automatically retrieve @codebase hits and attach them to Chat/Composer turns in Agent / Plan / Debug / Multitask (and Ask when `autoAttachAsk` is on). Without this, the index is built but never sent to the model unless you click the **@codebase** chip."
+        },
+        "spockify.codebase.autoAttachAsk": {
+          "type": "boolean",
+          "default": true,
+          "description": "When autoAttach is on, also inject @codebase retrieval in Ask mode."
+        },
+        "spockify.codebase.reindexOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Debounced full reindex when a workspace file is saved."
+        },
+        "spockify.codebase.reindexDebounceMs": {
+          "type": "number",
+          "default": 1500,
+          "minimum": 200,
+          "description": "Delay (ms) before reindexing after the last save in a burst."
+        },
+        "spockify.codebase.chunkMaxLines": {
+          "type": "number",
+          "default": 60,
+          "minimum": 10,
+          "description": "Maximum lines per indexed chunk."
+        },
+        "spockify.codebase.chunkOverlapLines": {
+          "type": "number",
+          "default": 8,
+          "minimum": 0,
+          "description": "Line overlap between consecutive chunks."
+        },
+        "spockify.codebase.maxFileBytes": {
+          "type": "number",
+          "default": 512000,
+          "description": "Skip files larger than this when indexing."
+        },
+        "spockify.codebase.searchTopK": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Default number of hits for the codebase search command."
+        },
+        "spockify.composer.shadowWorkspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "Stage Composer proposals in a temp shadow overlay; copy to the workspace only on Accept."
+        },
+        "spockify.composer.reviewMode": {
+          "type": "string",
+          "default": "panel",
+          "enum": [
+            "panel",
+            "tree",
+            "prompt"
+          ],
+          "enumDescriptions": [
+            "Open Diff Review panel + stage Composer tree (Cursor-like; default).",
+            "Stage Composer tree only; soft toast with Accept all / Diff panel.",
+            "Legacy modal: pick Diff panel / Review files / Apply all."
+          ],
+          "markdownDescription": "How Composer stages multi-file Accept after a turn. Default **panel** skips the modal picker."
+        },
+        "spockify.composer.verifyAfterTurn": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "After each Composer turn with patches, prompt for verify (npm test / tsc). Default **off** — use **Run verify** in the Composer tree instead."
+        },
+        "spockify.codebase.hybrid": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use BM25 + embeddings hybrid search when embeddings are available; else BM25-only."
+        },
+        "spockify.codebase.remoteIndexMeta": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "After reindex, push **metadata only** (fingerprint, chunk/vector counts, embed model) to `spockify.eu` `/api/v1/spockify/ide/index`. Never uploads chunk text or vectors. Requires sign-in."
+        },
+        "spockify.codebase.embedModel": {
+          "type": "string",
+          "default": "nomic-embed",
+          "markdownDescription": "OSS embed model id for `POST /v1/embeddings` via spockify.eu (default `nomic-embed`; falls back to local hash vectors)."
+        },
+        "spockify.codebase.contextBudgetTokens": {
+          "type": "number",
+          "default": 4000,
+          "minimum": 500,
+          "description": "Max approximate tokens for @codebase / Composer auto-context."
+        },
+        "spockify.sync.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Sync Spockify IDE prefs / rules / memories via spockify.eu when signed in (API keys never leave SecretStorage). Disable for fully local-only."
+        },
+        "spockify.update.checkOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check spockify.eu AppImage metadata on startup and show an update banner when newer."
+        },
+        "spockify.update.metadataUrl": {
+          "type": "string",
+          "default": "https://spockify.eu/api/v1/spockify/ide/appimage/latest.json?arch={arch}",
+          "markdownDescription": "AppImage update metadata endpoint. Supports `{arch}` placeholder: `x86_64` or `aarch64`."
+        },
+        "spockify.update.checkIntervalHours": {
+          "type": "number",
+          "default": 1,
+          "minimum": 1,
+          "maximum": 24,
+          "description": "Auto-check for newer AppImages every N hours (after startup)."
+        },
+        "spockify.update.requestTimeoutMs": {
+          "type": "number",
+          "default": 8000,
+          "minimum": 1000,
+          "description": "Timeout (ms) for fetching update metadata from spockify.eu."
+        },
+        "spockify.update.downloadToCache": {
+          "type": "boolean",
+          "default": false,
+          "description": "When enabled, update download saves the AppImage to local cache (still manual install after download)."
+        },
+        "spockify.terminalAgent.policy": {
+          "type": "string",
+          "default": "ask",
+          "enum": [
+            "ask",
+            "allowlist",
+            "deny"
+          ],
+          "enumDescriptions": [
+            "Prompt before each command (unless user rejects at plan).",
+            "Auto-run commands matching allowlist tier + custom patterns; prompt for others; auto-continue agent loop when allowlisted.",
+            "Strict: only allowlisted commands run; all others denied without prompt."
+          ],
+          "description": "Terminal agent command execution policy."
+        },
+        "spockify.terminalAgent.allowlistTier": {
+          "type": "string",
+          "default": "dev",
+          "enum": [
+            "read",
+            "dev",
+            "build",
+            "custom"
+          ],
+          "enumDescriptions": [
+            "Read-only: ls/git status/rg/cat — no writes or installs.",
+            "Read + test/typecheck/build scripts (npm test, pytest, cargo check).",
+            "Dev + install/build pipelines (npm ci, make, docker build).",
+            "Use only the custom allowlist array (no seeded tier)."
+          ],
+          "markdownDescription": "Seeded allowlist **tier** for Claude Code–class autonomy. Unioned with `spockify.terminalAgent.allowlist` unless tier is `custom`. Dangerous patterns are never allowed."
+        },
+        "spockify.terminalAgent.allowlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Extra command patterns unioned with the allowlist tier (or the sole set when tier is `custom`). Use `*`/`?` globs or `re:your-regex`. Dangerous commands are never allowed."
+        },
+        "spockify.terminalAgent.denylist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Extra command patterns to deny (in addition to built-in dangerous rules)."
+        },
+        "spockify.terminalAgent.timeoutMs": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 1000,
+          "description": "Timeout for captured shell commands (milliseconds). Default 60s — raise for long builds. Chat terminal_run also defaults to 60s unless timeoutMs is passed in the tool call."
+        },
+        "spockify.terminalAgent.maxTurns": {
+          "type": "number",
+          "default": 32,
+          "minimum": 2,
+          "maximum": 80,
+          "description": "Max agent loop turns for Terminal Agent (plan → execute → adapt). Higher for Claude Code–class long-horizon runs."
+        },
+        "spockify.terminalAgent.openTranscript": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open a markdown transcript when a terminal agent session ends."
+        },
+        "spockify.terminalAgent.planApproval": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Claude Code–class **plan gate**: model drafts a numbered plan first; you Approve / Edit / Skip before tools run. Ask policy still applies to each command."
+        },
+        "spockify.terminalAgent.showPolicyBadge": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show policy/tier/cwd sandbox badge on command approval prompts."
+        },
+        "spockify.terminalAgent.osSandbox": {
+          "type": "string",
+          "default": "off",
+          "enum": [
+            "off",
+            "network",
+            "workspace"
+          ],
+          "enumDescriptions": [
+            "No OS jail (policy/deny patterns only). Default.",
+            "Linux: bubblewrap --unshare-net on captured terminal_run. Full filesystem; no outbound network. Needs host or AppImage-bundled bwrap.",
+            "Linux: workspace-only writable bind (system paths read-only). **Network allowed** (curl, pip, health checks). Needs bwrap. Does not use --unshare-net."
+          ],
+          "markdownDescription": "Optional **OS sandbox** for captured agent shell (not integrated-terminal sendText, not Remote SSH). Uses host `bwrap` when present, else AppImage `resources/helpers/bwrap` when bundled. Default **off** — ask policy unchanged. Prefer **workspace** when opting in. Run **Spockify: Check OS Sandbox**."
+        },
+        "spockify.terminalAgent.osSandboxFailClosed": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "When `osSandbox` is `network` or `workspace` and bwrap (or workspace cwd) is missing, **deny** the command instead of running unsandboxed. Default **false** (legacy soft fallback)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc -p ./ --noEmit",
+    "test": "npm exec --yes -- tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@spockify/codebase": "file:../../packages/spockify-codebase",
+    "@spockify/ide-client": "file:../../packages/spockify-ide-client",
+    "@spockify/mcp": "file:../../packages/spockify-mcp",
+    "@spockify/shadow-workspace": "file:../../packages/spockify-shadow-workspace"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.85.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

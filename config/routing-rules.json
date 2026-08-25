@@ -1,0 +1,148 @@
+{
+  "version": "1.1",
+  "orchestrator": {
+    "primary": "nemotron-3-nano:4b",
+    "fallback": "llama3.2:3b",
+    "heavy": "gemma4:12b",
+    "alias": "spockify-auto",
+    "prompt_configmap": "orchestrator-prompt"
+  },
+  "backends": {
+    "ollama": {
+      "api_base_env": "OLLAMA_API_BASE",
+      "default": "http://ollama.spockify.svc.cluster.local:11434"
+    },
+    "vllm": {
+      "api_base_env": "VLLM_API_BASE",
+      "default": "http://vllm.spockify.svc.cluster.local:8000",
+      "api_key_env": "VLLM_API_KEY"
+    }
+  },
+  "web_search": {
+    "provider": "searxng",
+    "internal_url": "http://searxng.spockify.svc.cluster.local:8080",
+    "litellm_tool": "spockify-searxng",
+    "delegate_before_answer": true,
+    "router_service": "spockify-router:4100",
+    "fast_mode": true
+  },
+  "excluded_providers": [
+    "deepseek",
+    "qwen",
+    "yi",
+    "baichuan",
+    "chatglm",
+    "internlm",
+    "glm"
+  ],
+  "task_routes": [
+    {
+      "task_type": "casual_chat",
+      "patterns": ["hello", "hi ", "hey", "how are you", "good morning", "good evening", "what's up", "thanks", "thank you", "greetings"],
+      "model": "llama3.2-3b",
+      "confidence": 0.92,
+      "fallback_model": "gemma4-12b",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "code_generation",
+      "patterns": ["write code", "implement", "refactor", "debug", "fix bug", "unit test", "python script", "typescript", "fibonacci", "write a function", "create a class"],
+      "model": "gpt-oss-120b",
+      "fallback_model": "gpt-oss-20b",
+      "confidence": 0.9,
+      "backend": "ollama",
+      "prompt_additions": "Write complete runnable code. No outlines or refusals."
+    },
+    {
+      "task_type": "code_review",
+      "patterns": ["review code", "code review", "pull request"],
+      "model": "gpt-oss-120b",
+      "fallback_model": "gpt-oss-20b",
+      "confidence": 0.88,
+      "backend": "ollama"
+    },
+    {
+      "task_type": "web_search",
+      "patterns": ["github", "gitlab", "documentation", "docs for", "api docs", "read the manual", "look up", "latest version", "release notes", "weather", "forecast", "forecast for", "coming week", "this week", "per day", "day by day", "temperature", "news today", "headlines", "stock price", "exchange rate", "sports score", "who won", "current events", "breaking news", "price of", "crypto price", "news", "today", "tomorrow"],
+      "model": "web-gemma",
+      "confidence": 0.9,
+      "backend": "ollama"
+    },
+    {
+      "task_type": "web_search",
+      "patterns": ["latest", "CVE", "current version", "search web", "http://", "https://"],
+      "model": "web-codestral",
+      "confidence": 0.9,
+      "backend": "ollama"
+    },
+    {
+      "task_type": "architecture",
+      "patterns": ["architecture", "system design", "trade-offs", "design doc"],
+      "model": "gpt-oss-120b",
+      "confidence": 0.9,
+      "fallback_model": "llama3.3-70b",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "deep_reasoning",
+      "patterns": ["deep dive", "comprehensive analysis", "thorough review", "in-depth"],
+      "model": "gpt-oss-120b",
+      "confidence": 0.88,
+      "fallback_model": "llama3.3-70b",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "math_reasoning",
+      "patterns": ["prove", "theorem", "equation", "integral", "calculus", "algebra", "math problem"],
+      "model": "mathstral",
+      "confidence": 0.88,
+      "fallback_model": "phi4",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "reasoning",
+      "patterns": ["analyze", "compare", "evaluate", "plan"],
+      "model": "gemma4-12b",
+      "confidence": 0.8,
+      "fallback_model": "gemma3-12b",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "fast_chat",
+      "patterns": ["summarize", "quick", "short answer"],
+      "model": "gemma4-12b",
+      "confidence": 0.88,
+      "fallback_model": "gemma3-12b",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "agentic_planning",
+      "patterns": ["multi-step", "agent", "orchestrate", "workflow"],
+      "model": "gpt-oss-20b",
+      "confidence": 0.85,
+      "fallback_model": "nemotron-nano-30b",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "nvidia_chat",
+      "patterns": ["nemotron", "nvidia model"],
+      "model": "nemotron-70b",
+      "confidence": 0.85,
+      "fallback_model": "nemotron-nano-30b",
+      "backend": "ollama"
+    }
+  ],
+  "model_groups": {
+    "code": ["gpt-oss-20b", "codestral", "codestral-latest", "codestral-vllm"],
+    "chat": ["gemma4-12b", "spockify-chat", "llama3.2-3b", "llama3.1-8b", "mistral-nemo", "phi4"],
+    "reasoning": ["gpt-oss-120b", "gpt-oss-20b", "llama3.3-70b", "nemotron-70b", "gemma4-27b", "gemma4-26b", "gemma4-12b", "mixtral-8x7b", "nemotron-nano-30b"],
+    "fast": ["spockify-chat", "llama3.2-3b", "phi4", "phi4-mini", "nemotron-nano-4b", "nemotron-mini", "llama3.1-8b"],
+    "web": ["web-codestral", "web-gemma", "web-llama"],
+    "xlarge": ["gpt-oss-120b", "llama3.3-70b", "nemotron-70b", "mixtral-8x7b", "gemma4-31b", "nemotron-nano-30b"]
+  },
+  "default_route": {
+    "model": "gemma4-12b",
+    "fallback_model": "llama3.1-8b",
+    "backend": "ollama"
+  }
+}

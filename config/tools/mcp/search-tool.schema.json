@@ -1,0 +1,24 @@
+{
+  "name": "spockify_web_search",
+  "description": "Search the web for documentation, library versions, CVEs, and current events via self-hosted SearXNG.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Search query (e.g. 'FastAPI lifespan events 2024', 'CVE-2024 sqlalchemy')"
+      },
+      "max_results": {
+        "type": "integer",
+        "description": "Maximum results to return (1-10)",
+        "default": 5
+      },
+      "search_domain_filter": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Optional domain allowlist (e.g. docs.python.org, github.com)"
+      }
+    },
+    "required": ["query"]
+  }
+}

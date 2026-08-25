@@ -1,0 +1,174 @@
+# Spockify — self-hosted stack (single host, no Kubernetes required).
+#
+# Quick start:
+#   cp .env.example .env      # then edit secrets
+#   docker compose up -d      # builds the router, pulls everything else
+#   open http://localhost:3000
+#
+# First run: set ENABLE_SIGNUP=true in .env once to create the first admin,
+# then set it back to false. See README.md.
+#
+# GPU: the ollama service ships CPU-only by default. Uncomment the `deploy`
+# block under `ollama` (and install the NVIDIA Container Toolkit) for GPU.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: spockify
+      POSTGRES_USER: spockify
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spockify-dev}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ${STORAGE_ROOT:-./data/spockify}/postgres:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spockify -d spockify"]
+      interval: 5s
+      retries: 5
+
+  migrate:
+    image: postgres:17-alpine
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: spockify
+      PGUSER: spockify
+      PGPASSWORD: ${POSTGRES_PASSWORD:-spockify-dev}
+      MIGRATIONS_DIR: /migrations
+    volumes:
+      - ./sql/migrations:/migrations:ro
+      - ./scripts/run-migrations.sh:/scripts/run-migrations.sh:ro
+    command: ["/bin/sh", "/scripts/run-migrations.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ollama:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: "0.0.0.0:11434"
+      OLLAMA_KEEP_ALIVE: "-1"
+      OLLAMA_MAX_LOADED_MODELS: "2"
+      OLLAMA_CONTEXT_LENGTH: "8192"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_FLASH_ATTENTION: "1"
+    volumes:
+      - ${STORAGE_ROOT:-./data/spockify}/ollama:/root/.ollama
+      - ./config/modelfiles:/modelfiles:ro
+    ports:
+      - "11435:11434"
+    # GPU (NVIDIA): uncomment and install the NVIDIA Container Toolkit.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  searxng:
+    image: searxng/searxng:latest
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8888/
+    volumes:
+      - ./config/searxng-settings-dev.yml:/etc/searxng/settings.yml:ro
+    ports:
+      - "8888:8080"
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-spockify-dev}
+      DATABASE_URL: postgresql://spockify:${POSTGRES_PASSWORD:-spockify-dev}@postgres:5432/spockify
+      DISABLE_SCHEMA_UPDATE: "true"
+    volumes:
+      - ./config/litellm-dev.yaml:/app/config.yaml:ro
+    ports:
+      - "4000:4000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      ollama:
+        condition: service_started
+
+  router:
+    build: ./services/router
+    image: ${SPOCKIFY_ROUTER_IMAGE:-spockify-router:local}
+    environment:
+      LITELLM_URL: http://litellm:4000/v1
+      LITELLM_API_KEY: ${LITELLM_MASTER_KEY:-sk-spockify-dev}
+      SEARXNG_URL: http://searxng:8080
+      OLLAMA_URL: http://ollama:11434
+      USE_DIRECT_OLLAMA: "true"
+      ORCHESTRATOR_PROMPT_PATH: /config/orchestrator-prompt.md
+      ROUTING_RULES_PATH: /config/routing-rules.json
+      SESSION_DIGEST_DIR: /tmp/spockify-session-memory
+    volumes:
+      - ./config/orchestrator-prompt.md:/config/orchestrator-prompt.md:ro
+      - ./config/routing-rules.json:/config/routing-rules.json:ro
+    ports:
+      - "4100:4100"
+    depends_on:
+      litellm:
+        condition: service_started
+      searxng:
+        condition: service_started
+
+  # Default: stock Open WebUI, renamed to Spockify at runtime. To run the
+  # Spockify fork instead (Canvas, TTS, video, router SSE), build it from
+  # services/openwebui and set SPOCKIFY_OPENWEBUI_IMAGE — see README.md.
+  openwebui:
+    image: ${SPOCKIFY_OPENWEBUI_IMAGE:-ghcr.io/open-webui/open-webui:v0.9.6}
+    command:
+      - bash
+      - -c
+      - |
+        sed -i '/if WEBUI_NAME != /,/WEBUI_NAME += /d' /app/backend/open_webui/env.py 2>/dev/null || true
+        sed -i 's/Open WebUI/Spockify/g' /app/build/index.html 2>/dev/null || true
+        exec bash start.sh
+    environment:
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-dev-secret-key-change-me-32chars}
+      DATABASE_URL: postgresql://spockify:${POSTGRES_PASSWORD:-spockify-dev}@postgres:5432/spockify
+      OPENAI_API_BASE_URL: http://litellm:4000/v1
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY:-sk-spockify-dev}
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_OPENAI_API: "true"
+      ENABLE_WEB_SEARCH: "true"
+      WEB_SEARCH_ENGINE: searxng
+      SEARXNG_QUERY_URL: http://searxng:8080/search?q=<query>
+      WEBUI_NAME: Spockify
+      DEFAULT_MODELS: spockify-auto
+      SPOCKIFY_ROUTER_URL: http://router:4100
+      ENV: prod
+      WEBUI_URL: ${WEBUI_URL:-http://localhost:3000}
+      OFFLINE_MODE: "true"
+      ENABLE_VERSION_UPDATE_CHECK: "false"
+      ENABLE_COMMUNITY_SHARING: "false"
+      WEBUI_AUTH: "true"
+      ENABLE_SIGNUP: ${ENABLE_SIGNUP:-false}
+      DEFAULT_USER_ROLE: pending
+      ENABLE_LOGIN_FORM: "true"
+      ENABLE_PASSWORD_AUTH: "true"
+      ENABLE_OAUTH_SIGNUP: "false"
+      ENABLE_API_KEYS: "false"
+      BYPASS_MODEL_ACCESS_CONTROL: "true"
+      ENABLE_FOLLOW_UP_GENERATION: "false"
+      ENABLE_MEMORIES: "false"
+      ENABLE_AUTOCOMPLETE_GENERATION: "false"
+      DATA_DIR: /app/backend/data
+    volumes:
+      - ${STORAGE_ROOT:-./data/spockify}/openwebui:/app/backend/data
+    ports:
+      - "3000:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      litellm:
+        condition: service_started
+      router:
+        condition: service_started
+      searxng:
+        condition: service_started
