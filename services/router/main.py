@@ -142,9 +142,10 @@ FEDERATION_PEERS = [
 COMPACT_ROUTING_PROMPT = """\
 You are Spockify's router. Output a single JSON object only (no markdown).
 
-Workers: gpt-oss-120b (code/agentic; fallback gpt-oss-20b then codestral), gemma4-12b (general chat/reasoning),
-llama3.2-3b (fast math), web-codestral / web-gemma (live web facts; prefer web-gemma
-for general lookup).
+Workers: gpt-oss-120b (code/agentic/deep; fallback gpt-oss-20b then codestral),
+gemma4-26b (Gemini-class reasoning/analysis), gemma4-12b (default chat — warm),
+llama3.2-3b (greetings/acks only), web-gemma / web-codestral (live web facts;
+prefer web-gemma for general lookup).
 
 Required JSON fields:
   worker (model name), needs_web_search (bool), search_query (string if searching),
@@ -161,7 +162,8 @@ NEVER needs_web_search for: arithmetic, greetings, pure coding from training dat
 
 Set needs_web_search true for: documentation/API lookups, GitHub readme, latest
 versions, release notes, CVEs, weather/forecasts (including "coming week", multi-day),
-news, prices, sports — anything needing live web data."""
+news, prices, sports — anything needing live web data.
+If confidence is low on a factual question, set needs_web_search true (do not bluff)."""
 
 SEARCH_KEYWORDS = (
     "latest",
@@ -296,10 +298,12 @@ CODER_MODEL_PREFIXES = (
 CODER_SYSTEM_PROMPT = """\
 You are Spockify's coding assistant. Write complete, runnable implementations when asked.
 
-When the user asks for code, a build, or "do it for me", deliver full working code — not outlines, pseudocode, or step lists.
+When the user asks for code, a build, or "do it for me", deliver full working code — not outlines, \
+pseudocode, or step lists.
 Never refuse to write code or say you cannot build or implement something.
 If the user follows up after a high-level explanation, replace the outline with actual code.
-Be careful and thorough: ground answers in the provided context; do not invent file paths or APIs.
+Be carefully correct: ground answers in provided context; do not invent file paths, APIs, or \
+library behavior. Prefer a smaller correct solution over a clever wrong one.
 Follow Google Python style for Python. Match existing project conventions. Prefer minimal focused diffs.
 Do not suggest Chinese-origin models (DeepSeek, Qwen, etc.)."""
 
@@ -308,14 +312,44 @@ The user wants a complete implementation now. Write the full, runnable code.
 Do not respond with plans, pseudocode, or "I can't provide the full code"."""
 
 SPOCKIFY_PERSONA_PROMPT = """\
-You are Spockify — a capable AI agent. Use a casual, modern tone.
-Do not roleplay as a character. Do not use formal Vulcan-style greetings or Star Trek references.
-Never mention model names, routing, workers, or infrastructure unless the user explicitly asks.
-Help with whatever the user asks — weather, coding, general knowledge, and everyday questions.
-Do not describe yourself as a platform, app, or product wrapper. Do not redirect users to \
-platform-specific topics or refuse factual questions when you can answer them (including from \
-web search context when provided).
-Answer directly and be concise unless depth is requested."""
+You are Spockify — a sharp, reliable assistant in the same league as Claude and Gemini.
+
+Voice and craft:
+- Warm, clear, and direct. Prefer plain language over jargon; elevate when the topic needs it.
+- Lead with the answer, then the why. Use short sections or tight bullets when it helps scan.
+- Match depth to the ask: brief for simple questions, thorough for hard ones — never padded.
+- Write like a top-tier LLM: precise, structured, useful. No chatbot filler or fake enthusiasm.
+
+Truth over vibe (RSI — Reflective Self-Inspection):
+- Be confidently right. Never be confidently wrong.
+- If a fact, number, API, date, quote, or citation is uncertain, say so in one short clause \
+and give the best supported answer — or ask one clarifying question. Do not invent.
+- When web/search context is provided, ground claims in it; prefer citing that evidence over memory.
+- Before sending: silently check for contradictions, missing units, and leaps in reasoning; revise if shaky.
+- Do not hedge every sentence. Hedge only where uncertainty is real.
+- Never invent that a named product/app/company "isn't real" — if unfamiliar, ask or use search \
+context; do not substitute a physics lecture.
+
+Boundaries:
+- Do not roleplay as a character or use Star Trek / Vulcan shtick.
+- Never mention model names, routing, workers, or infrastructure unless the user asks.
+- Do not describe yourself as a platform or product wrapper. Help with whatever they ask."""
+
+# Extra pass for hard reasoning / low-confidence routes (still single-shot; no second model call).
+RSI_REASONING_PROMPT = """\
+Hard-task mode: think carefully, then answer.
+Silently verify key claims and steps before you write. If something is weakly known, mark it \
+as uncertain rather than inventing. Prefer a correct partial answer over a polished wrong one.
+For comparisons and plans: state assumptions, then the recommendation."""
+
+# Factual / current-events style asks — prefer evidence over vibes.
+RSI_FACTUAL_PROMPT = """\
+Factual mode: prioritize accuracy. Prefer search/context evidence when present.
+If you lack reliable evidence for a concrete claim, say what you know vs what you don't — \
+do not fabricate statistics, quotes, or "as of" dates.
+Never claim a named product, company, app, or software "doesn't exist" or is "not real" \
+unless search/context clearly supports that. If the name is unfamiliar, search or say you \
+are unsure — do not invent a physics/philosophy lecture instead."""
 
 # IDE Generate Commit Message — replaces persona/coder systems (those invite narration).
 COMMIT_MESSAGE_SYSTEM_PROMPT = """\
@@ -390,6 +424,7 @@ OLLAMA_MODEL_MAP: dict[str, str] = {
     "codestral-latest": "spockify-coder",
     "gemma4-12b": "gemma4:12b",
     "gemma4-26b": "gemma4:26b",
+    "gemma4-27b": "gemma4:26b",
     "gemma3-4b": "gemma4:12b",
     "gemma3-12b": "gemma4:12b",
     "gemma3-27b": "gemma4:26b",
@@ -415,6 +450,10 @@ DEFAULT_WEB_WORKER = os.getenv("DEFAULT_WEB_WORKER", "web-gemma")
 WEB_WORKER_FALLBACK = os.getenv("WEB_WORKER_FALLBACK", "web-llama")
 DEFAULT_CHAT_WORKER = os.getenv("DEFAULT_CHAT_WORKER", "gemma4-12b")
 DEFAULT_CHAT_FALLBACK = os.getenv("DEFAULT_CHAT_FALLBACK", "gemma4-12b")
+# Stronger Gemma for deep reasoning / architecture when 120b is cold or overkill.
+QUALITY_CHAT_WORKER = os.getenv("QUALITY_CHAT_WORKER", "gemma4-26b")
+# Below this confidence, escalate: prefer web for facts, avoid tiny chat models.
+UNCERTAINTY_CONFIDENCE_MAX = float(os.getenv("UNCERTAINTY_CONFIDENCE_MAX", "0.72"))
 # Models remapped to VOICE_CHAT_WORKER when Call/voice mode is active.
 _VOICE_CHAT_REMAP = frozenset(
     {
@@ -1845,11 +1884,183 @@ def _finalize_routing(
             "spockify-chat",
             DEFAULT_CHAT_WORKER,
             DEFAULT_CHAT_FALLBACK,
+            QUALITY_CHAT_WORKER,
+            "gemma4-26b",
             "gemma4-27b",
         ):
             decision = decision.model_copy(deep=True)
             decision.selected_model = DEFAULT_WEB_WORKER
+    decision = _apply_uncertainty_policy(user_msg, messages, decision)
     return decision
+
+
+_FACTUAL_UNCERTAINTY_RE = re.compile(
+    r"(?i)\b(?:"
+    r"who\s+(?:is|was|won|wrote)|what\s+(?:is|was|are)\s+the|"
+    r"when\s+(?:did|was|is)|how\s+many|how\s+much|"
+    r"latest|current|today|yesterday|this\s+week|last\s+week|as\s+of|"
+    r"couple\s+of\s+days|few\s+days|days?\s+ago|hours?\s+ago|"
+    r"recent(?:ly)?|what(?:'s|\s+is)\s+new|biggest\s+changes?|"
+    r"changelog|release\s+notes|new\s+features?|"
+    r"according\s+to|is\s+it\s+true|did\s+.+\s+happen|"
+    r"population|capital\s+of|founded|released|version\s+of|"
+    r"price\s+of|worth|salary|stats?|statistics|record\s+for"
+    r")\b"
+)
+
+# Recency / product-news — always search (do not rely on model priors).
+_RECENCY_NEWS_RE = re.compile(
+    r"(?i)\b(?:"
+    r"couple\s+of\s+days(?:\s+ago)?|few\s+days(?:\s+ago)?|"
+    r"(?:a\s+)?(?:day|days|hours?|weeks?)\s+ago|"
+    r"yesterday|today|this\s+week|last\s+week|this\s+month|"
+    r"recent(?:ly)?|latest|just\s+(?:shipped|released|announced|launched)|"
+    r"what(?:'s|\s+are|\s+were)\s+(?:the\s+)?(?:biggest\s+)?changes?|"
+    r"what(?:'s|\s+is)\s+new|new\s+in\b|changelog|release\s+notes|"
+    r"from\s+a\s+couple|updates?\s+(?:from|in|to)\b"
+    r")\b"
+)
+
+_WEAK_CHAT_WORKERS = frozenset(
+    {
+        "llama3.2-3b",
+        "llama3.2-1b",
+        "spockify-chat",
+        "phi4",
+        "phi4-mini",
+        "nemotron-nano-4b",
+        "nemotron-mini",
+    }
+)
+
+_QUALITY_TASK_TYPES = frozenset(
+    {
+        "reasoning",
+        "deep_reasoning",
+        "architecture",
+        "math_reasoning",
+        "agentic_planning",
+        "code_review",
+    }
+)
+
+
+def _looks_factual_uncertain(user_msg: str) -> bool:
+    text = (user_msg or "").strip()
+    if len(text) < 8:
+        return False
+    return bool(_FACTUAL_UNCERTAINTY_RE.search(text))
+
+
+def _looks_recency_news(user_msg: str) -> bool:
+    """True for 'what changed recently / a couple of days ago' style asks."""
+    text = (user_msg or "").strip()
+    if len(text) < 8:
+        return False
+    return bool(_RECENCY_NEWS_RE.search(text))
+
+
+def _apply_uncertainty_policy(
+    user_msg: str,
+    messages: list[ChatMessage],
+    decision: RoutingDecision,
+) -> RoutingDecision:
+    """Prefer being right over being fast when the route is shaky.
+
+    - Recency / product-news asks → always web search (model priors lie).
+    - Low-confidence factual asks → web search (unless blocked).
+    - Weak tiny workers on non-casual tasks → quality chat model.
+    - Hard reasoning tasks → quality Gemma when not already on a specialist.
+    """
+    patched = decision.model_copy(deep=True)
+    low_conf = patched.confidence < UNCERTAINTY_CONFIDENCE_MAX
+    factual = _looks_factual_uncertain(user_msg)
+    recency = _looks_recency_news(user_msg)
+    hard = patched.task_type in _QUALITY_TASK_TYPES
+    force_search = recency or (low_conf and factual)
+
+    if (
+        force_search
+        and not patched.needs_web_search
+        and not _web_search_blocked(user_msg)
+        and patched.task_type
+        not in ("casual_chat", "code_generation", "commit_message", "vision")
+    ):
+        patched.needs_web_search = True
+        patched.search_query = patched.search_query or user_msg
+        if not patched.selected_model.startswith("web-"):
+            patched.selected_model = DEFAULT_WEB_WORKER
+        patched.task_type = "web_search"
+        why = "rsi:recency→search" if recency else "rsi:uncertain→search"
+        patched.reasoning = f"{why}; {patched.reasoning}".strip()
+        if "rsi" not in patched.routing_path:
+            patched.routing_path = f"{patched.routing_path}_rsi_search"
+
+    if (
+        patched.selected_model in _WEAK_CHAT_WORKERS
+        and patched.task_type not in ("casual_chat", "fast_chat", "commit_message")
+        and not patched.selected_model.startswith("web-")
+    ):
+        patched.selected_model = DEFAULT_CHAT_WORKER
+        patched.reasoning = f"rsi:bump-weak→{DEFAULT_CHAT_WORKER}; {patched.reasoning}".strip()
+
+    if (
+        hard
+        and not patched.needs_web_search
+        and not patched.selected_model.startswith("web-")
+        and patched.selected_model
+        not in (
+            "gpt-oss-120b",
+            "gpt-oss-20b",
+            "codestral",
+            "codestral-22b",
+            QUALITY_CHAT_WORKER,
+            "gemma4-26b",
+            "gemma4-27b",
+            "mathstral",
+            "llama3.3-70b",
+            "nemotron-70b",
+        )
+    ):
+        # Prefer quality Gemma (Gemini-class) for analysis; keep 120b for code/arch patterns.
+        if patched.task_type in ("architecture", "deep_reasoning", "agentic_planning"):
+            # Leave specialist code/arch models if already set by patterns; else quality chat.
+            if patched.selected_model in _WEAK_CHAT_WORKERS | {
+                DEFAULT_CHAT_WORKER,
+                "gemma3-12b",
+                "llama3.1-8b",
+            }:
+                patched.selected_model = QUALITY_CHAT_WORKER
+                patched.reasoning = (
+                    f"rsi:quality→{QUALITY_CHAT_WORKER}; {patched.reasoning}"
+                ).strip()
+        elif patched.task_type in ("reasoning", "math_reasoning"):
+            if patched.selected_model in _WEAK_CHAT_WORKERS | {
+                "gemma3-12b",
+                "llama3.1-8b",
+            }:
+                patched.selected_model = QUALITY_CHAT_WORKER
+                patched.reasoning = (
+                    f"rsi:quality→{QUALITY_CHAT_WORKER}; {patched.reasoning}"
+                ).strip()
+
+    # Attach RSI prompt additions once (merge with any existing).
+    rsi_bits: list[str] = []
+    if hard or (low_conf and patched.task_type != "casual_chat"):
+        rsi_bits.append(RSI_REASONING_PROMPT)
+    if factual or recency or patched.needs_web_search:
+        rsi_bits.append(RSI_FACTUAL_PROMPT)
+    if rsi_bits:
+        extra = "\n\n".join(rsi_bits)
+        if patched.prompt_additions:
+            if "Reflective Self-Inspection" not in patched.prompt_additions and (
+                "Hard-task mode" not in patched.prompt_additions
+            ):
+                patched.prompt_additions = f"{patched.prompt_additions}\n\n{extra}"
+        else:
+            patched.prompt_additions = extra
+
+    return patched
 
 
 async def _geocode_city(
@@ -2024,7 +2235,9 @@ def _is_pure_code_request(user_msg: str) -> bool:
 
 
 def _needs_live_facts(user_msg: str) -> bool:
-    return _any_keyword(user_msg, LIVE_FACTS_KEYWORDS)
+    return _any_keyword(user_msg, LIVE_FACTS_KEYWORDS) or _looks_recency_news(
+        user_msg
+    )
 
 
 def _keyword_in_text(text: str, keyword: str) -> bool:

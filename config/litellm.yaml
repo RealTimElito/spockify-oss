@@ -99,6 +99,12 @@ model_list:
       api_base: os.environ/OLLAMA_API_BASE
       timeout: 180
 
+  - model_name: gemma4-27b
+    litellm_params:
+      model: ollama_chat/gemma4:26b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+
   - model_name: gemma4-31b
     litellm_params:
       model: ollama_chat/gemma4:31b

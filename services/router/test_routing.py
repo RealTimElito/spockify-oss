@@ -1465,5 +1465,81 @@ class VoiceModeRoutingTests(unittest.TestCase):
         self.assertIn("fahrenheit", lowered)
 
 
+class UncertaintyRsiTests(unittest.TestCase):
+    def test_low_confidence_factual_escalates_to_search(self) -> None:
+        from main import _apply_uncertainty_policy
+
+        decision = RoutingDecision(
+            selected_model="llama3.2-3b",
+            task_type="general",
+            confidence=0.4,
+            reasoning="guess",
+            routing_path="default",
+        )
+        out = _apply_uncertainty_policy(
+            "What is the latest version of Kubernetes?",
+            [],
+            decision,
+        )
+        self.assertTrue(out.needs_web_search)
+        self.assertTrue(out.selected_model.startswith("web-"))
+        self.assertIn("rsi", out.reasoning)
+
+    def test_reasoning_bumps_to_quality_gemma(self) -> None:
+        from main import QUALITY_CHAT_WORKER, _apply_uncertainty_policy
+
+        decision = RoutingDecision(
+            selected_model="llama3.1-8b",
+            task_type="reasoning",
+            confidence=0.8,
+            reasoning="pattern",
+            routing_path="pattern",
+        )
+        out = _apply_uncertainty_policy("Compare Redis and Memcached for caching", [], decision)
+        self.assertEqual(out.selected_model, QUALITY_CHAT_WORKER)
+        self.assertIn("Hard-task mode", out.prompt_additions)
+
+    def test_greeting_stays_tiny(self) -> None:
+        from main import _apply_uncertainty_policy
+
+        decision = RoutingDecision(
+            selected_model="llama3.2-3b",
+            task_type="casual_chat",
+            confidence=0.9,
+            reasoning="greeting",
+            routing_path="heuristic",
+        )
+        out = _apply_uncertainty_policy("hello", [], decision)
+        self.assertEqual(out.selected_model, "llama3.2-3b")
+        self.assertFalse(out.needs_web_search)
+
+    def test_persona_is_claude_gemini_quality(self) -> None:
+        from main import SPOCKIFY_PERSONA_PROMPT
+
+        self.assertIn("Claude", SPOCKIFY_PERSONA_PROMPT)
+        self.assertIn("confidently wrong", SPOCKIFY_PERSONA_PROMPT)
+        self.assertIn("RSI", SPOCKIFY_PERSONA_PROMPT)
+
+    def test_antigravity_recency_forces_search(self) -> None:
+        from main import _apply_uncertainty_policy, _looks_recency_news
+
+        msg = (
+            "Hey there! What were the biggest changes in Antigravity "
+            "from a couple of days ago?"
+        )
+        self.assertTrue(_looks_recency_news(msg))
+        decision = RoutingDecision(
+            selected_model="gemma4-12b",
+            task_type="general",
+            confidence=0.9,
+            reasoning="default chat",
+            routing_path="default",
+        )
+        out = _apply_uncertainty_policy(msg, [], decision)
+        self.assertTrue(out.needs_web_search)
+        self.assertTrue(out.selected_model.startswith("web-"))
+        self.assertIn("recency", out.reasoning)
+
+
 if __name__ == "__main__":
     unittest.main()

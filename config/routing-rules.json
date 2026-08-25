@@ -1,5 +1,5 @@
 {
-  "version": "1.1",
+  "version": "1.2",
   "orchestrator": {
     "primary": "nemotron-3-nano:4b",
     "fallback": "llama3.2:3b",
@@ -51,7 +51,7 @@
       "fallback_model": "gpt-oss-20b",
       "confidence": 0.9,
       "backend": "ollama",
-      "prompt_additions": "Write complete runnable code. No outlines or refusals."
+      "prompt_additions": "Write complete runnable code. No outlines or refusals. Prefer correctness over cleverness."
     },
     {
       "task_type": "code_review",
@@ -59,7 +59,8 @@
       "model": "gpt-oss-120b",
       "fallback_model": "gpt-oss-20b",
       "confidence": 0.88,
-      "backend": "ollama"
+      "backend": "ollama",
+      "prompt_additions": "Be specific: cite issues with severity, impact, and a concrete fix. Do not invent bugs."
     },
     {
       "task_type": "web_search",
@@ -77,72 +78,79 @@
     },
     {
       "task_type": "architecture",
-      "patterns": ["architecture", "system design", "trade-offs", "design doc"],
+      "patterns": ["architecture", "system design", "trade-offs", "design doc", "how should I structure"],
       "model": "gpt-oss-120b",
       "confidence": 0.9,
-      "fallback_model": "llama3.3-70b",
-      "backend": "ollama"
+      "fallback_model": "gemma4-26b",
+      "backend": "ollama",
+      "prompt_additions": "State assumptions, compare 2–3 options with trade-offs, then recommend one. Be decisive when evidence supports it."
     },
     {
       "task_type": "deep_reasoning",
-      "patterns": ["deep dive", "comprehensive analysis", "thorough review", "in-depth"],
+      "patterns": ["deep dive", "comprehensive analysis", "thorough review", "in-depth", "think carefully", "reason step"],
       "model": "gpt-oss-120b",
       "confidence": 0.88,
-      "fallback_model": "llama3.3-70b",
-      "backend": "ollama"
+      "fallback_model": "gemma4-26b",
+      "backend": "ollama",
+      "prompt_additions": "Lead with the conclusion. Show key reasoning briefly. Flag any uncertain steps."
     },
     {
       "task_type": "math_reasoning",
       "patterns": ["prove", "theorem", "equation", "integral", "calculus", "algebra", "math problem"],
       "model": "mathstral",
       "confidence": 0.88,
-      "fallback_model": "phi4",
-      "backend": "ollama"
+      "fallback_model": "gemma4-26b",
+      "backend": "ollama",
+      "prompt_additions": "Show steps clearly. Check the final answer against the problem statement before finishing."
     },
     {
       "task_type": "reasoning",
-      "patterns": ["analyze", "compare", "evaluate", "plan"],
-      "model": "gemma4-12b",
-      "confidence": 0.8,
-      "fallback_model": "gemma3-12b",
-      "backend": "ollama"
+      "patterns": ["analyze", "compare", "evaluate", "plan", "pros and cons", "should I", "explain why"],
+      "model": "gemma4-26b",
+      "confidence": 0.85,
+      "fallback_model": "gemma4-12b",
+      "backend": "ollama",
+      "prompt_additions": "Be structured and decisive. Prefer a clear recommendation over a vague list."
     },
     {
       "task_type": "fast_chat",
-      "patterns": ["summarize", "quick", "short answer"],
+      "patterns": ["summarize", "quick", "short answer", "tl;dr", "in one sentence"],
       "model": "gemma4-12b",
-      "confidence": 0.88,
-      "fallback_model": "gemma3-12b",
-      "backend": "ollama"
+      "confidence": 0.9,
+      "fallback_model": "llama3.1-8b",
+      "backend": "ollama",
+      "prompt_additions": "Be brief and dense. No preamble."
     },
     {
       "task_type": "agentic_planning",
-      "patterns": ["multi-step", "agent", "orchestrate", "workflow"],
-      "model": "gpt-oss-20b",
+      "patterns": ["multi-step", "agent", "orchestrate", "workflow", "step by step plan"],
+      "model": "gpt-oss-120b",
       "confidence": 0.85,
-      "fallback_model": "nemotron-nano-30b",
-      "backend": "ollama"
+      "fallback_model": "gemma4-26b",
+      "backend": "ollama",
+      "prompt_additions": "Give an ordered plan with concrete next actions. Call out risks and unknowns."
     },
     {
       "task_type": "nvidia_chat",
       "patterns": ["nemotron", "nvidia model"],
       "model": "nemotron-70b",
       "confidence": 0.85,
-      "fallback_model": "nemotron-nano-30b",
+      "fallback_model": "gemma4-26b",
       "backend": "ollama"
     }
   ],
   "model_groups": {
     "code": ["gpt-oss-20b", "codestral", "codestral-latest", "codestral-vllm"],
-    "chat": ["gemma4-12b", "spockify-chat", "llama3.2-3b", "llama3.1-8b", "mistral-nemo", "phi4"],
-    "reasoning": ["gpt-oss-120b", "gpt-oss-20b", "llama3.3-70b", "nemotron-70b", "gemma4-27b", "gemma4-26b", "gemma4-12b", "mixtral-8x7b", "nemotron-nano-30b"],
-    "fast": ["spockify-chat", "llama3.2-3b", "phi4", "phi4-mini", "nemotron-nano-4b", "nemotron-mini", "llama3.1-8b"],
+    "chat": ["gemma4-12b", "gemma4-26b", "spockify-chat", "llama3.2-3b", "llama3.1-8b", "mistral-nemo", "phi4"],
+    "reasoning": ["gpt-oss-120b", "gpt-oss-20b", "gemma4-26b", "llama3.3-70b", "nemotron-70b", "gemma4-27b", "gemma4-12b", "mixtral-8x7b", "nemotron-nano-30b"],
+    "fast": ["spockify-chat", "llama3.2-3b", "phi4", "phi4-mini", "nemotron-nano-4b", "nemotron-mini", "llama3.1-8b", "gemma4-12b"],
     "web": ["web-codestral", "web-gemma", "web-llama"],
-    "xlarge": ["gpt-oss-120b", "llama3.3-70b", "nemotron-70b", "mixtral-8x7b", "gemma4-31b", "nemotron-nano-30b"]
+    "xlarge": ["gpt-oss-120b", "llama3.3-70b", "nemotron-70b", "mixtral-8x7b", "gemma4-31b", "gemma4-26b", "nemotron-nano-30b"]
   },
   "default_route": {
     "model": "gemma4-12b",
     "fallback_model": "llama3.1-8b",
-    "backend": "ollama"
+    "backend": "ollama",
+    "prompt_additions": "Answer like a top-tier assistant: clear, useful, and accurate. Hedge only when truly uncertain."
   }
 }
