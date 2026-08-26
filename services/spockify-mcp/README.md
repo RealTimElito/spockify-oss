@@ -44,7 +44,7 @@ Environment (optional):
 | `KUBECTL` | `microk8s kubectl` | Local kubectl command |
 | `ROUTER_HEALTH_URL` | `http://spockify-router.spockify.svc.cluster.local:4100` | Router base URL |
 
-Host detection: the cluster host uses local kubectl; dev machines fall back to SSH.
+Host detection matches cluster scripts: cluster host uses local kubectl; dev machines fall back to SSH.
 
 ### Smoke test
 
@@ -60,7 +60,7 @@ In Cursor Agent chat, confirm tools like `spockify_cluster_status` appear under 
 
 Cloud Agents reach your cluster through a **remote HTTP MCP** endpoint (Streamable HTTP at `/mcp`).
 
-1. On the cluster host (or a host with kubectl + repo checkout):
+1. On the cluster host (or any machine with kubectl + repo checkout):
 
    ```bash
    export SPOCKIFY_MCP_TOKEN="$(openssl rand -hex 32)"   # store securely, not in git

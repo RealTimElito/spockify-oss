@@ -1541,5 +1541,145 @@ class UncertaintyRsiTests(unittest.TestCase):
         self.assertIn("recency", out.reasoning)
 
 
+class ThinkingModeTests(unittest.TestCase):
+    def test_model_alias_wins(self) -> None:
+        from main import _resolve_thinking_mode
+
+        # Explicit heavy alias overrides a conflicting body/header.
+        self.assertEqual(
+            _resolve_thinking_mode(
+                model="spockify-heavy",
+                body_mode="light",
+                header_mode="light",
+                marker_mode=None,
+            ),
+            "heavy",
+        )
+
+    def test_auto_model_defers_to_body(self) -> None:
+        from main import _resolve_thinking_mode
+
+        # spockify-auto is NOT an explicit alias, so the chip (body) decides.
+        self.assertEqual(
+            _resolve_thinking_mode(
+                model="spockify-auto",
+                body_mode="heavy",
+                header_mode=None,
+                marker_mode=None,
+            ),
+            "heavy",
+        )
+
+    def test_precedence_body_over_header_over_marker(self) -> None:
+        from main import _resolve_thinking_mode
+
+        self.assertEqual(
+            _resolve_thinking_mode(
+                model="spockify-auto",
+                body_mode="light",
+                header_mode="heavy",
+                marker_mode="medium",
+            ),
+            "light",
+        )
+        self.assertEqual(
+            _resolve_thinking_mode(
+                model="spockify-auto",
+                body_mode=None,
+                header_mode="heavy",
+                marker_mode="light",
+            ),
+            "heavy",
+        )
+
+    def test_default_is_medium_when_unset(self) -> None:
+        from main import DEFAULT_THINKING_MODE, _resolve_thinking_mode
+
+        self.assertEqual(
+            _resolve_thinking_mode(
+                model="spockify-auto",
+                body_mode=None,
+                header_mode=None,
+                marker_mode=None,
+            ),
+            DEFAULT_THINKING_MODE,
+        )
+        self.assertEqual(DEFAULT_THINKING_MODE, "medium")
+
+    def test_marker_stripped_from_messages(self) -> None:
+        from main import _thinking_mode_from_messages
+
+        msgs = [
+            ChatMessage(role="system", content="[spockify_thinking:heavy]"),
+            ChatMessage(role="user", content="do the thing"),
+        ]
+        found, cleaned = _thinking_mode_from_messages(msgs)
+        self.assertEqual(found, "heavy")
+        self.assertEqual(len(cleaned), 1)
+        self.assertEqual(cleaned[0].role, "user")
+
+    def test_header_reader(self) -> None:
+        from main import _thinking_mode_from_headers
+
+        self.assertEqual(
+            _thinking_mode_from_headers({"X-Spockify-Thinking": "Heavy"}), "heavy"
+        )
+        self.assertIsNone(_thinking_mode_from_headers({"x-other": "1"}))
+
+    def test_light_biases_general_chat_to_fast_worker(self) -> None:
+        from main import LIGHT_CHAT_WORKER, QUALITY_CHAT_WORKER, _apply_thinking_mode
+
+        decision = RoutingDecision(
+            selected_model=QUALITY_CHAT_WORKER,
+            task_type="reasoning",
+            confidence=0.9,
+            reasoning="quality gemma",
+            routing_path="pattern",
+        )
+        out = _apply_thinking_mode(decision, "light", "explain closures briefly")
+        self.assertEqual(out.selected_model, LIGHT_CHAT_WORKER)
+
+    def test_light_keeps_specialists(self) -> None:
+        from main import _apply_thinking_mode
+
+        decision = RoutingDecision(
+            selected_model="gpt-oss-120b",
+            task_type="code_generation",
+            confidence=0.9,
+            reasoning="code",
+            routing_path="pattern",
+        )
+        out = _apply_thinking_mode(decision, "light", "write a parser in rust")
+        self.assertEqual(out.selected_model, "gpt-oss-120b")
+
+    def test_light_keeps_web_search(self) -> None:
+        from main import _apply_thinking_mode
+
+        decision = RoutingDecision(
+            selected_model="web-gemma",
+            task_type="web_search",
+            needs_web_search=True,
+            confidence=0.9,
+            reasoning="live facts",
+            routing_path="pattern",
+        )
+        out = _apply_thinking_mode(decision, "light", "latest k8s version")
+        self.assertEqual(out.selected_model, "web-gemma")
+        self.assertTrue(out.needs_web_search)
+
+    def test_medium_is_noop(self) -> None:
+        from main import DEFAULT_CHAT_WORKER, _apply_thinking_mode
+
+        decision = RoutingDecision(
+            selected_model=DEFAULT_CHAT_WORKER,
+            task_type="general",
+            confidence=0.9,
+            reasoning="default",
+            routing_path="default",
+        )
+        out = _apply_thinking_mode(decision, "medium", "hey")
+        self.assertEqual(out.selected_model, DEFAULT_CHAT_WORKER)
+
+
 if __name__ == "__main__":
     unittest.main()

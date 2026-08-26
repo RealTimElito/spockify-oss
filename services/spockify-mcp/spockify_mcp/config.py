@@ -33,14 +33,15 @@ def is_spark_host() -> bool:
     """
     if Path("/var/lib/spockify/postgres").is_dir():
         return True
-    cluster_host = os.environ.get("CLUSTER_HOST", "").strip()
-    if not cluster_host:
-        return False
-    try:
-        hostname = socket.getfqdn() or socket.gethostname()
-    except OSError:
-        hostname = ""
-    return cluster_host in hostname
+    cluster = os.getenv("CLUSTER_HOST", "").strip().lower()
+    if cluster:
+        try:
+            hostname = (socket.getfqdn() or socket.gethostname() or "").lower()
+        except OSError:
+            hostname = ""
+        if cluster in hostname:
+            return True
+    return False
 
 
 def has_local_kubectl() -> bool:

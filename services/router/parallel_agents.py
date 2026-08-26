@@ -28,6 +28,20 @@ AGENTS_WORKER_TIMEOUT = float(os.getenv("AGENTS_WORKER_TIMEOUT", "120"))
 AGENTS_SYNTH_TIMEOUT = float(os.getenv("AGENTS_SYNTH_TIMEOUT", "180"))
 AGENTS_MAX_TOKENS = int(os.getenv("AGENTS_MAX_TOKENS", "1024"))
 AGENTS_DEFAULT_MODEL = os.getenv("AGENTS_DEFAULT_MODEL", "gemma4-12b")
+
+# Heavy thinking profile: strong models, higher budgets, always 4 roles.
+HEAVY_WORKER_MODELS = [
+    m.strip()
+    for m in os.getenv(
+        # Parallel workers stay warm-ish; 120b loads only for synth/refine on demand.
+        "HEAVY_WORKER_MODELS", "gpt-oss-20b,gemma4-12b,gemma4-26b,gemma4-12b"
+    ).split(",")
+    if m.strip()
+]
+HEAVY_WORKER_TIMEOUT = float(os.getenv("HEAVY_WORKER_TIMEOUT", "300"))
+HEAVY_SYNTH_TIMEOUT = float(os.getenv("HEAVY_SYNTH_TIMEOUT", "300"))
+HEAVY_MAX_TOKENS = int(os.getenv("HEAVY_MAX_TOKENS", "4096"))
+HEAVY_SYNTH_MODEL = os.getenv("HEAVY_SYNTH_MODEL", "").strip()
 AGENTS_MAX_DEPTH = int(os.getenv("AGENTS_MAX_DEPTH", "2"))
 AGENTS_MAX_NESTED_PER_WORKER = int(os.getenv("AGENTS_MAX_NESTED_PER_WORKER", "2"))
 AGENTS_SHARED_TOOLS = [
@@ -110,6 +124,13 @@ class AgentRunCreate(BaseModel):
     depth: int = 0
     tools: Optional[list[str]] = None  # default tools for all workers
     user_id: Optional[str] = None  # owning OWUI user (per-user scoping)
+    # Optional profile label + per-run budget overrides (used by Heavy thinking).
+    profile: Optional[str] = None
+    worker_timeout: Optional[float] = None
+    synth_timeout: Optional[float] = None
+    max_tokens: Optional[int] = None
+    synth_max_tokens: Optional[int] = None
+    synth_model: Optional[str] = None
 
 
 _PARALLEL_INTENT_RE = re.compile(
@@ -128,6 +149,22 @@ def wants_parallel_agents(text: str) -> bool:
 
 def _utc_now() -> str:
     return datetime.now(tz=ZoneInfo("UTC")).isoformat()
+
+
+def _cfg_worker_timeout(run: dict[str, Any]) -> float:
+    return float(run.get("worker_timeout") or AGENTS_WORKER_TIMEOUT)
+
+
+def _cfg_worker_max_tokens(run: dict[str, Any]) -> int:
+    return int(run.get("max_tokens") or AGENTS_MAX_TOKENS)
+
+
+def _cfg_synth_timeout(run: dict[str, Any]) -> float:
+    return float(run.get("synth_timeout") or AGENTS_SYNTH_TIMEOUT)
+
+
+def _cfg_synth_max_tokens(run: dict[str, Any]) -> int:
+    return int(run.get("synth_max_tokens") or (AGENTS_MAX_TOKENS * 2))
 
 
 def _resolve_worker_model(model: Optional[str]) -> str:
@@ -151,72 +188,106 @@ def _effective_tools(
     return list(AGENTS_SHARED_TOOLS)
 
 
+# (id, name, system prompt, default tools) — shared by auto + heavy planners.
+_ROLE_TEMPLATES: list[tuple[str, str, str, list[str]]] = [
+    (
+        "explorer",
+        "Explorer",
+        (
+            "You are Explorer. Map the problem space, key facts, and options. "
+            "Be concrete and thorough; bullets OK. Prefer evidence over guesses. "
+            "Do not write the final user-facing answer."
+        ),
+        ["search"],
+    ),
+    (
+        "analyst",
+        "Analyst",
+        (
+            "You are Analyst. Dig into trade-offs, risks, and evidence. "
+            "Challenge weak assumptions. Do not write the final user-facing answer."
+        ),
+        ["search"],
+    ),
+    (
+        "builder",
+        "Builder",
+        (
+            "You are Builder. Propose a practical solution or steps (code/config OK). "
+            "Prefer actionable detail. Do not write the final user-facing answer."
+        ),
+        [],
+    ),
+    (
+        "skeptic",
+        "Skeptic",
+        (
+            "You are Skeptic. Find gaps, failure modes, and missing edge cases. "
+            "Do not write the final user-facing answer."
+        ),
+        [],
+    ),
+]
+
+
+def _role_prompt(system: str, prompt: str) -> str:
+    return (
+        f"{system}\n\nUser request:\n{prompt}\n\n"
+        "Respond with your role's contribution only.\n"
+        "Optional: to spawn up to "
+        f"{AGENTS_MAX_NESTED_PER_WORKER} child workers (depth-capped), "
+        'end with SPAWN_CHILDREN:[{"name":"...","prompt":"..."}]'
+    )
+
+
 def _auto_plan_workers(parent_prompt: str, default_model: str) -> list[dict[str, Any]]:
     """Heuristic worker roles when the client does not supply an explicit list."""
     prompt = (parent_prompt or "").strip()
     base = _resolve_worker_model(default_model)
-    templates = [
-        (
-            "explorer",
-            "Explorer",
-            (
-                "You are Explorer. Map the problem space, key facts, and options. "
-                "Be concrete and thorough; bullets OK. Prefer evidence over guesses. "
-                "Do not write the final user-facing answer."
-            ),
-            ["search"],
-        ),
-        (
-            "analyst",
-            "Analyst",
-            (
-                "You are Analyst. Dig into trade-offs, risks, and evidence. "
-                "Challenge weak assumptions. Do not write the final user-facing answer."
-            ),
-            ["search"],
-        ),
-        (
-            "builder",
-            "Builder",
-            (
-                "You are Builder. Propose a practical solution or steps (code/config OK). "
-                "Prefer actionable detail. Do not write the final user-facing answer."
-            ),
-            [],
-        ),
-        (
-            "skeptic",
-            "Skeptic",
-            (
-                "You are Skeptic. Find gaps, failure modes, and missing edge cases. "
-                "Do not write the final user-facing answer."
-            ),
-            [],
-        ),
-    ]
     # Shorter prompts → fewer workers to save latency/GPU.
     n = 2 if len(prompt) < 120 else 3 if len(prompt) < 400 else 4
-    n = min(n, AGENTS_MAX_WORKERS, len(templates))
+    n = min(n, AGENTS_MAX_WORKERS, len(_ROLE_TEMPLATES))
     workers: list[dict[str, Any]] = []
-    for wid, name, system, tools in templates[:n]:
+    for wid, name, system, tools in _ROLE_TEMPLATES[:n]:
         workers.append(
             {
                 "id": wid,
                 "name": name,
                 "model": base,
-                "prompt": (
-                    f"{system}\n\nUser request:\n{prompt}\n\n"
-                    "Respond with your role's contribution only.\n"
-                    "Optional: to spawn up to "
-                    f"{AGENTS_MAX_NESTED_PER_WORKER} child workers (depth-capped), "
-                    'end with SPAWN_CHILDREN:[{"name":"...","prompt":"..."}]'
-                ),
+                "prompt": _role_prompt(system, prompt),
                 "tools": tools if tools else None,
                 "children": None,
                 "endpoint": None,
             }
         )
     return workers
+
+
+def plan_heavy_workers(
+    parent_prompt: str,
+    models: Optional[list[str]] = None,
+) -> list["AgentWorkerSpec"]:
+    """Grok-Heavy-style ensemble: always the full role set, strong models.
+
+    Roles are pinned (Explorer / Analyst / Builder / Skeptic, capped at
+    AGENTS_MAX_WORKERS) and models are assigned round-robin from
+    HEAVY_WORKER_MODELS so a single cold worker cannot stall the whole run.
+    """
+    prompt = (parent_prompt or "").strip()
+    pool = [m for m in (models or HEAVY_WORKER_MODELS) if m] or [AGENTS_DEFAULT_MODEL]
+    n = min(len(_ROLE_TEMPLATES), max(1, AGENTS_MAX_WORKERS))
+    specs: list[AgentWorkerSpec] = []
+    for i, (wid, name, system, tools) in enumerate(_ROLE_TEMPLATES[:n]):
+        specs.append(
+            AgentWorkerSpec(
+                id=wid,
+                name=name,
+                model=_resolve_worker_model(pool[i % len(pool)]),
+                prompt=_role_prompt(system, prompt),
+                tools=tools or None,
+            )
+        )
+    return specs
 
 
 def _normalize_workers(
@@ -334,6 +405,25 @@ def _load_run(run_id: str) -> Optional[dict[str, Any]]:
     except (OSError, json.JSONDecodeError, TypeError):
         return None
     return None
+
+
+def find_run_by_message_id(message_id: str) -> Optional[dict[str, Any]]:
+    """Latest agent run tied to an Open WebUI assistant message id."""
+    mid = (message_id or "").strip()
+    if not mid:
+        return None
+    matches = [
+        r
+        for r in list_runs(limit=100)
+        if str(r.get("parent_message_id") or "") == mid
+    ]
+    if not matches:
+        return None
+    return sorted(
+        matches,
+        key=lambda d: str(d.get("updated_at") or ""),
+        reverse=True,
+    )[0]
 
 
 def list_runs(limit: int = 50, user_id: Optional[str] = None) -> list[dict[str, Any]]:
@@ -551,6 +641,8 @@ def public_run_view(run: dict[str, Any]) -> dict[str, Any]:
         "status": run.get("status"),
         "parent_prompt": run.get("parent_prompt"),
         "model": run.get("model"),
+        "parent_chat_id": run.get("parent_chat_id"),
+        "parent_message_id": run.get("parent_message_id"),
         "depth": run.get("depth", 0),
         "user_id": run.get("user_id"),
         "workers": workers,
@@ -575,23 +667,53 @@ def public_run_view(run: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def agents_meta_sse(run: dict[str, Any]) -> bytes:
-    """OpenWebUI middleware picks selected_model_id + spockify_agents."""
+def _format_worker_error(exc: BaseException) -> str:
+    text = str(exc).strip()
+    return text or type(exc).__name__
+
+
+def agents_meta_sse(run: dict[str, Any], *, thinking: str = "") -> bytes:
+    """Agent run progress on a standard OpenAI chunk (survives LiteLLM proxy)."""
     view = public_run_view(run)
+    profile = str(run.get("profile") or "").strip().lower()
+    thinking_mode = thinking or ("heavy" if profile == "heavy" else "")
+    worker = "heavy" if profile == "heavy" else "agents"
+    status = str(run.get("status") or "")
+    done_workers = sum(
+        1 for w in (run.get("workers") or []) if w.get("status") in _TERMINAL_STATUSES
+    )
+    total_workers = len(run.get("workers") or [])
+    if status == "synthesizing":
+        desc = "Heavy · synthesizing…" if profile == "heavy" else "Parallel agents · synthesizing…"
+    elif status == "running":
+        desc = (
+            f"Heavy · agents {done_workers}/{total_workers}…"
+            if profile == "heavy"
+            else f"Parallel agents · {done_workers}/{total_workers}…"
+        )
+    else:
+        desc = f"Parallel agents ({status})"
     payload = {
-        "selected_model_id": "spockify-agents",
-        "worker": "agents",
+        "id": f"chatcmpl-{uuid.uuid4().hex[:24]}",
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": "spockify-auto",
+        "choices": [{"index": 0, "delta": {}, "finish_reason": None}],
+        "selected_model_id": "spockify-auto",
+        "worker": worker,
         "spockify_agents": view,
         "spockify_hud": view.get("hud") or {},
         "event": {
             "type": "status",
             "data": {
                 "action": "routing",
-                "description": f"Parallel agents ({run.get('status')})",
-                "done": run.get("status") in _TERMINAL_STATUSES,
+                "description": desc,
+                "done": status in _TERMINAL_STATUSES,
             },
         },
     }
+    if thinking_mode:
+        payload["spockify_thinking"] = thinking_mode
     return f"data: {json.dumps(payload, separators=(',', ':'))}\n\n".encode()
 
 
@@ -614,6 +736,12 @@ def create_run_record(body: AgentRunCreate) -> dict[str, Any]:
         "depth": depth,
         "tools": body.tools,
         "user_id": (body.user_id or "").strip() or None,
+        "profile": (body.profile or "").strip() or None,
+        "worker_timeout": body.worker_timeout,
+        "synth_timeout": body.synth_timeout,
+        "max_tokens": body.max_tokens,
+        "synth_max_tokens": body.synth_max_tokens,
+        "synth_model": (body.synth_model or "").strip() or None,
         "mesh_enabled": AGENTS_MESH_ENABLED and bool(AGENTS_MESH_ENDPOINTS),
         "workers": [_empty_worker_state(s, depth=depth) for s in specs],
         "worker_specs": specs,
@@ -1108,6 +1236,7 @@ async def _run_one_worker(
             {"role": "user", "content": user_content},
         ]
         endpoint = _pick_mesh_endpoint(worker, index)
+        worker_timeout = _cfg_worker_timeout(run)
         try:
             result, used_mesh = await asyncio.wait_for(
                 _chat_with_optional_mesh(
@@ -1118,9 +1247,9 @@ async def _run_one_worker(
                     model=spec["model"],
                     messages=messages,
                     temperature=0.4,
-                    max_tokens=AGENTS_MAX_TOKENS,
+                    max_tokens=_cfg_worker_max_tokens(run),
                 ),
-                timeout=AGENTS_WORKER_TIMEOUT,
+                timeout=worker_timeout,
             )
             worker["mesh"] = used_mesh
             worker["endpoint"] = endpoint if used_mesh else None
@@ -1176,14 +1305,16 @@ async def _run_one_worker(
             worker["preview"] = _preview(str(worker["output"]))
         except asyncio.TimeoutError:
             worker["status"] = "failed"
-            worker["error"] = f"timeout after {AGENTS_WORKER_TIMEOUT}s"
+            worker["error"] = f"timeout after {worker_timeout}s"
             worker["output"] = f"[{worker['name']} timed out]"
             worker["preview"] = worker["output"]
             LOG.warning("agent worker %s timed out", worker["id"])
         except Exception as exc:  # noqa: BLE001 — surface to run state
             worker["status"] = "failed"
             worker["error"] = str(exc)
-            worker["output"] = f"[{worker['name']} failed: {exc}]"
+            err = _format_worker_error(exc)
+            worker["output"] = f"[{worker['name']} failed: {err}]"
+            worker["error"] = err
             worker["preview"] = _preview(worker["output"])
             LOG.exception("agent worker %s failed", worker["id"])
         worker["finished_at"] = _utc_now()
@@ -1206,7 +1337,7 @@ async def _synthesize(
     worker_chat: WorkerChatFn,
     run: dict[str, Any],
 ) -> str:
-    model = _resolve_worker_model(run.get("model"))
+    model = _resolve_worker_model(run.get("synth_model") or run.get("model"))
     parts: list[str] = []
     failed = 0
     cancelled = 0
@@ -1256,9 +1387,9 @@ async def _synthesize(
             model,
             messages,
             temperature=0.3,
-            max_tokens=AGENTS_MAX_TOKENS * 2,
+            max_tokens=_cfg_synth_max_tokens(run),
         ),
-        timeout=AGENTS_SYNTH_TIMEOUT,
+        timeout=_cfg_synth_timeout(run),
     )
     try:
         return (result["choices"][0]["message"]["content"] or "").strip()

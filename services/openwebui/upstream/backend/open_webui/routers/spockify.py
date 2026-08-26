@@ -288,7 +288,7 @@ async def unload_ollama_for_gpu(user=Depends(get_admin_user)):
         ),
         'note': (
             'Does not scale ComfyUI. For host training with ComfyUI down, '
-            'run make free-gpu-for-training on the GPU host.'
+            'run free-gpu-for-training on the cluster host.'
         ),
     }
 
@@ -666,6 +666,25 @@ async def list_agent_runs(limit: int = 50, user=Depends(get_verified_user)):
                     ]
                     payload = {**payload, 'runs': runs, 'count': len(runs)}
                 return payload
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get('/agents/runs/by-message/{message_id}')
+async def get_agent_run_by_message(message_id: str, user=Depends(get_verified_user)):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f'{_router_base()}/spockify/agents/runs/by-message/{message_id}',
+                headers=_user_headers(user),
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status >= 400:
+                    text = await resp.text()
+                    raise HTTPException(status_code=502, detail=text[:300])
+                return await resp.json()
     except HTTPException:
         raise
     except Exception as exc:
@@ -2175,7 +2194,7 @@ def _ide_appimage_download_url(spockify_version: str, arch: str) -> str:
     # Primary update CTA opens `releaseNotesUrl` (releases page: AppImage + .deb).
     # Artifact naming matches apps/spockify-ide/scripts/build-appimage.sh
     # (Spockify extension version, not code-oss productVersion).
-    # Served from the edge nginx static at /downloads/ (also aliased at site root).
+    # Served from static nginx at /downloads/ (also aliased at site root).
     name = f'Spockify-IDE-{spockify_version}-{arch}.AppImage'
     return f'https://spockify.eu/downloads/{name}'
 
@@ -2474,7 +2493,7 @@ def _public_base(request: Request) -> str:
         or request.headers.get('host')
         or 'spockify.eu'
     ).split(',')[0].strip()
-    # Edge proxy terminates TLS; inner hops may report http — force https for public host.
+    # Edge terminates TLS on spock; inner hops may report http — force https for public host.
     if host.endswith('spockify.eu') and proto == 'http':
         proto = 'https'
     return f'{proto}://{host}'

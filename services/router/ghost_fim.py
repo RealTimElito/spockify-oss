@@ -4,7 +4,7 @@ Backends (env GHOST_FIM_BACKEND, default "ollama"):
   - "vllm":   OpenAI-compatible /v1/completions against GHOST_VLLM_BASE_URL with
               model-specific FIM sentinel tokens (starcoder2 / codegemma / codestral).
   - "ollama": Ollama native infill via POST /api/generate with prompt+suffix —
-              Ollama applies the model's own FIM template (e.g. codestral).
+              Ollama applies the model's own FIM template (codestral on cluster).
   - "chat":   legacy chat-prompted pseudo-FIM (gpt-oss) — last-resort fallback.
 
 Failures cascade vllm -> ollama -> chat. The chat call itself lives in
@@ -45,7 +45,7 @@ GHOST_VLLM_WORKSPACE_LORA = os.getenv("GHOST_VLLM_WORKSPACE_LORA", "1").strip().
 _VLLM_MODELS_CACHE: dict[str, Any] = {"ts": 0.0, "ids": set()}
 _VLLM_MODELS_TTL = float(os.getenv("GHOST_VLLM_MODELS_TTL", "30"))
 
-# Raw Ollama tag (not a LiteLLM alias) — codestral:22b is pulled on the GPU host and
+# Raw Ollama tag (not a LiteLLM alias) — codestral:22b is pulled on the cluster and
 # its Ollama template natively supports [SUFFIX]/[PREFIX] infill.
 GHOST_OLLAMA_FIM_MODEL = os.getenv("GHOST_OLLAMA_FIM_MODEL", "codestral:22b").strip()
 GHOST_FIM_MAX_TOKENS = int(os.getenv("GHOST_FIM_MAX_TOKENS", "64"))

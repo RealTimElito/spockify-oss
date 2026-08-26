@@ -1,7 +1,7 @@
 /**
  * In-memory store for IDE-local agent runs (`local-*` ids).
  *
- * Shell-parallel runners (ping/curl/…) never hit the remote router — Open /
+ * Shell-parallel runners (ping/curl/…) never hit the cluster router — Open /
  * poll / SSE must not call `/spockify/agents/runs/{id}` for these ids.
  */
 

@@ -1,11 +1,11 @@
 /**
- * Model provenance helpers — routed via spockify, never internal hosts.
+ * Model provenance helpers — routed via spockify, never homelab infra.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   ROUTED_VIA_SPOCKIFY,
-  assertNoHostLeak,
+  assertNoSparkLeak,
   formatModelAttribution,
   formatModelLabel,
   pickResolvedModel,
@@ -29,11 +29,11 @@ describe('modelAttribution', () => {
     assert.equal(formatModelLabel('spockify-auto'), 'Auto');
   });
 
-  it('never leaks internal backend hostnames', () => {
-    assert.equal(sanitizeModelId('litellm/qwen'), 'qwen');
-    assert.ok(!/litellm/i.test(formatModelAttribution('litellm-qwen')));
-    assert.ok(!/\.local/i.test(assertNoHostLeak('talk to mybox.local')));
-    assert.ok(!/localhost/i.test(assertNoHostLeak('call localhost now')));
+  it('never leaks homelab hostnames', () => {
+    assert.equal(sanitizeModelId('spark/qwen'), 'qwen');
+    assert.ok(!/spark/i.test(formatModelAttribution('spark-qwen')));
+    assert.ok(!/cluster\.local/i.test(assertNoSparkLeak('talk to cluster.local')));
+    assert.ok(!/homelab/i.test(assertNoSparkLeak('via homelab router')));
   });
 
   it('pickResolvedModel prefers response model', () => {

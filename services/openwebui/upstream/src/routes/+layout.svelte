@@ -118,9 +118,11 @@
 	const setupSocket = async (enableWebsocket) => {
 		const _socket = io(`${WEBUI_BASE_URL}` || undefined, {
 			reconnection: true,
+			reconnectionAttempts: Infinity,
 			reconnectionDelay: 1000,
-			reconnectionDelayMax: 5000,
+			reconnectionDelayMax: 8000,
 			randomizationFactor: 0.5,
+			timeout: 20000,
 			path: '/ws/socket.io',
 			transports: enableWebsocket ? ['websocket'] : ['polling', 'websocket'],
 			auth: { token: localStorage.token }
@@ -192,6 +194,13 @@
 				_socket.emit('user-join', { auth: { token: localStorage.token } });
 			} else {
 				console.warn('No token found in localStorage, user-join event not emitted');
+			}
+		});
+
+		_socket.on('reconnect', (attempt) => {
+			console.log('reconnect', attempt);
+			if (localStorage.getItem('token')) {
+				_socket.emit('user-join', { auth: { token: localStorage.token } });
 			}
 		});
 

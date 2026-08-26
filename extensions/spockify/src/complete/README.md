@@ -21,12 +21,12 @@ All new request fields are optional server-side; v1 routers ignore them.
 - **EDIT rendering** (`editRender.ts`): `mode: "edit"` responses render as a replace-range ghost when the edit collapses to the cursor line (stable-API limit); otherwise fall back to `insert_text` or drop.
 - **Fate reporting** (`fate.ts`): accepted / partial / rejected / ignored per `request_id` → fire-and-forget POST `/ghost/fate`, with `settled_text` captured ~1.5s later. Gate: `spockify.completions.telemetry` (default on).
 
-## Coding vs ghost models
+## Coding vs ghost models (cluster)
 
 | Role | Model | Why |
 |------|-------|-----|
 | Ghost Tab | **gpt-oss-20b** | Low TTFT, always warm |
-| Agent / Auto coding | **gpt-oss-120b** | Quality; fits hot on a large-memory host with 20b + smalls |
+| Agent / Auto coding | **gpt-oss-120b** | Quality; fits hot on large unified-memory hosts with 20b + smalls |
 
 ## Smoke
 

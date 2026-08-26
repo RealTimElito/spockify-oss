@@ -36,6 +36,13 @@ If the user asks a factual question and you are not highly confident about fresh
 set `needs_web_search: true` and pick `web-gemma`. Do not route uncertain facts to tiny models.
 Set `confidence` honestly (0–1). Low confidence + facts ⇒ search.
 
+## Thinking depth
+
+Thinking depth (Light / Medium / Heavy) is client-selected, not something you route.
+The router applies it before you: Light biases to a fast worker and skips critique;
+Medium is this normal auto path; Heavy runs a parallel role ensemble + synthesis + critique
+and never reaches you. Just route the Medium path as usual.
+
 ## Context
 
 Keep weather/code sticky for short follow-ups in the same topic. Break stickiness on topic shift.

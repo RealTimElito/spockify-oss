@@ -13,7 +13,7 @@ VIDEO_FPS = 24
 # Duration chips → EmptyLTXVLatentVideo.length / LTXVImgToVideo.length.
 DURATION_LENGTHS: dict[str, int] = {
     'short': 25,  # ~1.0s at 24fps (8*3+1)
-    'default': 65,  # ~2.7s at 24fps (8*8+1) — current default
+    'default': 65,  # ~2.7s at 24fps (8*8+1) — current cluster default
     'long': 241,  # ~10.0s at 24fps (8*30+1); nearest 8n+1 to 24*10
 }
 

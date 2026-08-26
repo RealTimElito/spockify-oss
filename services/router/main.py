@@ -452,6 +452,8 @@ DEFAULT_CHAT_WORKER = os.getenv("DEFAULT_CHAT_WORKER", "gemma4-12b")
 DEFAULT_CHAT_FALLBACK = os.getenv("DEFAULT_CHAT_FALLBACK", "gemma4-12b")
 # Stronger Gemma for deep reasoning / architecture when 120b is cold or overkill.
 QUALITY_CHAT_WORKER = os.getenv("QUALITY_CHAT_WORKER", "gemma4-26b")
+# Fast worker for Light thinking mode (snappy general chat, no ensemble/critique).
+LIGHT_CHAT_WORKER = os.getenv("LIGHT_CHAT_WORKER", "llama3.1-8b")
 # Below this confidence, escalate: prefer web for facts, avoid tiny chat models.
 UNCERTAINTY_CONFIDENCE_MAX = float(os.getenv("UNCERTAINTY_CONFIDENCE_MAX", "0.72"))
 # Models remapped to VOICE_CHAT_WORKER when Call/voice mode is active.
@@ -1129,6 +1131,9 @@ class ChatCompletionRequest(BaseModel):
     # Wave 9.8 — optional role hint from OWUI (guest/family/user/admin).
     spockify_role: Optional[str] = None
     spockify_user_id: Optional[str] = None
+    spockify_message_id: Optional[str] = None
+    # Thinking depth (light | medium | heavy). Also via header/marker/model alias.
+    spockify_thinking: Optional[str] = None
     # Optional in-turn multi-model chat pipeline toggles (IDE path).
     spockify_pipeline_enabled: Optional[bool] = None
     spockify_pipeline_work_model: Optional[str] = None
@@ -3047,10 +3052,93 @@ VOICE_MODE_MARKER_RE = re.compile(
 )
 VALID_SEARCH_MODES = frozenset({"auto", "on", "off"})
 
+# Thinking depth: client-selected effort. Default medium = current auto path.
+THINKING_MODE_MARKER_RE = re.compile(
+    r"\[spockify_thinking:(light|medium|heavy)\]",
+    re.IGNORECASE,
+)
+VALID_THINKING_MODES = frozenset({"light", "medium", "heavy"})
+DEFAULT_THINKING_MODE = os.getenv("DEFAULT_THINKING_MODE", "medium").strip().lower()
+if DEFAULT_THINKING_MODE not in VALID_THINKING_MODES:
+    DEFAULT_THINKING_MODE = "medium"
+
 
 def _normalize_search_mode(raw: Optional[str]) -> str:
     mode = (raw or "auto").strip().lower()
     return mode if mode in VALID_SEARCH_MODES else "auto"
+
+
+def _normalize_thinking_mode(raw: Optional[str]) -> Optional[str]:
+    mode = (raw or "").strip().lower()
+    return mode if mode in VALID_THINKING_MODES else None
+
+
+def _thinking_mode_from_model(model: Optional[str]) -> Optional[str]:
+    """Explicit alias only: spockify-light|medium|heavy. auto stays unset."""
+    name = (model or "").lower()
+    for mode in ("light", "medium", "heavy"):
+        if f"spockify-{mode}" in name:
+            return mode
+    return None
+
+
+def _thinking_mode_from_headers(headers: Any) -> Optional[str]:
+    if headers is None:
+        return None
+    lookup = headers
+    if hasattr(headers, "items"):
+        lookup = {k.lower(): v for k, v in headers.items()}
+    val = lookup.get("x-spockify-thinking")
+    return _normalize_thinking_mode(str(val)) if val else None
+
+
+def _thinking_mode_from_messages(
+    messages: list[ChatMessage],
+) -> tuple[Optional[str], list[ChatMessage]]:
+    """Extract optional per-turn thinking marker; strip it from messages."""
+    found: Optional[str] = None
+    cleaned: list[ChatMessage] = []
+    for msg in messages:
+        text = _content_text(msg.content)
+        match = THINKING_MODE_MARKER_RE.search(text)
+        if match:
+            found = _normalize_thinking_mode(match.group(1))
+            stripped = THINKING_MODE_MARKER_RE.sub("", text).strip()
+            if msg.role == "system" and not stripped:
+                continue
+            if stripped != text:
+                if isinstance(msg.content, str):
+                    msg = msg.model_copy(update={"content": stripped})
+                else:
+                    new_parts: list[Any] = []
+                    for part in msg.content:
+                        if isinstance(part, dict) and part.get("type") == "text":
+                            part_text = THINKING_MODE_MARKER_RE.sub(
+                                "", str(part.get("text", ""))
+                            ).strip()
+                            new_parts.append({**part, "text": part_text})
+                        else:
+                            new_parts.append(part)
+                    msg = msg.model_copy(update={"content": new_parts})
+        cleaned.append(msg)
+    return found, cleaned
+
+
+def _resolve_thinking_mode(
+    *,
+    model: Optional[str],
+    body_mode: Optional[str],
+    header_mode: Optional[str],
+    marker_mode: Optional[str],
+) -> str:
+    """Precedence: explicit model alias > body > header > marker > default."""
+    return (
+        _thinking_mode_from_model(model)
+        or _normalize_thinking_mode(body_mode)
+        or header_mode
+        or marker_mode
+        or DEFAULT_THINKING_MODE
+    )
 
 
 def _parse_bool_flag(raw: Optional[str]) -> bool:
@@ -3176,6 +3264,55 @@ def _apply_voice_mode(
     return patched
 
 
+_THINKING_KEEP_TASK_TYPES = frozenset(
+    {
+        "code_generation",
+        "code_review",
+        "vision",
+        "math_reasoning",
+        "commit_message",
+        "architecture",
+        "deep_reasoning",
+    }
+)
+
+
+def _apply_thinking_mode(
+    decision: RoutingDecision,
+    mode: str,
+    user_msg: str,
+) -> RoutingDecision:
+    """Light biases general chat toward a fast worker; medium/heavy are no-ops here.
+
+    Specialists (code / vision / math / commit / web search) keep their model so
+    Light stays fast without becoming wrong on tasks that need a real worker.
+    """
+    if mode != "light":
+        return decision
+
+    patched = decision.model_copy(deep=True)
+    task = (patched.task_type or "").strip().lower()
+    selected = (patched.selected_model or "").strip()
+
+    if patched.needs_web_search or selected.startswith(
+        ("web-", "gpt-oss", "codestral", "llava", "mathstral")
+    ):
+        return patched
+    if task in _THINKING_KEEP_TASK_TYPES:
+        return patched
+
+    if selected in (
+        QUALITY_CHAT_WORKER,
+        DEFAULT_CHAT_WORKER,
+        DEFAULT_CHAT_FALLBACK,
+    ) or task in ("general", "fast_chat", "reasoning", "casual_chat", "nvidia_chat", ""):
+        patched.selected_model = LIGHT_CHAT_WORKER
+        patched.reasoning = (
+            f"{patched.reasoning}; thinking=light→{LIGHT_CHAT_WORKER}".strip("; ")
+        )
+    return patched
+
+
 def _search_mode_from_messages(
     messages: list[ChatMessage],
 ) -> tuple[Optional[str], list[ChatMessage]]:
@@ -3251,6 +3388,7 @@ def _response_headers(
     worker: str,
     decision: RoutingDecision,
     hud: Optional[dict[str, Any]] = None,
+    thinking: Optional[str] = None,
 ) -> dict[str, str]:
     reason = (decision.reasoning or "").strip().replace("\n", " ")
     if len(reason) > 240:
@@ -3260,6 +3398,8 @@ def _response_headers(
         "X-Spockify-Routing-Path": decision.routing_path,
         "X-Spockify-Web-Search": _web_search_header(decision.needs_web_search),
     }
+    if thinking:
+        headers["X-Spockify-Thinking"] = thinking
     if reason:
         # Latin-1 safe for HTTP headers (drop non-ascii).
         headers["X-Spockify-Reasoning"] = reason.encode("ascii", "ignore").decode(
@@ -6460,6 +6600,23 @@ async def list_agent_runs(
     return {"ok": True, "runs": runs, "count": len(runs)}
 
 
+@app.get("/spockify/agents/runs/by-message/{message_id}")
+async def get_agent_run_by_message(
+    message_id: str,
+    authorization: Optional[str] = Header(None),
+    x_spockify_user_id: Optional[str] = Header(None, alias="X-Spockify-User-Id"),
+) -> dict[str, Any]:
+    """Lookup the latest parallel/heavy run for an OWUI assistant message."""
+    _check_auth(authorization)
+    run = pagents.find_run_by_message_id(message_id)
+    if not run:
+        return {"ok": True, "run": None}
+    uid = (x_spockify_user_id or "").strip()
+    if uid and str(run.get("user_id") or "") not in ("", uid):
+        raise HTTPException(status_code=404, detail="run not found")
+    return {"ok": True, "run": pagents.public_run_view(run)}
+
+
 @app.get("/spockify/agents/runs/{run_id}")
 async def get_agent_run(
     run_id: str,
@@ -7353,6 +7510,229 @@ async def agent_run_events(
     )
 
 
+def _heavy_synth_model() -> str:
+    return (pagents.HEAVY_SYNTH_MODEL or QUALITY_CHAT_WORKER).strip() or QUALITY_CHAT_WORKER
+
+
+def _build_heavy_run(
+    req: ChatCompletionRequest,
+    user_msg: str,
+) -> dict[str, Any]:
+    """Heavy profile run: 4 role agents, strong models, raised budgets."""
+    synth_model = _heavy_synth_model()
+    body = pagents.AgentRunCreate(
+        parent_prompt=user_msg,
+        model=synth_model,
+        workers=pagents.plan_heavy_workers(user_msg),
+        synthesize=True,
+        user_id=getattr(req, "spockify_user_id", None),
+        parent_message_id=getattr(req, "spockify_message_id", None),
+        profile="heavy",
+        worker_timeout=pagents.HEAVY_WORKER_TIMEOUT,
+        synth_timeout=pagents.HEAVY_SYNTH_TIMEOUT,
+        max_tokens=pagents.HEAVY_MAX_TOKENS,
+        synth_max_tokens=pagents.HEAVY_MAX_TOKENS,
+        synth_model=synth_model,
+    )
+    return pagents.create_run_record(body)
+
+
+async def _heavy_refine(
+    client: httpx.AsyncClient,
+    *,
+    question: str,
+    answer: str,
+    notes: str,
+    model: str,
+) -> str:
+    """Single revision pass when the critique flags low confidence (no loop)."""
+    system = (
+        "You are Spockify revising your own answer after a confidence critic "
+        "flagged uncertain or unsupported claims. Fix those, keep what is solid, "
+        "and be confident and correct — not confidently wrong. Do not add meta "
+        "commentary about the revision; return only the improved final answer."
+    )
+    user = (
+        f"User question:\n{question[:2000]}\n\n"
+        f"Draft answer:\n{answer[:6000]}\n\n"
+        f"Critique notes:\n{notes[:1500]}\n\n"
+        "Return the improved final answer only."
+    )
+    try:
+        result = await _worker_chat(
+            client,
+            model,
+            [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.3,
+            max_tokens=pagents.HEAVY_MAX_TOKENS,
+        )
+        text = str(result["choices"][0]["message"]["content"] or "").strip()
+        return text or answer
+    except (httpx.HTTPError, KeyError, IndexError, TypeError) as exc:
+        LOG.warning("heavy refine failed: %s", exc)
+        return answer
+
+
+async def _heavy_completion_json(
+    req: ChatCompletionRequest,
+    user_msg: str,
+) -> dict[str, Any]:
+    run = _build_heavy_run(req, user_msg)
+    async with httpx.AsyncClient() as client:
+        final = await pagents.execute_run(
+            run,
+            client=client,
+            worker_chat=_worker_chat,
+            mesh_chat=_agents_mesh_chat,
+            search_tool=_agents_search_tool,
+            browse_tool=_agents_browse_tool,
+        )
+        synthesis = str(final.get("synthesis") or "").strip()
+        critique: Optional[dict[str, Any]] = None
+        if synthesis:
+            critique = await critique_mod.run_critique(
+                client=client,
+                chat_fn=_worker_chat,
+                question=user_msg,
+                answer=synthesis,
+            )
+            if str((critique or {}).get("level")) == "low":
+                synthesis = await _heavy_refine(
+                    client,
+                    question=user_msg,
+                    answer=synthesis,
+                    notes=str((critique or {}).get("notes") or ""),
+                    model=_heavy_synth_model(),
+                )
+    result: dict[str, Any] = {
+        "id": f"chatcmpl-{uuid.uuid4().hex[:24]}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": SPOCKIFY_DISPLAY_MODEL,
+        "choices": [
+            {"index": 0, "message": {"role": "assistant", "content": synthesis}}
+        ],
+        "selected_model_id": SPOCKIFY_DISPLAY_MODEL,
+        "spockify_worker": "heavy",
+        "spockify_thinking": "heavy",
+        "spockify_agents": pagents.public_run_view(final),
+    }
+    if critique:
+        result["spockify_critique"] = critique
+    return result
+
+
+async def _stream_heavy_completion(
+    req: ChatCompletionRequest,
+) -> AsyncIterator[bytes]:
+    """Heavy thinking: parallel role agents → synthesis → forced critique.
+
+    Same decoupled-run semantics as ``_stream_agents_completion`` (the run keeps
+    going if the client disconnects), plus a mandatory confidence pass and one
+    optional low-confidence refinement on the synthesizer.
+    """
+    user_msg = _user_text(req.messages)
+    run = _build_heavy_run(req, user_msg)
+    run_id = str(run["id"])
+    n_workers = len(run["workers"])
+    yield _status_sse(
+        f"Heavy · spawning {n_workers} agents…", done=False, worker="heavy"
+    )
+    yield pagents.agents_meta_sse(run, thinking="heavy")
+
+    async def _run_job() -> None:
+        async with httpx.AsyncClient() as client:
+            await pagents.execute_run(
+                run,
+                client=client,
+                worker_chat=_worker_chat,
+                mesh_chat=_agents_mesh_chat,
+                search_tool=_agents_search_tool,
+                browse_tool=_agents_browse_tool,
+            )
+
+    task = asyncio.create_task(_run_job())
+    pagents.register_run_task(run_id, task)
+    last_sig = ""
+    last_emit = time.monotonic()
+    heartbeat_s = 5.0
+    status_labels = {
+        "running": "Heavy · agents working…",
+        "synthesizing": "Heavy · synthesizing…",
+    }
+    try:
+        while not task.done():
+            current = pagents.get_run(run_id) or run
+            status = str(current.get("status") or "")
+            worker_sig = "|".join(
+                f"{w.get('id')}:{w.get('status')}"
+                for w in (current.get("workers") or [])
+            )
+            now = time.monotonic()
+            sig = f"{status}#{worker_sig}"
+            changed = sig != last_sig
+            due_heartbeat = (now - last_emit) >= heartbeat_s
+            if changed or due_heartbeat:
+                last_sig = sig
+                last_emit = now
+                if changed:
+                    yield _status_sse(
+                        status_labels.get(status, f"Heavy · {status}"),
+                        done=False,
+                        worker="heavy",
+                    )
+                else:
+                    yield b": heavy-keepalive\n\n"
+                yield pagents.agents_meta_sse(current, thinking="heavy")
+            await asyncio.sleep(0.4)
+        await task
+    except asyncio.CancelledError:
+        LOG.info("heavy stream disconnected; run %s continues", run_id)
+        return
+    except Exception as exc:
+        LOG.exception("heavy stream failed: %s", exc)
+        yield _stream_error_sse(str(exc))
+        return
+
+    final = pagents.get_run(run_id) or run
+    yield pagents.agents_meta_sse(final, thinking="heavy")
+
+    synthesis = str(final.get("synthesis") or "").strip()
+    critique: Optional[dict[str, Any]] = None
+    if synthesis:
+        yield _status_sse("Heavy · verifying…", done=False, worker="heavy")
+        async with httpx.AsyncClient() as c2:
+            critique = await critique_mod.run_critique(
+                client=c2,
+                chat_fn=_worker_chat,
+                question=user_msg,
+                answer=synthesis,
+            )
+            if str((critique or {}).get("level")) == "low":
+                yield _status_sse("Heavy · refining…", done=False, worker="heavy")
+                synthesis = await _heavy_refine(
+                    c2,
+                    question=user_msg,
+                    answer=synthesis,
+                    notes=str((critique or {}).get("notes") or ""),
+                    model=_heavy_synth_model(),
+                )
+
+    if synthesis:
+        step = 240
+        for i in range(0, len(synthesis), step):
+            yield pagents.content_sse_delta(synthesis[i : i + step])
+
+    if critique:
+        yield _critique_sse(critique)
+
+    yield pagents.content_sse_delta("", finish=True)
+    yield b"data: [DONE]\n\n"
+
+
 async def _stream_agents_completion(
     req: ChatCompletionRequest,
 ) -> AsyncIterator[bytes]:
@@ -7668,6 +8048,17 @@ async def chat_completions(
     # Wave 9.4 — merge skill ids from header.
     req.skill_ids = _skill_ids_from_request(req, request)
 
+    req.spockify_user_id = (
+        req.spockify_user_id
+        or (request.headers.get("x-spockify-user-id") or "").strip()
+        or None
+    )
+    req.spockify_message_id = (
+        req.spockify_message_id
+        or (request.headers.get("x-spockify-message-id") or "").strip()
+        or None
+    )
+
     # Wave 9.8 — family/guest enforcement.
     role = (
         req.spockify_role
@@ -7780,6 +8171,58 @@ async def chat_completions(
             "spockify_worker": "room",
         }
 
+    # Thinking depth (Light / Medium / Heavy) — client-selected effort.
+    thinking_header = _thinking_mode_from_headers(request.headers)
+    thinking_marker, cleaned_messages = _thinking_mode_from_messages(req.messages)
+    req.messages = cleaned_messages
+    thinking_mode = _resolve_thinking_mode(
+        model=req.model,
+        body_mode=req.spockify_thinking,
+        header_mode=thinking_header,
+        marker_mode=thinking_marker,
+    )
+    heavy_user_msg = _user_text(req.messages)
+    heavy_active = thinking_mode == "heavy" and not (
+        _is_greeting(heavy_user_msg) or _is_acknowledgment(heavy_user_msg)
+    )
+    if heavy_active:
+        import memory_guard as memguard
+
+        async with httpx.AsyncClient() as guard_client:
+            allowed, guard_reason, _guard_snap = await memguard.heavy_mode_allowed(
+                guard_client
+            )
+        if not allowed:
+            LOG.warning("heavy downgraded to medium: %s", guard_reason)
+            thinking_mode = "medium"
+            heavy_active = False
+    if heavy_active:
+        LOG.info("route thinking=heavy stream=%s", req.stream)
+        if req.stream:
+
+            async def heavy_stream() -> AsyncIterator[bytes]:
+                try:
+                    async for chunk in _stream_heavy_completion(req):
+                        yield chunk
+                except Exception as exc:
+                    LOG.exception("heavy stream failed: %s", exc)
+                    yield _stream_error_sse(str(exc))
+
+            return StreamingResponse(
+                heavy_stream(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Spockify-Worker": "heavy",
+                    "X-Spockify-Thinking": "heavy",
+                },
+            )
+        return JSONResponse(
+            content=await _heavy_completion_json(req, heavy_user_msg),
+            headers={"X-Spockify-Worker": "heavy", "X-Spockify-Thinking": "heavy"},
+        )
+
     header_mode = _search_mode_from_headers(request.headers)
     marker_mode, cleaned_messages = _search_mode_from_messages(req.messages)
     voice_from_msgs, cleaned_messages = _voice_mode_from_messages(cleaned_messages)
@@ -7797,15 +8240,17 @@ async def chat_completions(
         )
         decision = _apply_user_search_mode(user_msg, decision, search_mode)
         decision = _apply_voice_mode(decision, voice_mode)
+        decision = _apply_thinking_mode(decision, thinking_mode, user_msg)
         worker = _resolve_worker_model(decision)
         LOG.info(
-            "route path=%s model=%s worker=%s search=%s mode=%s voice=%s stream=%s thread=%s",
+            "route path=%s model=%s worker=%s search=%s mode=%s voice=%s thinking=%s stream=%s thread=%s",
             decision.routing_path,
             decision.selected_model,
             worker,
             decision.needs_web_search,
             search_mode,
             voice_mode,
+            thinking_mode,
             req.stream,
             (thread_id or "")[:12],
         )
@@ -7820,6 +8265,7 @@ async def chat_completions(
         pipeline = _resolve_pipeline_options(req, request)
         pipeline_active = (
             (not is_commit)
+            and thinking_mode != "light"
             and pipeline.get("enabled")
             and worker not in ("agents", "room")
             and str(req.model or "").strip() not in ("spockify-room", "spockify-agents")
@@ -7885,7 +8331,7 @@ async def chat_completions(
                     headers={
                         "Cache-Control": "no-cache",
                         "Connection": "keep-alive",
-                        **_response_headers(worker, decision),
+                        **_response_headers(worker, decision, thinking=thinking_mode),
                     },
                 )
 
@@ -7951,7 +8397,12 @@ async def chat_completions(
 
                     critique_hdr = (request.headers.get("x-spockify-critique") or "").lower()
                     force_crit = critique_hdr in ("1", "true", "yes", "on")
-                    if critique_mod.should_critique(answer, force=force_crit):
+                    crit_enabled = False if thinking_mode == "light" else None
+                    if thinking_mode == "light":
+                        force_crit = False
+                    if critique_mod.should_critique(
+                        answer, force=force_crit, enabled=crit_enabled
+                    ):
                         async with httpx.AsyncClient() as c2:
                             crit = await critique_mod.run_critique(
                                 client=c2,
@@ -7970,7 +8421,7 @@ async def chat_completions(
                 headers={
                     "Cache-Control": "no-cache",
                     "Connection": "keep-alive",
-                    **_response_headers(worker, decision),
+                    **_response_headers(worker, decision, thinking=thinking_mode),
                 },
             )
 
@@ -7992,11 +8443,12 @@ async def chat_completions(
                 "spockify_worker": str(pmeta.get("explain_model") or worker),
                 "spockify_pipeline": pmeta,
             }
+            result["spockify_thinking"] = thinking_mode
             if citation_sources:
                 result["sources"] = citation_sources
             return JSONResponse(
                 content=result,
-                headers=_response_headers(worker, decision),
+                headers=_response_headers(worker, decision, thinking=thinking_mode),
             )
 
         t0 = time.perf_counter()
@@ -8069,11 +8521,14 @@ async def chat_completions(
         result["spockify_hud"] = hud
         critique_hdr = (request.headers.get("x-spockify-critique") or "").lower()
         force_crit = critique_hdr in ("1", "true", "yes", "on")
+        crit_enabled = False if thinking_mode == "light" else None
+        if thinking_mode == "light":
+            force_crit = False
         try:
             ans_text = str(result["choices"][0]["message"]["content"] or "")
         except (KeyError, IndexError, TypeError):
             ans_text = ""
-        if critique_mod.should_critique(ans_text, force=force_crit):
+        if critique_mod.should_critique(ans_text, force=force_crit, enabled=crit_enabled):
             result["spockify_critique"] = await critique_mod.run_critique(
                 client=client,
                 chat_fn=_worker_chat,
@@ -8083,6 +8538,7 @@ async def chat_completions(
         result["model"] = SPOCKIFY_DISPLAY_MODEL
         result["selected_model_id"] = SPOCKIFY_DISPLAY_MODEL
         result["spockify_worker"] = worker
+        result["spockify_thinking"] = thinking_mode
         if citation_sources:
             result["sources"] = citation_sources
 
@@ -8102,7 +8558,7 @@ async def chat_completions(
             result["spockify"].update(meta)
         return JSONResponse(
             content=result,
-            headers=_response_headers(worker, decision, hud=hud),
+            headers=_response_headers(worker, decision, hud=hud, thinking=thinking_mode),
         )
 
 

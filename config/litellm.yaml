@@ -74,7 +74,7 @@ model_list:
       api_key: os.environ/VLLM_API_KEY
       timeout: 300
 
-  # Optional Grok-1 via vLLM — requires a large multi-GPU node; not runnable on a single-GPU host.
+  # Optional Grok-1 via vLLM — requires multi-GPU node; not runnable on single-GPU hosts.
   # Download: ./scripts/pull-grok1.sh — Deploy: k8s/vllm-grok1.yaml (replicas: 0 until 8× GPU node).
   # Uncomment when vllm-grok1 is scaled up on a multi-GPU host:
   # - model_name: grok-1-vllm
@@ -111,7 +111,7 @@ model_list:
       api_base: os.environ/OLLAMA_API_BASE
       timeout: 300
 
-  # --- Google Gemma 3 (legacy aliases → Gemma 4 weights) ---
+  # --- Google Gemma 3 (legacy aliases → Gemma 4 weights on Ollama) ---
   - model_name: gemma3-4b
     litellm_params:
       model: ollama_chat/gemma4:12b
@@ -394,6 +394,34 @@ model_list:
       timeout: 900
     model_info:
       description: "Parallel multi-agent workers + synthesis"
+
+  # --- Thinking depth aliases (client-selected effort; router resolves mode) ---
+  - model_name: spockify-light
+    litellm_params:
+      model: openai/spockify-light
+      api_base: http://spockify-router.spockify.svc.cluster.local:4100/v1
+      api_key: os.environ/LITELLM_MASTER_KEY
+      timeout: 120
+    model_info:
+      description: "fast — snappy single worker, no ensemble/critique"
+
+  - model_name: spockify-medium
+    litellm_params:
+      model: openai/spockify-medium
+      api_base: http://spockify-router.spockify.svc.cluster.local:4100/v1
+      api_key: os.environ/LITELLM_MASTER_KEY
+      timeout: 300
+    model_info:
+      description: "balanced — auto route + RSI/recency search (default)"
+
+  - model_name: spockify-heavy
+    litellm_params:
+      model: openai/spockify-heavy
+      api_base: http://spockify-router.spockify.svc.cluster.local:4100/v1
+      api_key: os.environ/LITELLM_MASTER_KEY
+      timeout: 900
+    model_info:
+      description: "deep — parallel role agents, synthesis, forced critique"
 
   # --- Web-search enabled models (SearXNG) ---
   - model_name: web-codestral

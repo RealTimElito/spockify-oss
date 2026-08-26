@@ -70,7 +70,7 @@
 	import { fade } from 'svelte/transition';
 	import { flyAndScale } from '$lib/utils/transitions';
 	import RegenerateMenu from './ResponseMessage/RegenerateMenu.svelte';
-	import StatusHistory from './ResponseMessage/StatusHistory.svelte';
+	import SpockifyThinkingPanel from './ResponseMessage/SpockifyThinkingPanel.svelte';
 	import FullHeightIframe from '$lib/components/common/FullHeightIframe.svelte';
 	import OutputEditView from './OutputEditView.svelte';
 
@@ -125,6 +125,7 @@
 		annotation?: { type: string; rating: number };
 		spockifyWorker?: string;
 		spockifyWebSearch?: boolean;
+		spockifyThinking?: string;
 		spockifyHud?: {
 			worker?: string;
 			model?: string;
@@ -176,16 +177,20 @@
 	export let messageId;
 	export let selectedModels = [];
 
+	const spockifyStreamSig = (m: MessageType | undefined) =>
+		`${JSON.stringify(m?.spockifyAgents ?? null)}|${JSON.stringify(m?.spockifyCritique ?? null)}|${m?.statusHistory?.length ?? 0}|${m?.spockifyThinking ?? ''}`;
+
 	let message: MessageType = structuredClone(history.messages[messageId]);
 	$: if (history.messages) {
 		const source = history.messages[messageId];
 		if (source) {
-			// Fast path: O(1) check on the fields that change most often (content during streaming, done at end)
-			// Avoids 2x O(n) JSON.stringify calls that are always true during streaming anyway
-			if (message.content !== source.content || message.done !== source.done) {
+			if (
+				message.content !== source.content ||
+				message.done !== source.done ||
+				spockifyStreamSig(message) !== spockifyStreamSig(source)
+			) {
 				message = structuredClone(source);
 			} else if (!equal(message, source)) {
-				// Slow path: full comparison for infrequent changes (sources, annotations, status, etc.)
 				message = structuredClone(source);
 			}
 		}
@@ -245,8 +250,34 @@
 	const stripMarkdownImages = (text: string) =>
 		text.replace(/!\[[^\]]*]\([^)]+\)/g, '').trim();
 
-	$: displayContent =
-		messageImages.length > 0 ? stripMarkdownImages(message?.content ?? '') : (message?.content ?? '');
+	/** Router also streams agent blocks in markdown; hide when structured panel exists. */
+	const stripSpockifyAgentMarkdown = (text: string) =>
+		text
+			.replace(/<details>\s*<summary>\s*Agent:[^<]*<\/summary>[\s\S]*?<\/details>\s*/gi, '')
+			.replace(/^###\s*Answer\s*\n+/im, '')
+			.replace(/^###\s*Synthesis(?:\s*\([^)]*\))?\s*\n+/im, '')
+			.trim();
+
+	$: displayContent = (() => {
+		let text = message?.content ?? '';
+		if (messageImages.length > 0) text = stripMarkdownImages(text);
+		if (
+			message?.spockifyThinking === 'heavy' ||
+			message?.spockifyAgents?.workers?.length ||
+			/<details>\s*<summary>\s*Agent:/i.test(text)
+		) {
+			text = stripSpockifyAgentMarkdown(text);
+		}
+		return text;
+	})();
+
+	$: hasSpockifyThinkingPanel =
+		Boolean(message?.spockifyThinking) ||
+		message?.spockifyThinking === 'heavy' ||
+		(message?.statusHistory?.length ?? 0) > 0 ||
+		(message?.spockifyAgents?.workers?.length ?? 0) > 0 ||
+		Boolean(message?.spockifyCritique?.level || message?.spockifyCritique?.notes) ||
+		Boolean(message?.spockifyRoutingPath || message?.spockifyReason || message?.spockifyWorker);
 
 	$: canRequestImageVariation =
 		!readOnly &&
@@ -841,6 +872,22 @@
 					</Tooltip>
 				{/if}
 
+				{#if message.spockifyThinking}
+					{@const mode = message.spockifyThinking}
+					{@const heavyWorkers = message.spockifyAgents?.workers?.length || 0}
+					<span
+						class="text-xs font-normal shrink-0 rounded-full px-1.5 py-[1px] {mode ===
+						'heavy'
+							? 'text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-400/10'
+							: mode === 'light'
+								? 'text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-400/10'
+								: 'text-gray-500 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/60'}"
+					>
+						{#if mode === 'heavy'}Heavy{#if heavyWorkers}
+								· {heavyWorkers} agents{/if}{:else if mode === 'light'}Light{:else}Medium{/if}
+					</span>
+				{/if}
+
 				{#if message.model === 'spockify-agents' || message.spockifyAgents}
 					{@const agentsHud = message.spockifyHud || message.spockifyAgents?.hud}
 					{@const agentsTok =
@@ -928,143 +975,25 @@
 			<div>
 				<div class="chat-{message.role} w-full min-w-full markdown-prose">
 					<div>
-						{#if model?.info?.meta?.capabilities?.status_updates ?? true}
-							<StatusHistory statusHistory={message?.statusHistory} />
-						{/if}
-
-						{#if message.spockifyAgents?.workers?.length}
-							{@const workers = message.spockifyAgents.workers}
-							{@const doneN = workers.filter((w) =>
-								['done', 'failed', 'cancelled'].includes(w.status || '')
-							).length}
-							{@const runActive = agentsRunActive(message.spockifyAgents?.status)}
-							<div
-								class="my-2 flex flex-col gap-2 text-xs rounded-xl border border-amber-200/40 dark:border-amber-500/20 bg-amber-50/30 dark:bg-amber-950/20 p-2.5"
-								aria-label="Parallel agent workers"
-							>
-								<div class="flex items-center gap-2 px-0.5 flex-wrap">
-									<span
-										class="text-[11px] font-medium text-amber-800/90 dark:text-amber-200/90"
-									>
-										{#if runActive}Running{:else}{message.spockifyAgents?.status || 'done'}{/if}
-										· {doneN}/{workers.length} workers
-									</span>
-									{#if runActive}
-										<div
-											class="flex-1 min-w-[4rem] h-1 rounded-full bg-amber-200/50 dark:bg-amber-800/40 overflow-hidden"
-											aria-hidden="true"
-										>
-											<div
-												class="h-full rounded-full bg-amber-500/80 dark:bg-amber-400/70 transition-all duration-500"
-												style="width: {workers.length
-													? Math.round((doneN / workers.length) * 100)
-													: 0}%"
-											></div>
-										</div>
-									{/if}
-									{#if runActive && message.spockifyAgents?.id}
-										<button
-											type="button"
-											class="px-2 py-1 rounded-md border border-red-200/70 dark:border-red-500/30 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-											disabled={agentsCancelBusy}
-											aria-label="Cancel parallel agents run"
-											on:click|preventDefault={cancelParallelAgentsRun}
-										>
-											{agentsCancelBusy ? 'Cancelling…' : 'Cancel run'}
-										</button>
-									{:else if message.spockifyAgents?.id}
-										<button
-											type="button"
-											class="px-2 py-1 rounded-md border border-gray-200/70 dark:border-gray-600/50 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/40"
-											aria-label="Open agent run replay"
-											on:click|preventDefault={() => {
-												try {
-													sessionStorage.setItem(
-														'spockifyReplayRun',
-														message.spockifyAgents.id
-													);
-												} catch {
-													/* ignore */
-												}
-												showSettings.set('spockify_agents_replay');
-											}}
-										>
-											Replay timeline
-										</button>
-									{/if}
-								</div>
-								{#each workers as worker (worker.id || worker.name)}
-									<details
-										class="rounded-lg border border-gray-200/70 dark:border-gray-700/70 bg-white/70 dark:bg-gray-950/40 overflow-hidden"
-									>
-										<summary
-											class="cursor-pointer select-none px-2.5 py-1.5 flex items-center gap-2 list-none"
-										>
-											<span
-												class="shrink-0 size-1.5 rounded-full {worker.status === 'done'
-													? 'bg-emerald-500'
-													: worker.status === 'failed' || worker.status === 'cancelled'
-														? 'bg-red-500'
-														: worker.status === 'running'
-															? 'bg-amber-400 animate-pulse'
-															: 'bg-gray-400'}"
-												aria-hidden="true"
-											></span>
-											<span class="font-medium text-gray-800 dark:text-gray-100"
-												>{worker.name || worker.id}</span
-											>
-											<span class="text-gray-400 dark:text-gray-500">{worker.status}</span>
-											{#if worker.duration_ms != null}
-												<span class="text-gray-400">{worker.duration_ms}ms</span>
-											{/if}
-											{#if worker.mesh}
-												<span class="text-sky-600 dark:text-sky-400">mesh</span>
-											{/if}
-											{#if worker.tools_used?.length}
-												<span class="text-gray-400">tools:{worker.tools_used.join(',')}</span>
-											{/if}
-											{#if worker.preview}
-												<span class="ml-auto text-gray-500 dark:text-gray-400 line-clamp-1 max-w-[45%]"
-													>{worker.preview}</span
-												>
-											{/if}
-											{#if agentsRunActive(worker.status) && worker.id && message.spockifyAgents?.id}
-												<button
-													type="button"
-													class="shrink-0 px-1.5 py-0.5 rounded text-[10px] border border-red-200/60 dark:border-red-500/25 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-													disabled={agentsCancelBusy}
-													aria-label="Cancel worker {worker.name || worker.id}"
-													on:click|stopPropagation|preventDefault={() =>
-														cancelParallelAgentWorker(worker.id || '')}
-												>
-													Stop
-												</button>
-											{/if}
-										</summary>
-										<pre
-											class="px-2.5 pb-2.5 pt-0 whitespace-pre-wrap break-words text-[11px] text-gray-700 dark:text-gray-300 max-h-64 overflow-auto"
-										>{worker.output || worker.error || '(no output yet)'}</pre>
-										{#if worker.children?.length}
-											<div class="px-2.5 pb-2 flex flex-col gap-1 border-t border-gray-200/50 dark:border-gray-700/50 pt-1.5">
-												<span class="text-[10px] uppercase tracking-wide text-gray-400"
-													>Nested</span
-												>
-												{#each worker.children as child (child.id || child.name)}
-													<details class="rounded border border-gray-200/60 dark:border-gray-700/60">
-														<summary class="px-2 py-1 cursor-pointer flex gap-2 items-center list-none">
-															<span class="font-medium">{child.name || child.id}</span>
-															<span class="text-gray-400">{child.status}</span>
-														</summary>
-														<pre
-															class="px-2 pb-2 whitespace-pre-wrap break-words text-[11px] max-h-40 overflow-auto"
-														>{child.output || child.error || '(empty)'}</pre>
-													</details>
-												{/each}
-											</div>
-										{/if}
-									</details>
-								{/each}
-							</div>
+						{#if hasSpockifyThinkingPanel}
+							<SpockifyThinkingPanel
+								{message}
+								messageDone={message?.done ?? false}
+								{agentsCancelBusy}
+								onCancelRun={cancelParallelAgentsRun}
+								onCancelWorker={cancelParallelAgentWorker}
+								onOpenReplay={() => {
+									try {
+										sessionStorage.setItem(
+											'spockifyReplayRun',
+											message.spockifyAgents.id
+										);
+									} catch {
+										/* ignore */
+									}
+									showSettings.set('spockify_agents_replay');
+								}}
+							/>
 						{/if}
 
 						{#if message?.files && message.files?.filter( (f) => ['image', 'video', 'file'].includes(f.type) ).length > 0}
@@ -1231,7 +1160,7 @@
 							class="w-full flex flex-col relative {edit ? 'hidden' : ''}"
 							id="response-content-container"
 						>
-							{#if message.content === '' && !message.done && !message.error && !hasVisibleStatus}
+							{#if message.content === '' && !message.done && !message.error && !hasVisibleStatus && !hasSpockifyThinkingPanel}
 								<Skeleton />
 							{:else if displayContent && message.error !== true}
 								<!-- always show message contents even if there's an error -->
@@ -1272,18 +1201,6 @@
 										updateChat();
 									}}
 								/>
-								{#if message.done && message.spockifyCritique?.notes}
-									<details
-										class="mt-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200/60 dark:border-gray-700/60 pt-2"
-									>
-										<summary class="cursor-pointer select-none">
-											Auto-critique ({message.spockifyCritique.level || 'medium'})
-										</summary>
-										<pre
-											class="mt-1 whitespace-pre-wrap break-words text-[11px]"
-										>{message.spockifyCritique.notes}</pre>
-									</details>
-								{/if}
 							{/if}
 
 							{#if message?.error}

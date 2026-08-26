@@ -3102,6 +3102,43 @@ async def process_chat_payload(request, form_data, user, metadata, model):
             extra_headers['X-Spockify-Voice'] = '1'
             form_data['extra_headers'] = extra_headers
 
+        # Thinking depth (Light / Medium / Heavy) → router resolves the effort.
+        thinking = str(features.get('spockify_thinking') or 'medium').strip().lower()
+        if thinking not in ('light', 'medium', 'heavy'):
+            thinking = 'medium'
+        metadata['spockify_thinking'] = thinking
+        thinking_marker = f'[spockify_thinking:{thinking}]'
+        thinking_only = re.compile(
+            r'^\s*\[spockify_thinking:(light|medium|heavy)\]\s*$', re.IGNORECASE
+        )
+        thinking_any = re.compile(
+            r'\[spockify_thinking:(light|medium|heavy)\]', re.IGNORECASE
+        )
+        thinking_cleaned = []
+        for msg in form_data.get('messages') or []:
+            if not isinstance(msg, dict):
+                thinking_cleaned.append(msg)
+                continue
+            content = msg.get('content')
+            if (
+                msg.get('role') == 'system'
+                and isinstance(content, str)
+                and thinking_only.match(content)
+            ):
+                continue
+            if isinstance(content, str) and thinking_any.search(content):
+                msg = {**msg, 'content': thinking_any.sub('', content).strip()}
+                if msg.get('role') == 'system' and not msg['content']:
+                    continue
+            thinking_cleaned.append(msg)
+        thinking_cleaned.insert(0, {'role': 'system', 'content': thinking_marker})
+        form_data['messages'] = thinking_cleaned
+        extra_headers = form_data.get('extra_headers')
+        if not isinstance(extra_headers, dict):
+            extra_headers = {}
+        extra_headers['X-Spockify-Thinking'] = thinking
+        form_data['extra_headers'] = extra_headers
+
     # Wave 9.4 — forward Spockify skill pack ids to the router.
     pack_ids = form_data.pop('spockify_skill_ids', None) or form_data.get('skill_ids') or []
     if pack_ids:
@@ -3123,6 +3160,8 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         role = getattr(user, 'role', None) or ''
         extra_headers['X-Spockify-Role'] = str(role)
         extra_headers['X-Spockify-User-Id'] = str(getattr(user, 'id', '') or '')
+        if metadata.get('message_id'):
+            extra_headers['X-Spockify-Message-Id'] = str(metadata['message_id'])
         form_data['extra_headers'] = extra_headers
         metadata['spockify_role'] = role
 
@@ -4743,6 +4782,43 @@ async def streaming_chat_response_handler(response, ctx):
                             )
 
                             if data:
+                                # Spockify metadata may ride on standard OpenAI chunks
+                                # (LiteLLM drops bare meta-only SSE frames).
+                                spockify_emit: dict[str, Any] = {}
+                                if data.get('spockify_agents'):
+                                    spockify_emit['spockify_agents'] = data['spockify_agents']
+                                if data.get('spockify_critique'):
+                                    spockify_emit['spockify_critique'] = data['spockify_critique']
+                                if data.get('spockify_hud'):
+                                    spockify_emit['spockify_hud'] = data['spockify_hud']
+                                if data.get('spockify_thinking'):
+                                    spockify_emit['spockify_thinking'] = data['spockify_thinking']
+                                if data.get('worker') and spockify_emit:
+                                    spockify_emit['worker'] = data['worker']
+                                if spockify_emit and not metadata.get('chat_id', '').startswith('channel:'):
+                                    upsert_fields = {}
+                                    if spockify_emit.get('spockify_agents'):
+                                        upsert_fields['spockifyAgents'] = spockify_emit['spockify_agents']
+                                    if spockify_emit.get('spockify_critique'):
+                                        upsert_fields['spockifyCritique'] = spockify_emit['spockify_critique']
+                                    if spockify_emit.get('spockify_hud'):
+                                        upsert_fields['spockifyHud'] = spockify_emit['spockify_hud']
+                                    if spockify_emit.get('spockify_thinking'):
+                                        upsert_fields['spockifyThinking'] = spockify_emit['spockify_thinking']
+                                    if spockify_emit.get('worker'):
+                                        upsert_fields['spockifyWorker'] = spockify_emit['worker']
+                                    await Chats.upsert_message_to_chat_by_id_and_message_id(
+                                        metadata['chat_id'],
+                                        metadata['message_id'],
+                                        upsert_fields,
+                                    )
+                                    await event_emitter(
+                                        {
+                                            'type': 'chat:completion',
+                                            'data': spockify_emit,
+                                        }
+                                    )
+
                                 if 'event' in data and not getattr(request.state, 'direct', False):
                                     await event_emitter(data.get('event', {}))
 

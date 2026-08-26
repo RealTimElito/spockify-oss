@@ -26,7 +26,7 @@ COMFYUI_URL = os.getenv(
 OLLAMA_URL = os.getenv(
     "OLLAMA_URL", "http://ollama.spockify.svc.cluster.local:11434"
 ).rstrip("/")
-# Default off: on large unified-memory hosts, unloading chat models just to free ~17GB
+# Default off: unified-memory hosts may have limited RAM; unloading chat models just to free ~17GB
 # for FLUX is usually unnecessary. OWUI keeps its own IMAGE_GEN_UNLOAD_OLLAMA=true.
 IMAGE_GEN_UNLOAD_OLLAMA = os.getenv("IMAGE_GEN_UNLOAD_OLLAMA", "false").lower() in (
     "1",

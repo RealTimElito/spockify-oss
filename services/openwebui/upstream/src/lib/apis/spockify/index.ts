@@ -271,6 +271,21 @@ export const getAgentRun = async (token: string, runId: string) => {
 	return res.json();
 };
 
+export const getAgentRunByMessageId = async (token: string, messageId: string) => {
+	const res = await fetch(
+		`${SPOCKIFY_API_BASE_URL}/agents/runs/by-message/${encodeURIComponent(messageId)}`,
+		{
+			method: 'GET',
+			headers: {
+				Accept: 'application/json',
+				...(token && { authorization: `Bearer ${token}` })
+			}
+		}
+	);
+	if (!res.ok) throw await res.json();
+	return res.json();
+};
+
 export const createAgentRun = async (
 	token: string,
 	body: {

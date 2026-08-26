@@ -39,10 +39,15 @@
 	import ModelItem from './ModelItem.svelte';
 
 	const i18n = getContext('i18n');
-	const dispatch = createEventDispatcher();
+	const dispatch = createEventDispatcher<{ select: string }>();
 
 	export let id = '';
 	export let value = '';
+
+	const pickValue = (next: string) => {
+		value = next;
+		dispatch('select', next);
+	};
 	export let placeholder = $i18n.t('Select a model');
 	export let searchEnabled = true;
 	export let searchPlaceholder = $i18n.t('Search a model');
@@ -568,7 +573,7 @@
 								aria-label={$i18n.t('Search In Models')}
 								on:keydown={(e) => {
 									if (e.code === 'Enter' && filteredItems.length > 0) {
-										value = filteredItems[selectedModelIdx].value;
+										pickValue(filteredItems[selectedModelIdx].value);
 										show = false;
 										return; // dont need to scroll on selection
 									} else if (e.code === 'ArrowDown') {
@@ -743,7 +748,7 @@
 										{unloadModelHandler}
 										{deleteModelHandler}
 										onClick={() => {
-											value = item.value;
+											pickValue(item.value);
 											selectedModelIdx = index;
 
 											show = false;

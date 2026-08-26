@@ -1,7 +1,7 @@
 # Tab training deps (host venv or NGC training container).
 #
-# On aarch64 GPU hosts: prefer the NGC vLLM image's torch, or an
-# NGC PyTorch container with recent CUDA kernels. Stock PyPI torch may lack newer GPU arches.
+# On DGX Spark (aarch64 / sm_121): prefer the NGC vLLM image's torch, or an
+# NGC PyTorch container with Blackwell kernels. Stock PyPI torch may lack sm_121.
 torch>=2.4.0
 transformers>=4.46.0
 datasets>=3.0.0

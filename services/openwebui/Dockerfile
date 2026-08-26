@@ -12,7 +12,7 @@ COPY upstream/ upstream/
 WORKDIR /src/upstream
 RUN npm ci --force
 ENV APP_BUILD_HASH=${BUILD_HASH}
-# Vite/Svelte build needs headroom on aarch64 hosts (default ~2GB OOMs).
+# Vite/Svelte build needs headroom on aarch64 Spark (default ~2GB OOMs).
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 RUN npm run build
 

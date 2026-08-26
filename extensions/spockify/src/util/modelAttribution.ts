@@ -1,12 +1,12 @@
 /**
  * Display helpers for which model generated chat / code.
- * Provenance must say "routed via spockify" — never internal backend hosts.
+ * Provenance must say "routed via spockify" — never homelab infra or internal hostnames.
  */
 
 export const ROUTED_VIA_SPOCKIFY = 'routed via spockify';
 
 const FORBIDDEN_IN_UI =
-  /\b([a-z0-9][a-z0-9-]*\.local|localhost|127\.0\.0\.1|homelab|litellm)\b/i;
+  /\b(spark|[a-z0-9][a-z0-9-]*\.local|localhost|127\.0\.0\.1|homelab|litellm)\b/i;
 
 export function isAutoModelId(id: string | undefined): boolean {
   if (!id) return false;
@@ -29,7 +29,8 @@ export function sanitizeModelId(id: string | undefined): string {
   if (!t) return '';
   if (FORBIDDEN_IN_UI.test(t)) {
     t = t
-      .replace(/[a-z0-9][a-z0-9-]*\.local/gi, '')
+      .replace(/spark/gi, '')
+      .replace(/data\.local/gi, '')
       .replace(/localhost/gi, '')
       .replace(/127\.0\.0\.1/gi, '')
       .replace(/homelab/gi, '')
@@ -80,10 +81,11 @@ export function formatModelAttribution(
   return `${label} · ${ROUTED_VIA_SPOCKIFY}`;
 }
 
-/** Guard: never leak internal backend hostnames in any UI string we emit. */
-export function assertNoHostLeak(text: string): string {
+/** Guard: never leak homelab infra or internal hostnames in any UI string we emit. */
+export function assertNoSparkLeak(text: string): string {
   if (!FORBIDDEN_IN_UI.test(text)) return text;
   return text
+    .replace(/\b[Ss]park\b/g, 'spockify')
     .replace(/\b[a-z0-9][a-z0-9-]*\.local\b/gi, 'spockify.eu')
     .replace(/\blocalhost\b/gi, 'spockify.eu')
     .replace(/\b127\.0\.0\.1\b/g, 'spockify.eu')

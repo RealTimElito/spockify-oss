@@ -111,7 +111,7 @@ def _make_env(settings: Settings) -> dict[str, str]:
 
 
 def cluster_status(settings: Settings | None = None) -> str:
-    """Run `make status` in the repo (local or via SSH on the cluster host)."""
+    """Run `make status` in agentHub (local or via SSH on cluster)."""
     cfg = settings or Settings.load()
     make_argv = ["make", "status"]
     env = _make_env(cfg)

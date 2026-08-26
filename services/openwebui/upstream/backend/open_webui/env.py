@@ -870,7 +870,7 @@ ENABLE_IMAGE_CONTENT_TYPE_EXTENSION_FALLBACK = (
     os.getenv('ENABLE_IMAGE_CONTENT_TYPE_EXTENSION_FALLBACK', 'False').lower() == 'true'
 )
 
-# Unload Ollama models before ComfyUI image gen on a shared single GPU.
+# Unload Ollama models before ComfyUI image gen on shared GPU (large VRAM hosts).
 IMAGE_GEN_UNLOAD_OLLAMA = os.getenv('IMAGE_GEN_UNLOAD_OLLAMA', 'True').lower() == 'true'
 IMAGE_GEN_OLLAMA_URL = os.getenv(
     'IMAGE_GEN_OLLAMA_URL', 'http://ollama.spockify.svc.cluster.local:11434'
@@ -903,7 +903,7 @@ VIDEO_WIDTH = int(os.getenv('VIDEO_WIDTH', '704'))
 VIDEO_HEIGHT = int(os.getenv('VIDEO_HEIGHT', '480'))
 VIDEO_LENGTH = int(os.getenv('VIDEO_LENGTH', '65'))
 VIDEO_STEPS = int(os.getenv('VIDEO_STEPS', '8'))
-# Generous — LTX-Video runs several minutes on a shared GPU; the chat
+# Generous — LTX-Video runs several minutes on the shared GPU; the chat
 # status line sets honest expectations while this ticks.
 VIDEO_GEN_TIMEOUT_SECONDS = int(os.getenv('VIDEO_GEN_TIMEOUT_SECONDS', '900'))
 

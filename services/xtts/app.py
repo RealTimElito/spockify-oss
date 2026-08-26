@@ -2,7 +2,7 @@
 
 Loads Coqui XTTS on startup when XTTS_WARM_ON_STARTUP=1 (default) so clone
 requests do not pay cold model load. Falls back to 503 if TTS is unavailable
-so OpenWebUI can use edge-tts. Prefer CPU when the GPU is contended by
+so OpenWebUI can use edge-tts. Prefer CPU on cluster hosts when GPU is contended by
 Ollama/ComfyUI.
 """
 

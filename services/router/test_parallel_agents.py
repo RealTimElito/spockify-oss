@@ -221,6 +221,60 @@ class ParallelAgentsTests(unittest.TestCase):
         self.assertFalse(pagents.is_agents_model("spockify-auto"))
         self.assertFalse(pagents.is_agents_model("spockify-room"))
 
+    def test_plan_heavy_workers_full_role_set(self) -> None:
+        specs = pagents.plan_heavy_workers("Design a resilient job queue")
+        # Always the full role set (capped at AGENTS_MAX_WORKERS), not length-scaled.
+        self.assertEqual(len(specs), min(4, pagents.AGENTS_MAX_WORKERS))
+        names = [s.name for s in specs]
+        self.assertIn("Explorer", names)
+        self.assertIn("Skeptic", names)
+
+    def test_plan_heavy_workers_round_robins_models(self) -> None:
+        specs = pagents.plan_heavy_workers(
+            "hi", models=["model-a", "model-b"]
+        )
+        models = [s.model for s in specs]
+        self.assertEqual(models[0], "model-a")
+        self.assertEqual(models[1], "model-b")
+        self.assertEqual(models[2], "model-a")
+
+    def test_heavy_run_uses_per_run_budgets(self) -> None:
+        async def _run() -> None:
+            body = pagents.AgentRunCreate(
+                parent_prompt="deep question",
+                model="gemma4-26b",
+                workers=pagents.plan_heavy_workers("deep question"),
+                synthesize=True,
+                profile="heavy",
+                worker_timeout=222.0,
+                synth_timeout=222.0,
+                max_tokens=4096,
+                synth_max_tokens=4096,
+                synth_model="gemma4-26b",
+            )
+            run = pagents.create_run_record(body)
+            self.assertEqual(run["profile"], "heavy")
+            self.assertEqual(pagents._cfg_worker_timeout(run), 222.0)
+            self.assertEqual(pagents._cfg_worker_max_tokens(run), 4096)
+            self.assertEqual(pagents._cfg_synth_timeout(run), 222.0)
+            self.assertEqual(pagents._cfg_synth_max_tokens(run), 4096)
+
+            seen_tokens: list[int] = []
+
+            async def fake_chat(client, model, messages, **kwargs):
+                seen_tokens.append(int(kwargs.get("max_tokens") or 0))
+                return {"choices": [{"message": {"content": f"ok {model}"}}]}
+
+            final = await pagents.execute_run(
+                run, client=object(), worker_chat=fake_chat
+            )
+            self.assertEqual(final["status"], "done")
+            # Every worker + synth call should have used the raised heavy budget.
+            self.assertTrue(seen_tokens)
+            self.assertTrue(all(t == 4096 for t in seen_tokens))
+
+        asyncio.run(_run())
+
 
 if __name__ == "__main__":
     unittest.main()

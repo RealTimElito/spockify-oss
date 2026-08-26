@@ -296,7 +296,7 @@
 							{#if message}
 								<ResponseMessage
 									{chatId}
-									{history}
+									bind:history
 									messageId={message?.id}
 									{selectedModels}
 									isLastMessage={true}

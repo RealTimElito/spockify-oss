@@ -6,7 +6,7 @@ info:
     Use as an MCP HTTP tool or direct REST call from agents.
   version: 1.0.0
 servers:
-  - url: https://spockify.eu
+  - url: https://spockify.example.com
     description: Production ingress (LiteLLM proxy)
   - url: http://litellm.spockify.svc.cluster.local:4000
     description: In-cluster LiteLLM

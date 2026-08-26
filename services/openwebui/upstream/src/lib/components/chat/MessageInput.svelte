@@ -160,6 +160,11 @@
 	/** Spockify router: auto (heuristics) | on (prefer search) | off (never). */
 	export let spockifySearchMode: 'auto' | 'on' | 'off' = 'auto';
 	export let onSpockifySearchModeChange: (mode: 'auto' | 'on' | 'off') => void = () => {};
+	/** Spockify thinking depth: light | medium | heavy. */
+	export let spockifyThinking: import('$lib/utils/thinkingModes').ThinkingMode = 'medium';
+	export let onSpockifyThinkingChange: (
+		mode: import('$lib/utils/thinkingModes').ThinkingMode
+	) => void = () => {};
 	/** Web composer mode: Regular, Plan, or Multitask (+ menu only). */
 	export let spockifyComposerMode: import('$lib/utils/composerModes').ComposerUiMode = 'regular';
 	export let onSpockifyComposerModeChange: (
@@ -608,6 +613,23 @@
 
 	const spockifySearchLabel = (mode: 'auto' | 'on' | 'off') =>
 		mode === 'auto' ? 'Search auto' : mode === 'on' ? 'Search on' : 'Search off';
+
+	let showSpockifyThinkingControl = false;
+	$: showSpockifyThinkingControl = (
+		atSelectedModel?.id ? [atSelectedModel.id] : selectedModels
+	).some((id) => id === 'spockify-auto' || id === 'spockify-agents');
+
+	const cycleSpockifyThinking = () => {
+		const order = ['light', 'medium', 'heavy'] as const;
+		const idx = order.indexOf(spockifyThinking);
+		const next = order[(idx + 1) % order.length];
+		spockifyThinking = next;
+		onSpockifyThinkingChange(next);
+	};
+
+	const spockifyThinkingLabel = (
+		mode: import('$lib/utils/thinkingModes').ThinkingMode
+	) => (mode === 'light' ? 'Light' : mode === 'heavy' ? 'Heavy' : 'Medium');
 
 	let showImageGenerationButton = false;
 	$: showImageGenerationButton =
@@ -1852,6 +1874,9 @@
 											chatInput?.focus();
 										}}
 										showComposerModes={showSpockifySearchControl}
+										showThinkingModes={showSpockifyThinkingControl}
+										bind:spockifyThinking
+										onSpockifyThinkingChange={onSpockifyThinkingChange}
 										bind:composerMode={spockifyComposerMode}
 										onComposerModeChange={onSpockifyComposerModeChange}
 										onParallelAgentsChange={onSpockifyParallelAgentsChange}
@@ -1920,6 +1945,33 @@
 													>
 												</button>
 											</Tooltip>
+											{#if showSpockifyThinkingControl}
+												<Tooltip
+													content={spockifyThinking === 'light'
+														? 'Thinking: Light — fast, no ensemble'
+														: spockifyThinking === 'heavy'
+															? 'Thinking: Heavy — parallel agents + critique'
+															: 'Thinking: Medium — balanced auto (default)'}
+													placement="top"
+												>
+													<button
+														type="button"
+														aria-label={`Thinking ${spockifyThinkingLabel(spockifyThinking)}`}
+														on:click|preventDefault={cycleSpockifyThinking}
+														class="px-2 py-[5px] flex gap-1 items-center text-xs rounded-full transition-colors duration-300 focus:outline-hidden {spockifyThinking ===
+														'heavy'
+															? 'text-violet-600 dark:text-violet-300 bg-violet-50 hover:bg-violet-100 dark:bg-violet-400/10 border border-violet-200/40 dark:border-violet-500/20'
+															: spockifyThinking === 'light'
+																? 'text-amber-600 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-400/10 border border-amber-200/40 dark:border-amber-500/20'
+																: 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'}"
+													>
+														<Sparkles className="size-3.5" strokeWidth="1.75" />
+														<span class="whitespace-nowrap"
+															>{spockifyThinkingLabel(spockifyThinking)}</span
+														>
+													</button>
+												</Tooltip>
+											{/if}
 										</div>
 										<!-- Mobile: icon-only search + privacy -->
 										<div class="flex sm:hidden items-center shrink-0">

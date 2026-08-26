@@ -14,6 +14,10 @@
 
 	export let showSetDefault = true;
 
+	const setModelAt = (idx: number, modelId: string) => {
+		selectedModels = selectedModels.map((id, i) => (i === idx ? modelId : id));
+	};
+
 	const saveDefaultModel = async () => {
 		const hasEmptyModel = selectedModels.filter((it) => it === '');
 		if (hasEmptyModel.length) {
@@ -51,7 +55,7 @@
 </script>
 
 <div class="flex flex-col w-full items-start">
-	{#each selectedModels as selectedModel, selectedModelIdx}
+	{#each selectedModels as _selected, selectedModelIdx (selectedModelIdx)}
 		<div class="flex w-full max-w-fit">
 			<div class="overflow-hidden w-full">
 				<div class="max-w-full {($settings?.highContrastMode ?? false) ? 'm-1' : 'mr-1'}">
@@ -64,7 +68,8 @@
 							model: model
 						}))}
 						{pinModelHandler}
-						bind:value={selectedModel}
+						value={selectedModels[selectedModelIdx]}
+						on:select={(e) => setModelAt(selectedModelIdx, e.detail)}
 					/>
 				</div>
 			</div>

@@ -101,12 +101,17 @@
 	} from '$lib/apis';
 	import { getTools } from '$lib/apis/tools';
 	import { getSkills } from '$lib/apis/skills';
-	import { cancelAgentRun } from '$lib/apis/spockify';
+	import { cancelAgentRun, getAgentRunByMessageId } from '$lib/apis/spockify';
 	import {
 		composerUiModeAddon,
 		normalizeComposerUiMode,
 		type ComposerUiMode
 	} from '$lib/utils/composerModes';
+	import {
+		normalizeThinkingMode,
+		DEFAULT_THINKING_MODE,
+		type ThinkingMode
+	} from '$lib/utils/thinkingModes';
 	import { uploadFile } from '$lib/apis/files';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
 	import { getFunctions } from '$lib/apis/functions';
@@ -179,6 +184,8 @@
 	let spockifySearchMode: 'auto' | 'on' | 'off' = 'auto';
 	/** Web composer mode: Regular (default), Plan, or Multitask — + menu only. */
 	let spockifyComposerMode: ComposerUiMode = 'regular';
+	/** Thinking depth: Light | Medium | Heavy (session preference). */
+	let spockifyThinking: ThinkingMode = DEFAULT_THINKING_MODE;
 	/** Derived Multitask flag — used by Stop (leave subagents alone). */
 	$: spockifyParallelAgents = spockifyComposerMode === 'multitask';
 	let agentsBarCancelBusy = false;
@@ -211,6 +218,19 @@
 				spockifyComposerMode =
 					parallel === '1' || parallel === 'true' ? 'multitask' : 'regular';
 			}
+			const thinkingRaw = localStorage.getItem('spockifyThinking');
+			if (thinkingRaw) {
+				spockifyThinking = normalizeThinkingMode(thinkingRaw);
+			}
+		} catch {
+			/* ignore */
+		}
+	};
+
+	const persistSpockifyThinking = (mode: ThinkingMode) => {
+		spockifyThinking = normalizeThinkingMode(mode);
+		try {
+			localStorage.setItem('spockifyThinking', spockifyThinking);
 		} catch {
 			/* ignore */
 		}
@@ -325,6 +345,62 @@
 		messages: {},
 		currentId: null
 	};
+
+	/** Immutable message commit so Svelte sees nested streaming updates (content + Spockify HUD). */
+	const commitHistoryMessage = (messageId: string, patch: Record<string, unknown>) => {
+		const prev = history.messages[messageId] ?? {};
+		history = {
+			...history,
+			messages: {
+				...history.messages,
+				[messageId]: { ...prev, ...patch }
+			}
+		};
+		return history.messages[messageId];
+	};
+
+	const heavyAgentsPollTimers: Record<string, ReturnType<typeof setInterval>> = {};
+
+	const stopHeavyAgentsPoll = (messageId: string) => {
+		const timer = heavyAgentsPollTimers[messageId];
+		if (timer) {
+			clearInterval(timer);
+			delete heavyAgentsPollTimers[messageId];
+		}
+	};
+
+	const refreshHeavyAgentsForMessage = async (messageId: string) => {
+		const msg = history.messages[messageId];
+		if (!msg || msg.done || msg.spockifyThinking !== 'heavy') {
+			stopHeavyAgentsPoll(messageId);
+			return;
+		}
+		const token = localStorage.token;
+		if (!token) return;
+		try {
+			const res = await getAgentRunByMessageId(token, messageId);
+			if (res?.run) {
+				commitHistoryMessage(messageId, { spockifyAgents: res.run });
+			}
+		} catch {
+			/* LiteLLM strips agent SSE; poll is the live HUD path */
+		}
+	};
+
+	const startHeavyAgentsPoll = (messageId: string) => {
+		if (!messageId || heavyAgentsPollTimers[messageId]) return;
+		void refreshHeavyAgentsForMessage(messageId);
+		heavyAgentsPollTimers[messageId] = setInterval(
+			() => void refreshHeavyAgentsForMessage(messageId),
+			1500
+		);
+	};
+
+	onDestroy(() => {
+		for (const messageId of Object.keys(heavyAgentsPollTimers)) {
+			stopHeavyAgentsPoll(messageId);
+		}
+	});
 
 	/** Latest multitask run for the composer-adjacent agents bar. */
 	$: activeAgentsRun = (() => {
@@ -695,24 +771,20 @@
 					const isImageProgress =
 						['image_generation', 'video_generation'].includes(data?.action) &&
 						data?.done !== true;
+					let statusHistory = message.statusHistory ? [...message.statusHistory] : [];
 					if (
 						isImageProgress &&
-						message?.statusHistory?.length &&
-						message.statusHistory.at(-1)?.action === data?.action &&
-						message.statusHistory.at(-1)?.done !== true
+						statusHistory.length &&
+						statusHistory.at(-1)?.action === data?.action &&
+						statusHistory.at(-1)?.done !== true
 					) {
-						// Replace in-flight image status so progress % does not spam history.
-						message.statusHistory[message.statusHistory.length - 1] = data;
-						message.statusHistory = [...message.statusHistory];
-					} else if (message?.statusHistory) {
-						message.statusHistory.push(data);
-					} else {
-						message.statusHistory = [data];
+						statusHistory[statusHistory.length - 1] = data;
+					} else if (data) {
+						statusHistory.push(data);
 					}
-					history.messages[event.message_id] = message;
-					history = history;
+					commitHistoryMessage(event.message_id, { statusHistory });
 				} else if (type === 'chat:completion') {
-					chatCompletionEventHandler(data, message, event.chat_id);
+					chatCompletionEventHandler(data, history.messages[event.message_id], event.chat_id);
 				} else if (type === 'chat:tasks:cancel') {
 					if (event.message_id === history.currentId) {
 						taskIds = null;
@@ -725,13 +797,12 @@
 						message.done = true;
 					}
 				} else if (type === 'chat:message:delta' || type === 'message') {
-					message.content += data.content;
-					history.messages[event.message_id] = message;
-					history = history;
+					const prev = history.messages[event.message_id] ?? message;
+					commitHistoryMessage(event.message_id, {
+						content: `${prev.content ?? ''}${data.content ?? ''}`
+					});
 				} else if (type === 'chat:message' || type === 'replace') {
-					message.content = data.content;
-					history.messages[event.message_id] = message;
-					history = history;
+					commitHistoryMessage(event.message_id, { content: data.content });
 				} else if (type === 'chat:message:files' || type === 'files') {
 					message.files = data.files;
 				} else if (type === 'chat:message:tasks') {
@@ -2046,6 +2117,8 @@
 			.trim();
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
+		if (!message?.id) return;
+
 		const {
 			id,
 			done,
@@ -2062,56 +2135,54 @@
 			usage
 		} = data;
 
-		// Store raw OR-aligned output items from backend
+		const patch: Record<string, unknown> = {};
+		const current = history.messages[message.id] ?? message;
+
 		if (output) {
-			message.output = output;
+			patch.output = output;
 		}
 
 		if (error) {
 			await handleOpenAIError(error, message);
 		}
 
-		if (sources && !message?.sources) {
-			message.sources = sources;
+		if (sources && !current?.sources) {
+			patch.sources = sources;
 		}
 
 		if (choices) {
 			if (choices[0]?.message?.content) {
-				// Non-stream response
-				message.content += choices[0]?.message?.content;
+				patch.content = `${current.content ?? ''}${choices[0]?.message?.content ?? ''}`;
 			} else {
-				// Stream response
-				let value = choices[0]?.delta?.content ?? '';
-				if (message.content == '' && value == '\n') {
-					console.log('Empty response');
-				} else {
-					message.content += value;
+				const value = choices[0]?.delta?.content ?? '';
+				if (!(current.content == '' && value == '\n')) {
+					patch.content = `${current.content ?? ''}${value}`;
 
 					if (navigator.vibrate && ($settings?.hapticFeedback ?? false)) {
 						navigator.vibrate(5);
 					}
 
-					// Call duplex: peel speakable units as tokens arrive (don't wait for full reply).
 					if ($showCallOverlay) {
-						emitCallTtsUnits(message, message.content);
+						emitCallTtsUnits(
+							{ ...current, content: patch.content as string },
+							patch.content as string
+						);
 					}
 				}
 			}
 		}
 
 		if (content) {
-			// REALTIME_CHAT_SAVE is disabled
-			message.content = content;
-			// Late chunks after Stop can reopen done="false" reasoning; keep frozen.
-			if (message.done) {
+			patch.content = content;
+			if (current.done) {
 				const started =
-					typeof message.timestamp === 'number'
-						? message.timestamp > 1e12
-							? message.timestamp
-							: message.timestamp * 1000
+					typeof current.timestamp === 'number'
+						? current.timestamp > 1e12
+							? current.timestamp
+							: current.timestamp * 1000
 						: Date.now();
-				message.content = freezeIncompleteDetails(
-					message.content,
+				patch.content = freezeIncompleteDetails(
+					content,
 					Math.max(0, Math.floor((Date.now() - started) / 1000))
 				);
 			}
@@ -2120,53 +2191,54 @@
 				navigator.vibrate(5);
 			}
 
-			// Call duplex: peel speakable units as tokens arrive (don't wait for full reply).
 			if ($showCallOverlay) {
-				emitCallTtsUnits(message, message.content);
+				emitCallTtsUnits({ ...current, content: patch.content as string }, patch.content as string);
 			}
 		}
 
 		if (selected_model_id) {
-			message.selectedModelId = selected_model_id;
-			message.arena = true;
+			patch.selectedModelId = selected_model_id;
+			patch.arena = true;
 		}
-
 		if (worker) {
-			message.spockifyWorker = worker;
+			patch.spockifyWorker = worker;
 		}
 		if (web_search !== undefined) {
-			message.spockifyWebSearch = Boolean(web_search);
+			patch.spockifyWebSearch = Boolean(web_search);
 		}
 		if (routing_path) {
-			message.spockifyRoutingPath = routing_path;
+			patch.spockifyRoutingPath = routing_path;
 		}
 		if (reasoning) {
-			message.spockifyReason = reasoning;
+			patch.spockifyReason = reasoning;
 		}
 		if (data?.spockify_agents) {
-			message.spockifyAgents = data.spockify_agents;
+			patch.spockifyAgents = data.spockify_agents;
+		}
+		if (data?.spockify_thinking) {
+			patch.spockifyThinking = data.spockify_thinking;
 		}
 		if (data?.spockify_hud) {
-			message.spockifyHud = data.spockify_hud;
+			patch.spockifyHud = data.spockify_hud;
 		}
 		if (data?.spockify_critique) {
-			message.spockifyCritique = data.spockify_critique;
+			patch.spockifyCritique = data.spockify_critique;
 		}
-
 		if (usage) {
-			message.usage = usage;
+			patch.usage = usage;
 		}
 
-		history.messages[message.id] = message;
-		// Force Svelte prop invalidation so ResponseMessage clones fresh content
-		// during streaming (nested mutation alone can stall the message list).
-		history = history;
+		const updated = Object.keys(patch).length
+			? commitHistoryMessage(message.id, patch)
+			: current;
 
 		if (done) {
-			message.done = true;
+			stopHeavyAgentsPoll(message.id);
+			commitHistoryMessage(message.id, { done: true });
+			const finalMessage = history.messages[message.id] ?? updated;
 
 			if ($settings.responseAutoCopy) {
-				copyToClipboard(message.content);
+				copyToClipboard(finalMessage.content);
 			}
 
 			if ($settings.responseAutoPlayback && !$showCallOverlay) {
@@ -2174,41 +2246,33 @@
 				document.getElementById(`speak-button-${message.id}`)?.click();
 			}
 
-			// Call duplex: flush any trailing unspoke text, then signal TTS queue drain.
 			if ($showCallOverlay) {
-				emitCallTtsUnits(message, message.content, true);
+				emitCallTtsUnits(finalMessage, finalMessage.content, true);
 			}
 			eventTarget.dispatchEvent(
 				new CustomEvent('chat:finish', {
 					detail: {
 						id: message.id,
-						content: message.content
+						content: finalMessage.content
 					}
 				})
 			);
-
-			history.messages[message.id] = message;
 
 			await tick();
 			if (autoScroll) {
 				scrollToBottom();
 			}
 
-			// Fire-and-forget: run chatCompletedHandler for background work
-			// (outlet filters, chat save, title gen, follow-ups, tags)
-			// without blocking the user from sending new messages.
 			chatCompletedHandler(
 				chatId,
-				message.model,
+				finalMessage.model,
 				message.id,
 				createMessagesList(history, message.id)
 			);
 
-			// Process next queued request if any
 			await processNextInQueue(chatId);
 		}
 
-		console.log(data);
 		await tick();
 
 		if (autoScroll) {
@@ -2433,6 +2497,7 @@
 					model: model.id,
 					modelName: model.name ?? model.id,
 					modelIdx: modelIdx ? modelIdx : _modelIdx,
+					spockifyThinking,
 					timestamp: Math.floor(Date.now() / 1000) // Unix epoch
 				};
 
@@ -2450,9 +2515,16 @@
 
 				responseMessageIds[`${modelId}-${modelIdx ? modelIdx : _modelIdx}`] = responseMessageId;
 				messageIdsMap[modelId] = responseMessageId;
+				if (spockifyThinking === 'heavy') {
+					startHeavyAgentsPoll(responseMessageId);
+				}
 			}
 		}
-		history = history;
+		history = {
+			...history,
+			messages: { ...history.messages },
+			currentId: history.currentId
+		};
 
 		// New chat — backend generates the chat_id on first request
 		if (!_chatId) {
@@ -2544,6 +2616,7 @@
 						: false,
 				spockify_search: spockifySearchMode,
 				spockify_composer_mode: spockifyComposerMode,
+				spockify_thinking: spockifyThinking,
 				spockify_image_aspect: spockifyImageAspect,
 				spockify_image_style: spockifyImageStyle,
 				spockify_video_duration: spockifyVideoDuration,
@@ -3576,6 +3649,8 @@
 									bind:webSearchEnabled
 									bind:spockifySearchMode
 									onSpockifySearchModeChange={persistSpockifySearchMode}
+									bind:spockifyThinking
+									onSpockifyThinkingChange={persistSpockifyThinking}
 									bind:spockifyComposerMode
 									onSpockifyComposerModeChange={persistSpockifyComposerMode}
 									spockifyParallelAgents={spockifyParallelAgents}
@@ -3676,6 +3751,8 @@
 									bind:webSearchEnabled
 									bind:spockifySearchMode
 									onSpockifySearchModeChange={persistSpockifySearchMode}
+									bind:spockifyThinking
+									onSpockifyThinkingChange={persistSpockifyThinking}
 									bind:spockifyComposerMode
 									onSpockifyComposerModeChange={persistSpockifyComposerMode}
 									spockifyParallelAgents={spockifyParallelAgents}

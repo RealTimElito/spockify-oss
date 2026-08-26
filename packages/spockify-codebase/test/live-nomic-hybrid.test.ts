@@ -56,7 +56,7 @@ async function embedRemote(texts: string[]): Promise<number[][]> {
   });
 }
 
-describe('live nomic-embed hybrid', () => {
+describe('live nomic-embed hybrid (cluster)', () => {
   it('indexes codebase src with nomic and beats BM25 on soft semantic query', async (t) => {
     if (!API_KEY) {
       t.skip('SPOCKIFY_API_KEY not set — skip live embed proof');

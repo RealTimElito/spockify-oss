@@ -136,7 +136,7 @@
 			<div>
 				<div class="text-sm font-medium">{$i18n.t('Spockify status')}</div>
 				<div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-					{$i18n.t('Ollama loaded models, ComfyUI reachability, and free RAM/GPU on the cluster.')}
+					{$i18n.t('Ollama loaded models, ComfyUI reachability, and free RAM/GPU on the cluster host.')}
 				</div>
 			</div>
 			<button

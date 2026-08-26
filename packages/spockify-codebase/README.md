@@ -7,7 +7,7 @@ Local chunk → BM25 + hybrid (BM25 ⊕ embeddings via RRF) index for Spockify I
 | Leg | Source |
 |-----|--------|
 | Lexical | In-memory BM25 over chunks |
-| Dense | Vectors in index (`hash-local` offline, or remote `nomic-embed` via ide-client → spockify.eu → GPU host) |
+| Dense | Vectors in index (`hash-local` offline, or remote `nomic-embed` via ide-client → spockify.eu → cluster) |
 | Fuse | **Min-max normalized score fusion** (default 40% BM25 / 60% vector) — not pure RRF, so semantic hits can beat exclusive keyword matches |
 
 On full reindex (and per-file incremental save), the IDE batches remote embeds when signed in; otherwise hash vectors remain.
@@ -22,7 +22,7 @@ On full reindex (and per-file incremental save), the IDE batches remote embeds w
 4. **Large-repo IVF:** when LanceDB loads and row count ≥ `IVF_MIN_ROWS` (256), build `IVF_PQ` (dim divisible by 8) or `IVF_FLAT` ANN index; meta records `annIndex`.
 5. **Prefer ANN seed:** when chunk count ≥ `ANN_PREFER_MIN_ROWS` (128) and Lance ANN returns hits, hybrid skips O(n) in-memory vector scan and fuses BM25 + ANN seed (large-repo / AppImage path).
 
-**Cloud vector sync:** deferred — The backend only stores **index metadata** (`/api/v1/spockify/ide/index`). Uploading chunk text / embedding matrices overnight was judged too risky for web (size, storage, RollingUpdate blast radius). Local Lance + nomic remains source of truth.
+**Cloud vector sync:** deferred — cluster only stores **index metadata** (`/api/v1/spockify/ide/index`). Uploading chunk text / embedding matrices overnight was judged too risky for web (size, storage, RollingUpdate blast radius). Local Lance + nomic remains source of truth.
 
 Full-tree smoke: `npx tsx scripts/reindex-tree.ts /path/to/agentHub` (respects `.gitignore` / `.spockifyignore`).
 
@@ -36,7 +36,7 @@ See `test/hybrid.test.ts` — **“hybrid beats BM25-only on synonym query”**:
 - BM25 ranks `ui/session.tsx` first (token overlap on `session`)
 - Controlled embed places the query in the auth cluster → hybrid ranks `auth/login.ts` first
 
-That is the documented semantic win for Phase 3 DoD (local/controlled embed). Production path uses the backend `nomic-embed` when auth + `/v1/embeddings` succeed; otherwise hash-vector fallback (still hybrid fused, weaker semantics).
+That is the documented semantic win for Phase 3 DoD (local/controlled embed). Production path uses remote `nomic-embed` when auth + `/v1/embeddings` succeed; otherwise hash-vector fallback (still hybrid fused, weaker semantics).
 
 ## Ignore
 
@@ -48,4 +48,4 @@ Indexing uses the VS Code workspace FS adapter (`createWorkspaceFs`). On Remote 
 
 - Global storage for the JSON/SQLite index still lives on the **local** extension host machine (per VS Code remote architecture).
 - Large remote monorepos: prefer `spockify.codebase.maxFileBytes` and `.spockifyignore` to keep latency down.
-- Remote embed calls still go **local IDE → spockify.eu → GPU host** (not via the SSH host).
+- Remote embed calls still go **local IDE → spockify.eu → cluster** (not via the SSH host).

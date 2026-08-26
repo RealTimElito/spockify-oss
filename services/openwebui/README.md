@@ -41,37 +41,42 @@ Branding PNGs/ICO are copied from `k8s/openwebui/assets/` during `make build-ope
 
 1. **Source:** vendored `upstream/` with Spockify edits already applied
 2. **Frontend:** `npm ci && npm run build` inside Docker
-3. **Branding:** PNG/ICO shipped in-tree under `services/openwebui/branding/`, copied
-   into the image at build time (see [`Dockerfile`](Dockerfile))
+3. **Branding:** PNG/ICO from `k8s/openwebui/assets/` via ephemeral `branding/` at build time
 
-## Build and run the fork
-
-From the repository root:
+## Dev workflow
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.fork.yml up -d --build
+make build-openwebui            # build + push to MicroK8s registry
+make deploy                     # builds image if registry is up, then applies k8s
+make logs-openwebui
 ```
 
-This builds `spockify-openwebui:local` from this directory and runs it in place of
-stock Open WebUI. To publish it, tag the image for your registry and push (see the
-root [`.github/workflows-disabled/`](../../.github/workflows-disabled/)).
+Local iteration without full deploy:
+
+```bash
+./scripts/build-openwebui.sh
+microk8s kubectl rollout restart deployment/openwebui -n spockify
+```
 
 ## Upgrading OpenWebUI
 
-1. Replace `upstream/` with a fresh checkout of the new upstream tag (or merge upstream changes file-by-file).
-2. Re-apply Spockify edits (table above).
-3. Re-test UX: favicon, model toolbar, no suggestions, spockify-auto label, web search off for auto.
-4. Rebuild the fork image.
+Full stock-vs-new file list: [docs/SPOCKIFY_OPENWEBUI_TOUCHLIST.md](../../docs/SPOCKIFY_OPENWEBUI_TOUCHLIST.md). Prefer adding to Spockify modules over editing more stock files.
 
-Postgres schema migrations run via the `migrate` compose service (`sql/migrations/`).
+1. Replace `upstream/` with a fresh checkout of the new upstream tag (or merge upstream changes file-by-file).
+2. Re-apply Spockify edits (table above + touch-list).
+3. Re-test UX: favicon, model toolbar, no suggestions, spockify-auto label, web search off for auto.
+4. `make build-openwebui && make deploy`
+
+Postgres schema migrations still run via the `migrate-db` init container (`migrate-openwebui-db.py`).
 
 ## Image
 
+- **Registry:** `localhost:32000/spockify-openwebui:latest`
 - **Base:** open-webui v0.9.6 (CPU slim, same deps as upstream default image)
 
 ## Speech-to-text (dictation / microphone)
 
-Server STT uses **local faster-whisper** (`AUDIO_STT_ENGINE` unset). The default model is **`large-v3`** (int8, CPU) with **auto language detection** (`WHISPER_LANGUAGE` unset, `WHISPER_MULTILINGUAL=true`). Weights live under the OpenWebUI data dir at `cache/whisper/models`.
+Server STT uses **local faster-whisper** (`AUDIO_STT_ENGINE` unset). On GPU/CPU hosts the model is **`large-v3`** (int8, CPU) with **auto language detection** (`WHISPER_LANGUAGE` unset, `WHISPER_MULTILINGUAL=true`). Weights live on the OpenWebUI PVC under `cache/whisper/models`.
 
 | Setting | Value | Notes |
 |---------|-------|-------|

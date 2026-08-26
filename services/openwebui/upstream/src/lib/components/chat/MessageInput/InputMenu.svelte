@@ -32,6 +32,12 @@
 		normalizeComposerUiMode,
 		type ComposerUiMode
 	} from '$lib/utils/composerModes';
+	import {
+		THINKING_MODE_META,
+		nextThinkingMode,
+		normalizeThinkingMode,
+		type ThinkingMode
+	} from '$lib/utils/thinkingModes';
 
 	const i18n = getContext('i18n');
 
@@ -55,6 +61,11 @@
 	export let composerMode: ComposerUiMode = 'regular';
 	export let onComposerModeChange: (mode: ComposerUiMode) => void = () => {};
 	export let onParallelAgentsChange: (on: boolean) => void = () => {};
+
+	/** Light / Medium / Heavy — mobile + menu when Spockify auto/agents selected. */
+	export let showThinkingModes = false;
+	export let spockifyThinking: ThinkingMode = 'medium';
+	export let onSpockifyThinkingChange: (mode: ThinkingMode) => void = () => {};
 
 	$: composerModeId = normalizeComposerUiMode(composerMode);
 
@@ -406,6 +417,41 @@
 									<span class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2">{m.hint}</span>
 								</div>
 								{#if m.id === composerModeId}
+									<span class="ml-auto text-xs text-gray-400" aria-hidden="true">✓</span>
+								{/if}
+							</button>
+						{/each}
+					{/if}
+
+					{#if showThinkingModes}
+						<div
+							class="my-1 mx-2 border-t border-gray-100 dark:border-gray-800"
+							aria-hidden="true"
+						></div>
+						<div class="px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
+							Thinking depth
+						</div>
+						{#each THINKING_MODE_META as m (m.id)}
+							<button
+								type="button"
+								class="flex w-full gap-2 items-center px-3 py-1.5 text-sm select-none cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl {m.id ===
+								spockifyThinking
+									? 'bg-gray-50 dark:bg-gray-800/60'
+									: ''}"
+								aria-pressed={m.id === spockifyThinking}
+								on:click={() => {
+									spockifyThinking = m.id;
+									onSpockifyThinkingChange(m.id);
+									show = false;
+								}}
+							>
+								<div class="flex flex-col items-start min-w-0">
+									<span class="line-clamp-1 font-medium">{m.label}</span>
+									<span class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2"
+										>{m.hint}</span
+									>
+								</div>
+								{#if m.id === spockifyThinking}
 									<span class="ml-auto text-xs text-gray-400" aria-hidden="true">✓</span>
 								{/if}
 							</button>
