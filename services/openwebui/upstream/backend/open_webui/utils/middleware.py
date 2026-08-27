@@ -3031,7 +3031,15 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         raise Exception(f'{e}')
 
     features = form_data.pop('features', None) or {}
-    if form_data.get('model') == 'spockify-auto' and isinstance(features, dict):
+    model_id = str(form_data.get('model') or '')
+    spockify_routed = model_id in (
+        'spockify-auto',
+        'spockify-light',
+        'spockify-medium',
+        'spockify-heavy',
+        'spockify-agents',
+    )
+    if spockify_routed and isinstance(features, dict):
         # OWUI RAG web_search stays off — Spockify router owns SearXNG.
         features['web_search'] = False
         mode = str(features.get('spockify_search') or 'auto').strip().lower()
@@ -3104,6 +3112,12 @@ async def process_chat_payload(request, form_data, user, metadata, model):
 
         # Thinking depth (Light / Medium / Heavy) → router resolves the effort.
         thinking = str(features.get('spockify_thinking') or 'medium').strip().lower()
+        if model_id == 'spockify-light':
+            thinking = 'light'
+        elif model_id == 'spockify-medium':
+            thinking = 'medium'
+        elif model_id == 'spockify-heavy':
+            thinking = 'heavy'
         if thinking not in ('light', 'medium', 'heavy'):
             thinking = 'medium'
         metadata['spockify_thinking'] = thinking
@@ -3133,6 +3147,7 @@ async def process_chat_payload(request, form_data, user, metadata, model):
             thinking_cleaned.append(msg)
         thinking_cleaned.insert(0, {'role': 'system', 'content': thinking_marker})
         form_data['messages'] = thinking_cleaned
+        form_data['spockify_thinking'] = thinking
         extra_headers = form_data.get('extra_headers')
         if not isinstance(extra_headers, dict):
             extra_headers = {}
@@ -4770,6 +4785,11 @@ async def streaming_chat_response_handler(response, ctx):
                         # Remove the prefix
                         data = data[len('data:') :].strip()
 
+                        # Terminal SSE marker — stop reading so we don't hang if the
+                        # upstream keeps the socket open after [DONE].
+                        if data == '[DONE]':
+                            break
+
                         try:
                             data = json.loads(data)
 
@@ -5313,12 +5333,10 @@ async def streaming_chat_response_handler(response, ctx):
                         except (asyncio.CancelledError, KeyboardInterrupt):
                             raise
                         except Exception as e:
-                            done = 'data: [DONE]' in line
-                            if done:
-                                pass
-                            else:
-                                log.debug(f'Error: {e}')
-                                continue
+                            if '[DONE]' in str(line):
+                                break
+                            log.debug(f'Error: {e}')
+                            continue
                     await flush_pending_delta_data()
 
                     if output:

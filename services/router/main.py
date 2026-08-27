@@ -1861,6 +1861,7 @@ def _finalize_routing(
     user_msg: str,
     messages: list[ChatMessage],
     decision: RoutingDecision,
+    thinking_mode: Optional[str] = None,
 ) -> RoutingDecision:
     """Last-mile fixes: weather/stock intent, worker/web model mapping."""
     if _is_commit_message_request(user_msg, messages):
@@ -1895,7 +1896,8 @@ def _finalize_routing(
         ):
             decision = decision.model_copy(deep=True)
             decision.selected_model = DEFAULT_WEB_WORKER
-    decision = _apply_uncertainty_policy(user_msg, messages, decision)
+    if thinking_mode != "light":
+        decision = _apply_uncertainty_policy(user_msg, messages, decision)
     return decision
 
 
@@ -3095,14 +3097,34 @@ def _thinking_mode_from_headers(headers: Any) -> Optional[str]:
 def _thinking_mode_from_messages(
     messages: list[ChatMessage],
 ) -> tuple[Optional[str], list[ChatMessage]]:
-    """Extract optional per-turn thinking marker; strip it from messages."""
+    """Extract per-turn thinking marker (first wins); strip it from messages."""
     found: Optional[str] = None
     cleaned: list[ChatMessage] = []
     for msg in messages:
         text = _content_text(msg.content)
         match = THINKING_MODE_MARKER_RE.search(text)
-        if match:
+        if match and found is None:
             found = _normalize_thinking_mode(match.group(1))
+            stripped = THINKING_MODE_MARKER_RE.sub("", text).strip()
+            if msg.role == "system" and not stripped:
+                continue
+            if stripped != text:
+                if isinstance(msg.content, str):
+                    msg = msg.model_copy(update={"content": stripped})
+                else:
+                    new_parts: list[Any] = []
+                    for part in msg.content:
+                        if isinstance(part, dict) and part.get("type") == "text":
+                            part_text = THINKING_MODE_MARKER_RE.sub(
+                                "", str(part.get("text", ""))
+                            ).strip()
+                            new_parts.append({**part, "text": part_text})
+                        else:
+                            new_parts.append(part)
+                    msg = msg.model_copy(update={"content": new_parts})
+            cleaned.append(msg)
+            continue
+        if match:
             stripped = THINKING_MODE_MARKER_RE.sub("", text).strip()
             if msg.role == "system" and not stripped:
                 continue
@@ -3305,7 +3327,16 @@ def _apply_thinking_mode(
         QUALITY_CHAT_WORKER,
         DEFAULT_CHAT_WORKER,
         DEFAULT_CHAT_FALLBACK,
-    ) or task in ("general", "fast_chat", "reasoning", "casual_chat", "nvidia_chat", ""):
+        FAST_CHAT_WORKER,
+    ) or task in (
+        "general",
+        "fast_chat",
+        "reasoning",
+        "casual_chat",
+        "nvidia_chat",
+        "default",
+        "",
+    ):
         patched.selected_model = LIGHT_CHAT_WORKER
         patched.reasoning = (
             f"{patched.reasoning}; thinking=light→{LIGHT_CHAT_WORKER}".strip("; ")
@@ -5809,11 +5840,18 @@ async def _resolve_routing(
     rules: dict[str, Any],
     messages: list[ChatMessage],
     thread_id: Optional[str] = None,
+    thinking_mode: Optional[str] = None,
 ) -> RoutingDecision:
-    if _messages_have_images(messages):
-        decision = _finalize_routing(
-            user_msg, messages, _gate_web_search(user_msg, _vision_route(), messages)
+    def _done(dec: RoutingDecision) -> RoutingDecision:
+        return _finalize_routing(
+            user_msg,
+            messages,
+            _gate_web_search(user_msg, dec, messages),
+            thinking_mode,
         )
+
+    if _messages_have_images(messages):
+        decision = _done(_vision_route())
         _store_routing_plan(thread_id, user_msg, decision, _context_fingerprint(messages))
         LOG.info(
             "vision-route model=%s path=%s",
@@ -5825,9 +5863,7 @@ async def _resolve_routing(
     # Text follow-up after image: stick to vision before cache/heuristics.
     vision_sticky = _vision_thread_sticky(thread_id, user_msg, messages)
     if vision_sticky is not None:
-        decision = _finalize_routing(
-            user_msg, messages, _gate_web_search(user_msg, vision_sticky, messages)
-        )
+        decision = _done(vision_sticky)
         _store_routing_plan(
             thread_id, user_msg, decision, _context_fingerprint(messages)
         )
@@ -5841,11 +5877,7 @@ async def _resolve_routing(
 
     ctx_fp = _context_fingerprint(messages)
     if _is_commit_message_request(user_msg, messages):
-        decision = _finalize_routing(
-            user_msg,
-            messages,
-            _gate_web_search(user_msg, _commit_message_route(), messages),
-        )
+        decision = _done(_commit_message_route())
         _store_routing_plan(thread_id, user_msg, decision, ctx_fp)
         LOG.info(
             "commit-message-route model=%s path=%s",
@@ -5857,12 +5889,10 @@ async def _resolve_routing(
     cached = _cache_get(user_msg, ctx_fp)
     if cached is not None:
         LOG.info("cache-hit model=%s path=%s", cached.selected_model, cached.routing_path)
-        return _finalize_routing(user_msg, messages, _gate_web_search(user_msg, cached, messages))
+        return _done(cached)
 
     if _is_math_query(user_msg):
-        decision = _finalize_routing(
-            user_msg, messages, _gate_web_search(user_msg, _math_route(user_msg), messages)
-        )
+        decision = _done(_math_route(user_msg))
         _store_routing_plan(thread_id, user_msg, decision, ctx_fp)
         return decision
 
@@ -5890,17 +5920,19 @@ async def _resolve_routing(
             decision.selected_model,
             decision.confidence,
         )
-        decision = _finalize_routing(
-            user_msg, messages, _gate_web_search(user_msg, decision, messages)
-        )
+        decision = _done(decision)
+        _store_routing_plan(thread_id, user_msg, decision, ctx_fp)
+        return decision
+
+    # Light: skip orchestrator latency — heuristics/patterns are enough.
+    if thinking_mode == "light" and decision is not None:
+        decision = _done(decision)
         _store_routing_plan(thread_id, user_msg, decision, ctx_fp)
         return decision
 
     if not _needs_orchestrator(user_msg, messages, decision):
         if decision is not None:
-            decision = _finalize_routing(
-                user_msg, messages, _gate_web_search(user_msg, decision, messages)
-            )
+            decision = _done(decision)
             _store_routing_plan(thread_id, user_msg, decision, ctx_fp)
             return decision
 
@@ -5913,9 +5945,7 @@ async def _resolve_routing(
                 decision.selected_model,
                 decision.confidence,
             )
-            decision = _finalize_routing(
-                user_msg, messages, _gate_web_search(user_msg, decision, messages)
-            )
+            decision = _done(decision)
             _store_routing_plan(thread_id, user_msg, decision, ctx_fp)
             return decision
         except httpx.HTTPError:
@@ -5929,9 +5959,7 @@ async def _resolve_routing(
         reasoning="orchestrator unavailable",
         routing_path="default",
     )
-    return _finalize_routing(
-        user_msg, messages, _gate_web_search(user_msg, fallback, messages)
-    )
+    return _done(fallback)
 
 
 # Wave 6.1: browsable session digests (in-process + optional dir).
@@ -8236,7 +8264,7 @@ async def chat_completions(
 
     async with httpx.AsyncClient() as client:
         decision = await _resolve_routing(
-            client, user_msg, rules, req.messages, thread_id
+            client, user_msg, rules, req.messages, thread_id, thinking_mode
         )
         decision = _apply_user_search_mode(user_msg, decision, search_mode)
         decision = _apply_voice_mode(decision, voice_mode)
@@ -8359,10 +8387,14 @@ async def chat_completions(
                         **({"stop": call_stop} if call_stop else {}),
                     ):
                         # Collect text + usage for HUD / critique (best-effort).
+                        # Swallow early [DONE] so HUD/critique can still ride the
+                        # same SSE; we emit a single terminal [DONE] below.
                         try:
                             if chunk.startswith(b"data:"):
                                 raw = chunk[5:].strip()
-                                if raw and raw != b"[DONE]":
+                                if raw == b"[DONE]":
+                                    continue
+                                if raw:
                                     data = json.loads(raw)
                                     if isinstance(data, dict):
                                         if data.get("usage"):
@@ -8411,6 +8443,15 @@ async def chat_completions(
                                 answer=answer,
                             )
                         yield _critique_sse(crit)
+
+                    yield _status_sse(
+                        status,
+                        done=True,
+                        worker=worker,
+                        web_search=decision.needs_web_search,
+                    )
+                    yield _content_sse_delta("", finish=True)
+                    yield b"data: [DONE]\n\n"
                 except Exception as exc:
                     LOG.exception("stream failed: %s", exc)
                     yield _stream_error_sse(str(exc))

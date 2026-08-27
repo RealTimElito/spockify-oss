@@ -181,6 +181,8 @@ async def get_headers_and_cookies(
         headers['X-Spockify-Role'] = str(metadata['spockify_role'])
     if metadata and metadata.get('spockify_voice'):
         headers['X-Spockify-Voice'] = '1'
+    if metadata and metadata.get('spockify_thinking'):
+        headers['X-Spockify-Thinking'] = str(metadata['spockify_thinking'])
     if user is not None:
         headers['X-Spockify-User-Id'] = str(getattr(user, 'id', '') or '')
         if not headers.get('X-Spockify-Role'):
@@ -1171,6 +1173,12 @@ async def generate_chat_completion(
             payload['logit_bias'] = json.loads(logit_bias)
 
     headers, cookies = await get_headers_and_cookies(request, url, key, api_config, metadata, user=user)
+
+    extra_headers = payload.pop('extra_headers', None)
+    if isinstance(extra_headers, dict):
+        for hk, hv in extra_headers.items():
+            if hk and hv is not None and str(hv).strip():
+                headers[str(hk)] = str(hv)
 
     is_responses = api_config.get('api_type') == 'responses'
 

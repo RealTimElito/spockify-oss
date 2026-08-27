@@ -1,4 +1,4 @@
-"""Tests for memory guard."""
+"""Tests for Memory guard."""
 
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch

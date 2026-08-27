@@ -1,6 +1,6 @@
 /**
  * Display helpers for which model generated chat / code.
- * Provenance must say "routed via spockify" — never homelab infra or internal hostnames.
+ * Provenance must say "routed via spockify" — never homelab infra or internal hosts.
  */
 
 export const ROUTED_VIA_SPOCKIFY = 'routed via spockify';
@@ -30,7 +30,7 @@ export function sanitizeModelId(id: string | undefined): string {
   if (FORBIDDEN_IN_UI.test(t)) {
     t = t
       .replace(/spark/gi, '')
-      .replace(/data\.local/gi, '')
+      .replace(/[a-z0-9][a-z0-9-]*\.local/gi, '')
       .replace(/localhost/gi, '')
       .replace(/127\.0\.0\.1/gi, '')
       .replace(/homelab/gi, '')

@@ -24,6 +24,26 @@
 	$: worker = message.spockifyWorker as string | undefined;
 	$: webSearch = Boolean(message.spockifyWebSearch);
 	$: hud = (message.spockifyHud || agents?.hud) as Record<string, unknown> | undefined;
+	$: runActive = agentsRunActive(agents?.status as string | undefined);
+
+	/** Live progress or post-hoc detail worth keeping after the answer. */
+	$: hasInterestingDetails =
+		thinking === 'heavy' ||
+		workers.length > 0 ||
+		Boolean(critique?.level || critique?.notes) ||
+		Boolean(routingReason) ||
+		statusHistory.length > 1;
+
+	// Light/Medium: show only while streaming; hide once done unless there is
+	// real detail (heavy/agents/critique). Mode chip next to the model name is enough.
+	$: hasPanel =
+		(!messageDone &&
+			(Boolean(thinking) ||
+				statusHistory.length > 0 ||
+				workers.length > 0 ||
+				Boolean(critique?.level || critique?.notes) ||
+				Boolean(routingPath || routingReason || worker))) ||
+		(messageDone && hasInterestingDetails);
 
 	$: ensembleRows = (() => {
 		const liveByKey = new Map<string, Record<string, unknown>>();
@@ -32,19 +52,22 @@
 			if (key) liveByKey.set(key, w);
 		}
 		if (thinking === 'heavy') {
-			return HEAVY_ENSEMBLE_PLAN.map((p) => {
-				const w = liveByKey.get(p.role.toLowerCase());
-				if (w) {
-					return {
-						role: p.role,
-						model: String(w.model || p.model),
-						status: String(w.status || ''),
-						output: String(w.output || w.error || ''),
-						preview: String(w.preview || '')
-					};
-				}
-				return { ...p, status: 'pending', output: '', preview: '' };
-			});
+			if (workers.length > 0 || worker === 'heavy' || runActive) {
+				return HEAVY_ENSEMBLE_PLAN.map((p) => {
+					const w = liveByKey.get(p.role.toLowerCase());
+					if (w) {
+						return {
+							role: p.role,
+							model: String(w.model || p.model),
+							status: String(w.status || ''),
+							output: String(w.output || w.error || ''),
+							preview: String(w.preview || '')
+						};
+					}
+					return { ...p, status: 'pending', output: '', preview: '' };
+				});
+			}
+			return [];
 		}
 		if (workers.length > 0) {
 			return workers.map((w) => ({
@@ -58,14 +81,6 @@
 		return [];
 	})();
 
-	$: hasPanel =
-		Boolean(thinking) ||
-		statusHistory.length > 0 ||
-		workers.length > 0 ||
-		Boolean(critique?.level || critique?.notes) ||
-		Boolean(routingPath || routingReason || worker);
-
-	$: runActive = agentsRunActive(agents?.status as string | undefined);
 	$: doneWorkers = workers.filter((w) =>
 		['done', 'failed', 'cancelled'].includes((w.status as string) || '')
 	).length;
@@ -73,26 +88,40 @@
 	$: latestStatus = statusHistory.length
 		? (statusHistory.at(-1) as { description?: string; done?: boolean } | undefined)
 		: null;
-	$: phaseLabel =
-		(latestStatus?.description as string | undefined) ||
-		(runActive ? 'Running agents…' : agents?.status ? String(agents.status) : '') ||
-		(critique?.notes && !messageDone ? 'Verifying answer…' : '') ||
-		(thinking === 'heavy' && !messageDone ? 'Heavy thinking…' : '');
+	$: phaseLabel = (() => {
+		if (messageDone) return '';
+		if (latestStatus?.description && latestStatus.done !== true) {
+			return String(latestStatus.description);
+		}
+		if (runActive) return 'Running agents…';
+		if (agents?.status && agentsRunActive(String(agents.status))) {
+			return String(agents.status);
+		}
+		if (critique?.notes) return 'Verifying answer…';
+		if (thinking === 'heavy') return 'Heavy thinking…';
+		if (thinking) return `${thinkingModeLabel(thinking as import('$lib/utils/thinkingModes').ThinkingMode)}…`;
+		return '';
+	})();
 
 	let panelOpen = false;
 	let userToggled = false;
 
-	// Auto-open while heavy/multitask is streaming; respect manual collapse.
+	// Auto-open while streaming interesting work; collapse when the turn finishes.
 	$: if (hasPanel && !userToggled) {
 		panelOpen =
 			!messageDone &&
 			(thinking === 'heavy' || workers.length > 0 || Boolean(phaseLabel) || Boolean(critique?.notes));
+	}
+	$: if (messageDone && !userToggled) {
+		panelOpen = false;
 	}
 
 	const togglePanel = () => {
 		userToggled = true;
 		panelOpen = !panelOpen;
 	};
+
+	$: headerLabel = messageDone ? 'Thought' : 'Thinking';
 
 	$: modeChipClass =
 		thinking === 'heavy'
@@ -123,12 +152,14 @@
 			<span
 				class="shrink-0 size-2 rounded-full {runActive || (!messageDone && thinking === 'heavy')
 					? 'bg-violet-500 animate-pulse'
-					: critique?.notes
-						? critiqueClass
-						: 'bg-emerald-500'}"
+					: !messageDone
+						? 'bg-amber-400 animate-pulse'
+						: critique?.notes
+							? critiqueClass
+							: 'bg-emerald-500'}"
 				aria-hidden="true"
 			></span>
-			<span class="font-medium text-gray-800 dark:text-gray-100 shrink-0">Thinking</span>
+			<span class="font-medium text-gray-800 dark:text-gray-100 shrink-0">{headerLabel}</span>
 			{#if thinking}
 				<span class="rounded-full px-1.5 py-[1px] border {modeChipClass}">
 					{thinkingModeLabel(thinking as import('$lib/utils/thinkingModes').ThinkingMode)}

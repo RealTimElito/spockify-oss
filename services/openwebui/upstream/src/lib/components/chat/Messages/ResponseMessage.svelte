@@ -271,13 +271,23 @@
 		return text;
 	})();
 
-	$: hasSpockifyThinkingPanel =
-		Boolean(message?.spockifyThinking) ||
+	$: hasInterestingThinking =
 		message?.spockifyThinking === 'heavy' ||
-		(message?.statusHistory?.length ?? 0) > 0 ||
 		(message?.spockifyAgents?.workers?.length ?? 0) > 0 ||
 		Boolean(message?.spockifyCritique?.level || message?.spockifyCritique?.notes) ||
-		Boolean(message?.spockifyRoutingPath || message?.spockifyReason || message?.spockifyWorker);
+		Boolean(message?.spockifyReason) ||
+		(message?.statusHistory?.length ?? 0) > 1;
+
+	$: hasSpockifyThinkingPanel =
+		(!(message?.done ?? false) &&
+			(Boolean(message?.spockifyThinking) ||
+				(message?.statusHistory?.length ?? 0) > 0 ||
+				(message?.spockifyAgents?.workers?.length ?? 0) > 0 ||
+				Boolean(message?.spockifyCritique?.level || message?.spockifyCritique?.notes) ||
+				Boolean(
+					message?.spockifyRoutingPath || message?.spockifyReason || message?.spockifyWorker
+				))) ||
+		((message?.done ?? false) && hasInterestingThinking);
 
 	$: canRequestImageVariation =
 		!readOnly &&

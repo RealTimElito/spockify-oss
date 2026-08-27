@@ -60,6 +60,10 @@
 	export let webSearchEnabled = false;
 	export let spockifySearchMode: 'auto' | 'on' | 'off' = 'auto';
 	export let onSpockifySearchModeChange: (mode: 'auto' | 'on' | 'off') => void = () => {};
+	export let spockifyThinking: import('$lib/utils/thinkingModes').ThinkingMode = 'medium';
+	export let onSpockifyThinkingChange: (
+		mode: import('$lib/utils/thinkingModes').ThinkingMode
+	) => void = () => {};
 	export let spockifyComposerMode: import('$lib/utils/composerModes').ComposerUiMode = 'regular';
 	export let onSpockifyComposerModeChange: (
 		mode: import('$lib/utils/composerModes').ComposerUiMode
@@ -247,6 +251,8 @@
 					bind:webSearchEnabled
 					bind:spockifySearchMode
 					{onSpockifySearchModeChange}
+					bind:spockifyThinking
+					{onSpockifyThinkingChange}
 					bind:spockifyComposerMode
 					{onSpockifyComposerModeChange}
 					spockifyParallelAgents={spockifyParallelAgents}

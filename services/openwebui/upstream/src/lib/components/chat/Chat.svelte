@@ -2215,7 +2215,7 @@
 		if (data?.spockify_agents) {
 			patch.spockifyAgents = data.spockify_agents;
 		}
-		if (data?.spockify_thinking) {
+		if (!message.spockifyThinking && data?.spockify_thinking) {
 			patch.spockifyThinking = data.spockify_thinking;
 		}
 		if (data?.spockify_hud) {
@@ -2234,6 +2234,7 @@
 
 		if (done) {
 			stopHeavyAgentsPoll(message.id);
+			taskIds = null;
 			commitHistoryMessage(message.id, { done: true });
 			const finalMessage = history.messages[message.id] ?? updated;
 
@@ -2466,15 +2467,19 @@
 				? [atSelectedModel.id]
 				: selectedModels;
 
-		// Multitask mode / natural-language parallel agents → spockify-agents
+		// Multitask composer → spockify-agents only when thinking chip is not steering
+		// Light/Medium/Heavy on spockify-auto (router heavy profile for Heavy).
 		const parentMsg = parentId ? _history.messages[parentId] : null;
 		const parentText = typeof parentMsg?.content === 'string' ? parentMsg.content : '';
 		const wantsParallel =
-			spockifyComposerMode === 'multitask' ||
-			spockifyParallelAgents ||
-			/\b(spawn\s+agents?|parallel\s+agents?|research\s+in\s+parallel|multi[- ]agent|\/agents\b)/i.test(
-				parentText
-			);
+			spockifyThinking !== 'light' &&
+			spockifyThinking !== 'medium' &&
+			spockifyThinking !== 'heavy' &&
+			(spockifyComposerMode === 'multitask' ||
+				spockifyParallelAgents ||
+				/\b(spawn\s+agents?|parallel\s+agents?|research\s+in\s+parallel|multi[- ]agent|\/agents\b)/i.test(
+					parentText
+				));
 		if (wantsParallel && $models.some((m) => m.id === 'spockify-agents')) {
 			selectedModelIds = ['spockify-agents'];
 		}

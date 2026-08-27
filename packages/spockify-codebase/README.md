@@ -22,7 +22,7 @@ On full reindex (and per-file incremental save), the IDE batches remote embeds w
 4. **Large-repo IVF:** when LanceDB loads and row count ≥ `IVF_MIN_ROWS` (256), build `IVF_PQ` (dim divisible by 8) or `IVF_FLAT` ANN index; meta records `annIndex`.
 5. **Prefer ANN seed:** when chunk count ≥ `ANN_PREFER_MIN_ROWS` (128) and Lance ANN returns hits, hybrid skips O(n) in-memory vector scan and fuses BM25 + ANN seed (large-repo / AppImage path).
 
-**Cloud vector sync:** deferred — cluster only stores **index metadata** (`/api/v1/spockify/ide/index`). Uploading chunk text / embedding matrices overnight was judged too risky for web (size, storage, RollingUpdate blast radius). Local Lance + nomic remains source of truth.
+**Cloud vector sync:** deferred — Cluster only stores **index metadata** (`/api/v1/spockify/ide/index`). Uploading chunk text / embedding matrices overnight was judged too risky for web (size, storage, RollingUpdate blast radius). Local Lance + nomic remains source of truth.
 
 Full-tree smoke: `npx tsx scripts/reindex-tree.ts /path/to/agentHub` (respects `.gitignore` / `.spockifyignore`).
 
