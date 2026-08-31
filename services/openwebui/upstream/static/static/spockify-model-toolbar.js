@@ -69,6 +69,16 @@
   }
 
   function relocate() {
+    // Svelte now mounts the picker in the input bar. Never steal it back
+    // from Navbar on stream ticks — that remount fight is the flicker.
+    const owned = document.querySelector(
+      '#message-input-container .spockify-input-model-selector'
+    );
+    if (owned) {
+      isolateModelClicks(owned);
+      return true;
+    }
+
     const root = modelRoot();
     const slot = relocationSlot();
     if (!root || !slot) return false;

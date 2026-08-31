@@ -11,6 +11,7 @@ import { loadTerminalAgentSettings, tierSummaryForPrompt } from './policy';
 import { sandboxHintMarkdown } from './policy/sandbox';
 import { resolveBwrapPath } from './policy/osSandbox';
 import { workspaceTerminalCwd } from './runTerminalTool';
+import { thinkingRequestExtras } from '../chat/thinkingPrefs';
 import {
   formatPlanForPrompt,
   parseNumberedPlan,
@@ -135,6 +136,7 @@ async function runPlanningTurn(
       },
     ],
     maxTurns: 1,
+    requestExtras: thinkingRequestExtras(),
     sessionId: `${sessionId}_plan`,
     signal: abort,
     onEvent: (ev) => {
@@ -411,6 +413,7 @@ export function registerTerminalAgent(
                 systemPrompt: system,
                 messages,
                 maxTurns: settings.maxTurns,
+                requestExtras: thinkingRequestExtras(),
                 sessionId: managed.id,
                 signal: managed.abort.signal,
                 onEvent: (ev) => {

@@ -14,6 +14,18 @@ test('allows Spockify OSS aliases', () => {
   assert.equal(isAllowedOssModel('spockify-agents'), true);
 });
 
+test('allows local catalog families', () => {
+  assert.equal(isAllowedOssModel('gemma4-31b'), true);
+  assert.equal(isAllowedOssModel('qwen3.6-coder-27b'), true);
+  assert.equal(isAllowedOssModel('magistral'), true);
+  assert.equal(isAllowedOssModel('devstral-small-2'), true);
+  assert.equal(isAllowedOssModel('ministral-3-14b'), true);
+  assert.equal(isAllowedOssModel('nemotron-70b'), true);
+  assert.equal(isAllowedOssModel('gpt-oss:120b'), true);
+  assert.equal(isAllowedOssModel('kimi-k2.5:cloud'), false);
+  assert.equal(isDeniedModel('kimi-k2.5:cloud'), true);
+});
+
 test('denies closed cloud ids', () => {
   assert.equal(isDeniedModel('gpt-4o'), true);
   assert.equal(isDeniedModel('claude-3-opus'), true);

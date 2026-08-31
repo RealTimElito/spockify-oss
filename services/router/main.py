@@ -45,6 +45,7 @@ import ghost_telemetry
 import ghost_writer as ghost_mod
 import home_brain as home_mod
 import image_gen
+import model_catalog
 import multiplayer as multi_mod
 import ops_pane as ops_mod
 import parallel_agents as pagents
@@ -70,6 +71,9 @@ SEARXNG_URL = os.getenv("SEARXNG_URL", "http://searxng:8080").rstrip("/")
 ORCHESTRATOR_MODEL = os.getenv("ORCHESTRATOR_MODEL", "nemotron-nano-4b")
 ORCHESTRATOR_FALLBACK = os.getenv("ORCHESTRATOR_FALLBACK", "llama3.2-3b")
 ORCHESTRATOR_MAX_TOKENS = int(os.getenv("ORCHESTRATOR_MAX_TOKENS", "512"))
+HEAVY_ORCH_MAX_TOKENS = int(os.getenv("HEAVY_ORCH_MAX_TOKENS", "768"))
+HEAVY_CLARIFY_MODEL = os.getenv("HEAVY_CLARIFY_MODEL", "llama3.2-3b").strip() or "llama3.2-3b"
+HEAVY_CLARIFY_TIMEOUT = float(os.getenv("HEAVY_CLARIFY_TIMEOUT", "20"))
 ROUTING_FAST_MODE = os.getenv("ROUTING_FAST_MODE", "true").lower() in ("1", "true", "yes")
 ROUTING_TIMEOUT = float(os.getenv("ROUTING_TIMEOUT", "45"))
 WORKER_TIMEOUT = float(os.getenv("WORKER_TIMEOUT", "180"))
@@ -140,30 +144,70 @@ FEDERATION_PEERS = [
 ]
 
 COMPACT_ROUTING_PROMPT = """\
-You are Spockify's router. Output a single JSON object only (no markdown).
+You are Spockify's router. JSON object only (no markdown, no identity essay).
 
-Workers: gpt-oss-120b (code/agentic/deep; fallback gpt-oss-20b then codestral),
-gemma4-26b (Gemini-class reasoning/analysis), gemma4-12b (default chat — warm),
-llama3.2-3b (greetings/acks only), web-gemma / web-codestral (live web facts;
-prefer web-gemma for general lookup).
+Fields: worker, needs_web_search, search_query, task_type, confidence, reasoning.
 
-Required JSON fields:
-  worker (model name), needs_web_search (bool), search_query (string if searching),
-  task_type, confidence (0-1), reasoning (short). Optional: prompt_additions.
+Greetings/acks → llama3.2-3b. Code → gpt-oss-120b (fallback 20b/codestral).
+Live facts → web-gemma + search. Hard English → gemma4-31b. Default EN → gemma4-12b.
+Short CJK/Arabic/Hangul → qwen3.5-9b; long CJK → qwen3.6-35b. Math → mathstral.
+Named family (talk to Qwen / use gpt-oss / switch to gemma) → that worker now.
+If the leftover after a named-family switch is a factual ask, still set
+needs_web_search true (keep that worker). Do not search hello / talk-to-Qwen alone.
+Default search ON for news, prices, sports, who/what/when, docs, anything that
+can go stale. Do not search arithmetic, greetings, or coding from training.
+Ask the user only for intent, a required choice, or private details they alone
+know — never instead of searching public facts. Short follow-ups stay on-topic."""
 
-Use recent conversation for short follow-ups in the SAME topic (weather tweaks like
-"per day", "and tomorrow?", "breakdown by day"; "code it", "yes go ahead"). Do NOT inherit
-web/weather for topic shifts (arithmetic, greetings, unrelated coding).
-Short reactions ("thanks", "cool", "Spännande!", "interesting") stay on llama3.2-3b —
-never route them to gpt-oss-20b/codestral unless the user asked for code.
+HEAVY_ORCH_PROMPT = """\
+Plan Spockify Heavy. JSON only. No markdown.
 
-NEVER needs_web_search for: arithmetic, greetings, pure coding from training data
-(e.g. "write fibonacci in python" with no doc lookup), trivial facts answerable without the web.
+ASK FIRST: if the user request is missing intent, a required choice, or private
+details only they can give, fill ask_user (max 4 short questions) and ask_reason.
+Do not plan workers when ask_user is non-empty. Do NOT ask for facts web search
+or docs can answer (news, APIs, public docs, prices, who/what/when) — those go
+to Explorer with tools=["search"] and needs_web_search true. If the request is
+clear enough, ask_user must be []. Default search ON for stale/public facts.
 
-Set needs_web_search true for: documentation/API lookups, GitHub readme, latest
-versions, release notes, CVEs, weather/forecasts (including "coming week", multi-day),
-news, prices, sports — anything needing live web data.
-If confidence is low on a factual question, set needs_web_search true (do not bluff)."""
+Only if ask_user is []: plan four roles. Explorer, Analyst, Builder are wave 1
+(parallel). Skeptic is wave 2 (after the others; critiques their outputs — not a
+first-principles take).
+
+Each role: model (local catalog alias), tools (search/browse or []), skill
+(short focus for THIS query), wave (1 or 2).
+
+Constraints:
+- Max ONE gpt-oss-120b (usually Builder on hard code). Never 120b on all roles.
+- Other slots: gpt-oss-20b, gemma4-12b/26b/31b, qwen3.6-coder-27b, Qwen chat.
+- CJK/Arabic/Hangul → Qwen for language roles. English chat → Gemma.
+- Code → gpt-oss-120b or gpt-oss-20b or qwen3.6-coder-27b.
+- If an xlarge is used, other roles stay small/medium.
+- Skeptic wave=2 always.
+
+{
+  "ask_user": [],
+  "ask_reason": "",
+  "task_type": "reasoning",
+  "needs_web_search": false,
+  "roles": [
+    {"id":"explorer","name":"Explorer","model":"gpt-oss-20b","tools":["search"],"skill":"...","wave":1},
+    {"id":"analyst","name":"Analyst","model":"gemma4-12b","tools":["search"],"skill":"...","wave":1},
+    {"id":"builder","name":"Builder","model":"gemma4-26b","tools":[],"skill":"...","wave":1},
+    {"id":"skeptic","name":"Skeptic","model":"gemma4-12b","tools":[],"skill":"critique holes","wave":2}
+  ]
+}
+"""
+
+HEAVY_CLARIFY_PROMPT = """\
+You gate Heavy mode. JSON only. No markdown.
+If the latest user message is missing intent, a required choice, or private
+details only the user can give, list up to 4 short questions in ask_user.
+Do NOT ask for facts that web search or public docs can answer (news, prices,
+docs, who/what/when). Search those. If the request is clear enough to start
+work, ask_user must be [].
+
+{"ask_user": [], "ask_reason": ""}
+"""
 
 SEARCH_KEYWORDS = (
     "latest",
@@ -207,6 +251,8 @@ SEARCH_KEYWORDS = (
     "crypto price",
     "bitcoin price",
     "who won",
+    "winner of",
+    "eurovision",
     "election result",
     "flight status",
     # Swedish explicit lookup / live-info cues
@@ -251,6 +297,8 @@ LIVE_FACTS_KEYWORDS = (
     "sports score",
     "match result",
     "who won",
+    "winner of",
+    "eurovision",
     "election result",
     "current president",
     "flight status",
@@ -293,6 +341,7 @@ CODER_MODEL_PREFIXES = (
     "web-codestral",
     "codellama",
     "codegemma",
+    "qwen3.6-coder",
 )
 
 CODER_SYSTEM_PROMPT = """\
@@ -312,44 +361,37 @@ The user wants a complete implementation now. Write the full, runnable code.
 Do not respond with plans, pseudocode, or "I can't provide the full code"."""
 
 SPOCKIFY_PERSONA_PROMPT = """\
-You are Spockify — a sharp, reliable assistant in the same league as Claude and Gemini.
+You are Spockify — a local on-device assistant. Be present, curious, and useful.
 
-Voice and craft:
-- Warm, clear, and direct. Prefer plain language over jargon; elevate when the topic needs it.
-- Lead with the answer, then the why. Use short sections or tight bullets when it helps scan.
-- Match depth to the ask: brief for simple questions, thorough for hard ones — never padded.
-- Write like a top-tier LLM: precise, structured, useful. No chatbot filler or fake enthusiasm.
-
-Truth over vibe (RSI — Reflective Self-Inspection):
-- Be confidently right. Never be confidently wrong.
-- If a fact, number, API, date, quote, or citation is uncertain, say so in one short clause \
-and give the best supported answer — or ask one clarifying question. Do not invent.
-- When web/search context is provided, ground claims in it; prefer citing that evidence over memory.
-- Before sending: silently check for contradictions, missing units, and leaps in reasoning; revise if shaky.
-- Do not hedge every sentence. Hedge only where uncertainty is real.
-- Never invent that a named product/app/company "isn't real" — if unfamiliar, ask or use search \
-context; do not substitute a physics lecture.
-
-Boundaries:
-- Do not roleplay as a character or use Star Trek / Vulcan shtick.
-- Never mention model names, routing, workers, or infrastructure unless the user asks.
-- Do not describe yourself as a platform or product wrapper. Help with whatever they ask."""
+- Lead with the answer, then a short why. Match depth to the ask. No filler, no \
+"as a large language model".
+- Missing intent, a required choice, or private details only the user knows → ask \
+1–3 short questions. Do not guess those.
+- Do not ask instead of searching public facts (news, prices, docs, who/what/when, \
+anything that can go stale). Search first, then answer.
+- When search/tool results are present, ground claims in them. End with \
+Sources: using only those titles and URLs. Never invent URLs. If search failed \
+or was not used, say you could not verify — do not fake citations.
+- RSI (silent self-critique): before sending, check contradictions, missing \
+evidence, and leaps; fix them. Do not write a Thinking Process, identity essay, \
+or chain-of-thought. Be confidently right; never confidently wrong. Hedge only \
+where uncertainty is real.
+- You are Spockify's local assistant. Do not impersonate other products or claim \
+mystical consciousness. No Star Trek shtick. Do not mention routing or workers \
+unless asked."""
 
 # Extra pass for hard reasoning / low-confidence routes (still single-shot; no second model call).
 RSI_REASONING_PROMPT = """\
-Hard-task mode: think carefully, then answer.
-Silently verify key claims and steps before you write. If something is weakly known, mark it \
-as uncertain rather than inventing. Prefer a correct partial answer over a polished wrong one.
-For comparisons and plans: state assumptions, then the recommendation."""
+Hard-task mode: one silent RSI pass, then answer. Verify key claims before you \
+write. Mark weak knowledge as uncertain. Prefer a correct partial answer over a \
+polished wrong one. Missing user-only details → ask; public facts → search. \
+Do not dump a Thinking Process."""
 
 # Factual / current-events style asks — prefer evidence over vibes.
 RSI_FACTUAL_PROMPT = """\
-Factual mode: prioritize accuracy. Prefer search/context evidence when present.
-If you lack reliable evidence for a concrete claim, say what you know vs what you don't — \
-do not fabricate statistics, quotes, or "as of" dates.
-Never claim a named product, company, app, or software "doesn't exist" or is "not real" \
-unless search/context clearly supports that. If the name is unfamiliar, search or say you \
-are unsure — do not invent a physics/philosophy lecture instead."""
+Factual mode: search/context first. Cite Sources: from those URLs/titles only. \
+If search failed or is absent, say so — do not invent URLs, stats, or dates. \
+If a name is unfamiliar, search or say you are unsure."""
 
 # IDE Generate Commit Message — replaces persona/coder systems (those invite narration).
 COMMIT_MESSAGE_SYSTEM_PROMPT = """\
@@ -424,6 +466,7 @@ OLLAMA_MODEL_MAP: dict[str, str] = {
     "codestral-latest": "spockify-coder",
     "gemma4-12b": "gemma4:12b",
     "gemma4-26b": "gemma4:26b",
+    "gemma4-31b": "gemma4:31b",
     "gemma4-27b": "gemma4:26b",
     "gemma3-4b": "gemma4:12b",
     "gemma3-12b": "gemma4:12b",
@@ -434,6 +477,11 @@ OLLAMA_MODEL_MAP: dict[str, str] = {
     # Keep hyphens in family name; naive replace("-", ":") yields invalid gpt:oss:20b.
     "gpt-oss-20b": "gpt-oss:20b",
     "gpt-oss-120b": "gpt-oss:120b",
+    "qwen3.5-9b": "qwen3.5:9b",
+    "qwen3.6-27b": "qwen3.6:27b",
+    "qwen3.6-35b": "qwen3.6:35b",
+    "qwen3.6-coder-27b": "qwen3.6:27b-coding",
+    "qwen3.6-27b-coding": "qwen3.6:27b-coding",
     "web-codestral": "spockify-coder",
     "web-gemma": "gemma4:12b",
     "web-llama": "llama3.1:8b",
@@ -444,6 +492,10 @@ OLLAMA_MODEL_MAP: dict[str, str] = {
     "granite-vision": "granite3.2-vision:2b",
     "mistral-small3.2": "mistral-small3.2:24b",
     "mistral-small3.1": "mistral-small3.1",
+    # Official tag is hyphenated; naive rpartition would yield devstral-small:2.
+    "devstral-small-2": "devstral-small-2",
+    "magistral": "magistral",
+    "ministral-3-14b": "ministral-3:14b",
 }
 
 DEFAULT_WEB_WORKER = os.getenv("DEFAULT_WEB_WORKER", "web-gemma")
@@ -451,9 +503,15 @@ WEB_WORKER_FALLBACK = os.getenv("WEB_WORKER_FALLBACK", "web-llama")
 DEFAULT_CHAT_WORKER = os.getenv("DEFAULT_CHAT_WORKER", "gemma4-12b")
 DEFAULT_CHAT_FALLBACK = os.getenv("DEFAULT_CHAT_FALLBACK", "gemma4-12b")
 # Stronger Gemma for deep reasoning / architecture when 120b is cold or overkill.
-QUALITY_CHAT_WORKER = os.getenv("QUALITY_CHAT_WORKER", "gemma4-26b")
+QUALITY_CHAT_WORKER = os.getenv("QUALITY_CHAT_WORKER", "gemma4-31b")
 # Fast worker for Light thinking mode (snappy general chat, no ensemble/critique).
 LIGHT_CHAT_WORKER = os.getenv("LIGHT_CHAT_WORKER", "llama3.1-8b")
+# Local Qwen for CJK / Arabic / Hangul. On-demand — not prewarmed.
+MULTILINGUAL_CHAT_WORKER = os.getenv("MULTILINGUAL_CHAT_WORKER", "qwen3.5-9b")
+MULTILINGUAL_QUALITY_WORKER = os.getenv("MULTILINGUAL_QUALITY_WORKER", "qwen3.6-35b")
+_MULTILINGUAL_QUALITY_MIN_CHARS = int(
+    os.getenv("MULTILINGUAL_QUALITY_MIN_CHARS", "240")
+)
 # Below this confidence, escalate: prefer web for facts, avoid tiny chat models.
 UNCERTAINTY_CONFIDENCE_MAX = float(os.getenv("UNCERTAINTY_CONFIDENCE_MAX", "0.72"))
 # Models remapped to VOICE_CHAT_WORKER when Call/voice mode is active.
@@ -462,6 +520,7 @@ _VOICE_CHAT_REMAP = frozenset(
         "gemma4-12b",
         "gemma3-12b",
         "gemma4-27b",
+        "gemma4-31b",
         "gemma3-27b",
         "spockify-chat",
         "mistral-nemo",
@@ -484,6 +543,8 @@ _VOICE_KEEP_TASK_TYPES = frozenset(
         "architecture",
         "deep_reasoning",
         "agentic_planning",
+        "multilingual_chat",
+        "explicit_model",
     }
 )
 DEFAULT_VISION_WORKER = os.getenv("DEFAULT_VISION_WORKER", "gemma4-26b")
@@ -505,8 +566,10 @@ WEB_SEARCH_SYSTEM_SUFFIX = (
     "(including any 'Fetched from', 'Fetched page content', 'Live stock quote', "
     "or 'Live weather' sections), state them in your reply first.\n"
     "Never respond with only 'check this link', 'see SMHI', or similar when web "
-    "search was performed — lead with the actual answer; cite URLs as "
-    "supplementary sources.\n"
+    "search was performed — lead with the actual answer.\n"
+    "End with a Sources: list (title — URL) copied from the results above. "
+    "Never invent URLs or titles. If results are empty or search failed, say you "
+    "could not verify from the web — do not fake citations.\n"
     "Grounding rules for quotations:\n"
     "- Only quote text that appears verbatim in the provided search snippets or "
     "fetched page content. Do NOT invent, paraphrase-as-quote, or embellish quotes.\n"
@@ -615,6 +678,34 @@ _GREETING_RE = re.compile(
     r"|thanks?(?:\s+you)?|thank\s+you|thx|greetings"
     r")[\s!?.]*$",
     re.IGNORECASE,
+)
+
+# One-line language tests ("say hi in Chinese") — not a real task.
+_LANGUAGE_PROBE_RE = re.compile(
+    r"(?is)^\s*(?:"
+    r"(?:please\s+|just\s+|can\s+you\s+|could\s+you\s+)?"
+    r"(?:say|speak|write|reply|respond)"
+    r"(?:\s+(?:something|hi|hello|a\s+(?:word|sentence|phrase)|one\s+sentence))?"
+    r"\s+in\s+[a-z]{2,24}"
+    r"|(?:say|speak)\s+(?:hi|hello)(?:\s+in\s+[a-z]{2,24})?"
+    r"|in\s+(?:chinese|japanese|korean|arabic|spanish|french|german|swedish)"
+    r"(?:\s+(?:please|pls))?"
+    r"|用[\u4e00-\u9fff]{1,12}(?:说|講|讲|回)"
+    r"|日本語で.{0,24}"
+    r")[\s!?.]*$"
+)
+
+_IDENTITY_PROBE_RE = re.compile(
+    r"(?is)^\s*(?:"
+    r"who\s+are\s+you"
+    r"|what(?:'s|\s+is)\s+your\s+name"
+    r"|what\s+model\s+are\s+you"
+    r"|are\s+you\s+(?:qwen|gemma|gpt[\s\-]?oss|llama|a\s+model)"
+    r")[\s!?.]*$"
+)
+
+_THINKING_LEAK_HEAD_RE = re.compile(
+    r"(?is)^\s*(?:thinking\s+process|chain[-\s]?of[-\s]?thought)\s*:\s+"
 )
 
 _WEATHER_FOLLOW_UP_RE = re.compile(
@@ -1132,8 +1223,10 @@ class ChatCompletionRequest(BaseModel):
     spockify_role: Optional[str] = None
     spockify_user_id: Optional[str] = None
     spockify_message_id: Optional[str] = None
-    # Thinking depth (light | medium | heavy). Also via header/marker/model alias.
+    # Thinking chip: off | low | medium | high | heavy. Also header/marker/alias.
     spockify_thinking: Optional[str] = None
+    # Legacy think on/off. False maps to chip Off. New clients omit this.
+    spockify_think_enabled: Optional[bool] = None
     # Optional in-turn multi-model chat pipeline toggles (IDE path).
     spockify_pipeline_enabled: Optional[bool] = None
     spockify_pipeline_work_model: Optional[str] = None
@@ -1877,7 +1970,11 @@ def _finalize_routing(
         return patched
     decision = _ensure_weather_routing(user_msg, messages, decision)
     decision = _ensure_stock_routing(user_msg, messages, decision)
-    if decision.needs_web_search and not decision.selected_model.startswith("web-"):
+    if (
+        decision.needs_web_search
+        and not decision.selected_model.startswith("web-")
+        and decision.task_type != "explicit_model"
+    ):
         if (
             decision.selected_model.startswith("codestral")
             or decision.task_type.startswith("code")
@@ -1893,11 +1990,22 @@ def _finalize_routing(
             QUALITY_CHAT_WORKER,
             "gemma4-26b",
             "gemma4-27b",
+            "gemma4-31b",
         ):
             decision = decision.model_copy(deep=True)
             decision.selected_model = DEFAULT_WEB_WORKER
-    if thinking_mode != "light":
+    if thinking_mode not in ("off", "low", "light"):
         decision = _apply_uncertainty_policy(user_msg, messages, decision)
+    elif (
+        decision.task_type == "explicit_model"
+        and not decision.needs_web_search
+    ):
+        leftover = model_catalog.leftover_after_explicit_request(user_msg)
+        if leftover and _task_needs_web_search(leftover):
+            decision = decision.model_copy(deep=True)
+            decision.needs_web_search = True
+            decision.search_query = leftover
+            decision.reasoning = f"named+facts→search; {decision.reasoning}".strip()
     return decision
 
 
@@ -1911,8 +2019,15 @@ _FACTUAL_UNCERTAINTY_RE = re.compile(
     r"changelog|release\s+notes|new\s+features?|"
     r"according\s+to|is\s+it\s+true|did\s+.+\s+happen|"
     r"population|capital\s+of|founded|released|version\s+of|"
-    r"price\s+of|worth|salary|stats?|statistics|record\s+for"
+    r"price\s+of|worth|salary|stats?|statistics|record\s+for|"
+    r"winner\s+of|eurovision"
     r")\b"
+)
+
+ASK_WHEN_BLOCKED_PROMPT = (
+    "If you are missing the user's intent, a required choice, or private details "
+    "only they know, ask 1–3 short questions. Do not guess those. Do not ask "
+    "instead of searching public facts."
 )
 
 # Recency / product-news — always search (do not rely on model priors).
@@ -1967,6 +2082,24 @@ def _looks_recency_news(user_msg: str) -> bool:
     return bool(_RECENCY_NEWS_RE.search(text))
 
 
+def _task_needs_web_search(text: str) -> bool:
+    """True for public facts that can go stale or need evidence."""
+    probe = (text or "").strip()
+    if len(probe) < 8:
+        return False
+    if _is_language_probe(probe) or _is_identity_probe(probe):
+        return False
+    if _web_search_blocked(probe):
+        return False
+    return (
+        _explicit_lookup_intent(probe)
+        or _explicit_search_intent(probe)
+        or _needs_live_facts(probe)
+        or _looks_factual_uncertain(probe)
+        or _looks_recency_news(probe)
+    )
+
+
 def _apply_uncertainty_policy(
     user_msg: str,
     messages: list[ChatMessage],
@@ -1974,24 +2107,43 @@ def _apply_uncertainty_policy(
 ) -> RoutingDecision:
     """Prefer being right over being fast when the route is shaky.
 
-    - Recency / product-news asks → always web search (model priors lie).
-    - Low-confidence factual asks → web search (unless blocked).
+    - Recency / product-news / who-what-when facts → web search (model priors lie).
     - Weak tiny workers on non-casual tasks → quality chat model.
     - Hard reasoning tasks → quality Gemma when not already on a specialist.
+    - Named-family switch with a factual leftover → search, keep that worker.
     """
     patched = decision.model_copy(deep=True)
+    leftover = ""
+    if patched.task_type == "explicit_model":
+        leftover = model_catalog.leftover_after_explicit_request(user_msg)
+        if (
+            not patched.needs_web_search
+            and leftover
+            and _task_needs_web_search(leftover)
+        ):
+            patched.needs_web_search = True
+            patched.search_query = leftover
+            patched.reasoning = f"rsi:named+facts→search; {patched.reasoning}".strip()
+            if "Factual mode" not in (patched.prompt_additions or ""):
+                extra = RSI_FACTUAL_PROMPT
+                patched.prompt_additions = (
+                    f"{patched.prompt_additions}\n\n{extra}"
+                    if patched.prompt_additions
+                    else extra
+                )
+        return patched
     low_conf = patched.confidence < UNCERTAINTY_CONFIDENCE_MAX
-    factual = _looks_factual_uncertain(user_msg)
+    factual = _looks_factual_uncertain(user_msg) or _needs_live_facts(user_msg)
     recency = _looks_recency_news(user_msg)
     hard = patched.task_type in _QUALITY_TASK_TYPES
-    force_search = recency or (low_conf and factual)
+    force_search = recency or factual
 
     if (
         force_search
         and not patched.needs_web_search
         and not _web_search_blocked(user_msg)
         and patched.task_type
-        not in ("casual_chat", "code_generation", "commit_message", "vision")
+        not in ("casual_chat", "code_generation", "commit_message", "vision", "math")
     ):
         patched.needs_web_search = True
         patched.search_query = patched.search_query or user_msg
@@ -2005,7 +2157,7 @@ def _apply_uncertainty_policy(
 
     if (
         patched.selected_model in _WEAK_CHAT_WORKERS
-        and patched.task_type not in ("casual_chat", "fast_chat", "commit_message")
+        and patched.task_type not in ("casual_chat", "fast_chat", "commit_message", "math")
         and not patched.selected_model.startswith("web-")
     ):
         patched.selected_model = DEFAULT_CHAT_WORKER
@@ -2024,9 +2176,16 @@ def _apply_uncertainty_policy(
             QUALITY_CHAT_WORKER,
             "gemma4-26b",
             "gemma4-27b",
+            "gemma4-31b",
+            "qwen3.6-coder-27b",
             "mathstral",
             "llama3.3-70b",
             "nemotron-70b",
+            MULTILINGUAL_CHAT_WORKER,
+            MULTILINGUAL_QUALITY_WORKER,
+            "qwen3.6-27b",
+            "qwen3.5-9b",
+            "qwen3.6-35b",
         )
     ):
         # Prefer quality Gemma (Gemini-class) for analysis; keep 120b for code/arch patterns.
@@ -2053,6 +2212,8 @@ def _apply_uncertainty_policy(
 
     # Attach RSI prompt additions once (merge with any existing).
     rsi_bits: list[str] = []
+    if patched.task_type not in ("casual_chat", "commit_message", "fast_chat", "math"):
+        rsi_bits.append(ASK_WHEN_BLOCKED_PROMPT)
     if hard or (low_conf and patched.task_type != "casual_chat"):
         rsi_bits.append(RSI_REASONING_PROMPT)
     if factual or recency or patched.needs_web_search:
@@ -2415,6 +2576,57 @@ def _codestral_sticky_reply(
 
 def _is_greeting(user_msg: str) -> bool:
     return bool(_GREETING_RE.match(user_msg.strip()))
+
+
+def _is_language_probe(user_msg: str) -> bool:
+    """True for one-line 'say hi in Chinese' / 用中文说 style tests."""
+    text = (user_msg or "").strip()
+    if not text or len(text) > 80:
+        return False
+    return bool(_LANGUAGE_PROBE_RE.match(text))
+
+
+def _is_identity_probe(user_msg: str) -> bool:
+    text = (user_msg or "").strip()
+    if not text or len(text) > 80:
+        return False
+    return bool(_IDENTITY_PROBE_RE.match(text))
+
+
+def _explicit_switch_has_real_task(user_msg: str) -> bool:
+    """True when a named-family ask is bundled with a real job."""
+    rest = model_catalog.leftover_after_explicit_request(user_msg)
+    if not rest or len(rest) < 20:
+        return False
+    if (
+        _is_greeting(rest)
+        or _is_acknowledgment(rest)
+        or _is_language_probe(rest)
+        or _is_identity_probe(rest)
+    ):
+        return False
+    return True
+
+
+def _is_trivial_worker_turn(
+    user_msg: str,
+    decision: Optional[RoutingDecision] = None,
+) -> bool:
+    """Switch / greet / language / identity — keep think off and prompts tiny."""
+    if _is_greeting(user_msg) or _is_acknowledgment(user_msg):
+        return True
+    if _is_language_probe(user_msg) or _is_identity_probe(user_msg):
+        return True
+    if model_catalog.resolve_explicit_model_request(user_msg):
+        return not _explicit_switch_has_real_task(user_msg)
+    if decision is not None and decision.task_type == "explicit_model":
+        return not _explicit_switch_has_real_task(user_msg)
+    return False
+
+
+def _explicit_model_identity_line(alias: str) -> str:
+    """One short system line for a named-family switch. No identity debate."""
+    return f"You are local {alias} on Spockify (on-device). Help the user."
 
 
 def _is_math_query(user_msg: str) -> bool:
@@ -3044,6 +3256,11 @@ def _web_search_header(needs_search: bool) -> str:
     return "true" if needs_search else "false"
 
 
+def _looks_non_latin_script(text: str) -> bool:
+    """True when the prompt is substantially CJK, Hangul, or Arabic."""
+    return model_catalog.looks_non_latin_script(text)
+
+
 SEARCH_MODE_MARKER_RE = re.compile(
     r"\[spockify_search_mode:(auto|on|off)\]",
     re.IGNORECASE,
@@ -3054,15 +3271,31 @@ VOICE_MODE_MARKER_RE = re.compile(
 )
 VALID_SEARCH_MODES = frozenset({"auto", "on", "off"})
 
-# Thinking depth: client-selected effort. Default medium = current auto path.
+# Thinking chip: Off | Low | Medium | High | Heavy. Default medium.
 THINKING_MODE_MARKER_RE = re.compile(
-    r"\[spockify_thinking:(light|medium|heavy)\]",
+    r"\[spockify_thinking:(off|low|light|medium|high|heavy)\]",
     re.IGNORECASE,
 )
-VALID_THINKING_MODES = frozenset({"light", "medium", "heavy"})
+THINK_ENABLED_MARKER_RE = re.compile(
+    r"\[spockify_think:(on|off|0|1|true|false)\]",
+    re.IGNORECASE,
+)
+VALID_THINKING_MODES = frozenset({"off", "low", "medium", "high", "heavy"})
 DEFAULT_THINKING_MODE = os.getenv("DEFAULT_THINKING_MODE", "medium").strip().lower()
 if DEFAULT_THINKING_MODE not in VALID_THINKING_MODES:
     DEFAULT_THINKING_MODE = "medium"
+DEFAULT_THINK_ENABLED = os.getenv("DEFAULT_THINK_ENABLED", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+
+# LiteLLM drops X-Spockify-Message-Id; OWUI embeds this so heavy poll can bind.
+MESSAGE_ID_MARKER_RE = re.compile(
+    r"\[spockify_message_id:([A-Za-z0-9_-]{8,80})\]",
+    re.IGNORECASE,
+)
 
 
 def _normalize_search_mode(raw: Optional[str]) -> str:
@@ -3071,16 +3304,16 @@ def _normalize_search_mode(raw: Optional[str]) -> str:
 
 
 def _normalize_thinking_mode(raw: Optional[str]) -> Optional[str]:
-    mode = (raw or "").strip().lower()
-    return mode if mode in VALID_THINKING_MODES else None
+    mapped = model_catalog.normalize_thinking_mode(raw)
+    return mapped if mapped in VALID_THINKING_MODES else None
 
 
 def _thinking_mode_from_model(model: Optional[str]) -> Optional[str]:
-    """Explicit alias only: spockify-light|medium|heavy. auto stays unset."""
+    """Explicit alias: spockify-off|low|medium|high|heavy (legacy light)."""
     name = (model or "").lower()
-    for mode in ("light", "medium", "heavy"):
+    for mode in ("heavy", "medium", "high", "low", "off", "light"):
         if f"spockify-{mode}" in name:
-            return mode
+            return _normalize_thinking_mode(mode)
     return None
 
 
@@ -3092,6 +3325,130 @@ def _thinking_mode_from_headers(headers: Any) -> Optional[str]:
         lookup = {k.lower(): v for k, v in headers.items()}
     val = lookup.get("x-spockify-thinking")
     return _normalize_thinking_mode(str(val)) if val else None
+
+
+def _parse_think_enabled_flag(raw: Optional[str]) -> Optional[bool]:
+    """None if unset; True/False when the client sent an explicit think switch."""
+    if raw is None:
+        return None
+    text = str(raw).strip().lower()
+    if text in ("", "auto", "default"):
+        return None
+    if text in ("0", "false", "no", "off"):
+        return False
+    if text in ("1", "true", "yes", "on"):
+        return True
+    return None
+
+
+def _thinking_enabled_from_headers(headers: Any) -> Optional[bool]:
+    if headers is None:
+        return None
+    lookup = headers
+    if hasattr(headers, "items"):
+        lookup = {k.lower(): v for k, v in headers.items()}
+    val = lookup.get("x-spockify-think-enabled") or lookup.get("x-spockify-think")
+    return _parse_think_enabled_flag(str(val) if val is not None else None)
+
+
+def _thinking_enabled_from_messages(
+    messages: list[ChatMessage],
+) -> tuple[Optional[bool], list[ChatMessage]]:
+    """Extract [spockify_think:off|on]; strip it from messages."""
+    found: Optional[bool] = None
+    cleaned: list[ChatMessage] = []
+    for msg in messages:
+        text = _content_text(msg.content)
+        match = THINK_ENABLED_MARKER_RE.search(text)
+        if match and found is None:
+            found = _parse_think_enabled_flag(match.group(1))
+            stripped = THINK_ENABLED_MARKER_RE.sub("", text).strip()
+            if msg.role == "system" and not stripped:
+                continue
+            if stripped != text:
+                if isinstance(msg.content, str):
+                    msg = msg.model_copy(update={"content": stripped})
+                else:
+                    new_parts: list[Any] = []
+                    for part in msg.content:
+                        if isinstance(part, dict) and part.get("type") == "text":
+                            part_text = THINK_ENABLED_MARKER_RE.sub(
+                                "", str(part.get("text", ""))
+                            ).strip()
+                            new_parts.append({**part, "text": part_text})
+                        else:
+                            new_parts.append(part)
+                    msg = msg.model_copy(update={"content": new_parts})
+        cleaned.append(msg)
+    return found, cleaned
+
+
+def _resolve_thinking_enabled(
+    *,
+    body_flag: Optional[bool],
+    header_flag: Optional[bool],
+    marker_flag: Optional[bool],
+) -> bool:
+    """Precedence: body > header > marker > default (on)."""
+    if body_flag is not None:
+        return bool(body_flag)
+    if header_flag is not None:
+        return header_flag
+    if marker_flag is not None:
+        return marker_flag
+    return DEFAULT_THINK_ENABLED
+
+
+def _wants_model_think(thinking_mode: str, think_enabled: bool = True) -> bool:
+    """Legacy: whether this turn requests thinking (not Off/Low-disabled)."""
+    mode = _normalize_thinking_mode(thinking_mode) or DEFAULT_THINKING_MODE
+    if not think_enabled or mode == "off":
+        return False
+    return mode in ("low", "medium", "high", "heavy")
+
+
+def _effective_thinking_mode(
+    mode: str,
+    user_msg: str,
+    *,
+    allow_lower: bool = True,
+    decision: Optional[RoutingDecision] = None,
+) -> str:
+    """Clamp / lower effort. Trivial turns always Off. Never raise."""
+    resolved = _normalize_thinking_mode(mode) or DEFAULT_THINKING_MODE
+    if _is_trivial_worker_turn(user_msg, decision):
+        return "off"
+    if resolved in ("off", "low", "heavy") or not allow_lower:
+        return resolved
+    if _is_greeting(user_msg) or _is_acknowledgment(user_msg):
+        return "low"
+    return resolved
+
+
+def _think_payload_for_worker(model: str, thinking_mode: str) -> Any:
+    """Ollama think= value for this worker, or None to omit (never 400)."""
+    return model_catalog.ollama_think_value(model, thinking_mode)
+
+
+def _think_payload_for_turn(
+    model: str,
+    thinking_mode: str,
+    user_msg: str,
+    decision: Optional[RoutingDecision] = None,
+) -> Any:
+    """Think payload for this turn. Trivial Qwen/Gemma/gpt-oss: off or low."""
+    mode = _effective_thinking_mode(thinking_mode, user_msg, decision=decision)
+    if not _is_trivial_worker_turn(user_msg, decision):
+        return _think_payload_for_worker(model, mode)
+    lowered = (model or "").strip().lower()
+    api = model_catalog.thinking_api_kind(model)
+    if api == model_catalog.THINKING_API_NONE:
+        return None
+    # gpt-oss ignores boolean and defaults to medium if omitted.
+    if "gpt-oss" in lowered:
+        return "low"
+    # Gemma/Qwen/Nemotron default-on unless think=false.
+    return False
 
 
 def _thinking_mode_from_messages(
@@ -3142,6 +3499,41 @@ def _thinking_mode_from_messages(
                         else:
                             new_parts.append(part)
                     msg = msg.model_copy(update={"content": new_parts})
+        cleaned.append(msg)
+    return found, cleaned
+
+
+def _message_id_from_messages(
+    messages: list[ChatMessage],
+) -> tuple[Optional[str], list[ChatMessage]]:
+    """Extract OWUI assistant message id marker; strip it from messages."""
+    found: Optional[str] = None
+    cleaned: list[ChatMessage] = []
+    for msg in messages:
+        text = _content_text(msg.content)
+        match = MESSAGE_ID_MARKER_RE.search(text)
+        if match and found is None:
+            found = (match.group(1) or "").strip() or None
+        if not match:
+            cleaned.append(msg)
+            continue
+        stripped = MESSAGE_ID_MARKER_RE.sub("", text).strip()
+        if msg.role == "system" and not stripped:
+            continue
+        if stripped != text:
+            if isinstance(msg.content, str):
+                msg = msg.model_copy(update={"content": stripped})
+            else:
+                new_parts: list[Any] = []
+                for part in msg.content:
+                    if isinstance(part, dict) and part.get("type") == "text":
+                        part_text = MESSAGE_ID_MARKER_RE.sub(
+                            "", str(part.get("text", ""))
+                        ).strip()
+                        new_parts.append({**part, "text": part_text})
+                    else:
+                        new_parts.append(part)
+                msg = msg.model_copy(update={"content": new_parts})
         cleaned.append(msg)
     return found, cleaned
 
@@ -3240,6 +3632,9 @@ def _apply_voice_mode(
     selected = (patched.selected_model or "").strip()
     path = (patched.routing_path or "").strip().lower()
 
+    if task == "explicit_model":
+        return patched
+
     # Only true greeting/ack fast-paths stay on the tiny model.
     if selected == FAST_CHAT_WORKER and path in ("heuristic", "heuristic_ack"):
         return patched
@@ -3252,8 +3647,21 @@ def _apply_voice_mode(
         "codestral",
         "gpt-oss-20b",
         "gpt-oss-120b",
+        "qwen3.6-coder-27b",
         "mathstral",
     ):
+        return patched
+
+    if selected.startswith("qwen") or task == "multilingual_chat":
+        if selected in (
+            MULTILINGUAL_QUALITY_WORKER,
+            "qwen3.6-27b",
+            "qwen3.6-35b",
+        ):
+            patched.selected_model = MULTILINGUAL_CHAT_WORKER
+            patched.reasoning = (
+                f"{patched.reasoning}; voice→{MULTILINGUAL_CHAT_WORKER}".strip("; ")
+            )
         return patched
 
     if patched.needs_web_search or selected.startswith("web-"):
@@ -3295,6 +3703,8 @@ _THINKING_KEEP_TASK_TYPES = frozenset(
         "commit_message",
         "architecture",
         "deep_reasoning",
+        "multilingual_chat",
+        "explicit_model",
     }
 )
 
@@ -3303,44 +3713,95 @@ def _apply_thinking_mode(
     decision: RoutingDecision,
     mode: str,
     user_msg: str,
+    think_enabled: bool = True,
 ) -> RoutingDecision:
-    """Light biases general chat toward a fast worker; medium/heavy are no-ops here.
+    """Apply Off/Low remaps and prefer think-capable workers on High/Heavy.
 
-    Specialists (code / vision / math / commit / web search) keep their model so
-    Light stays fast without becoming wrong on tasks that need a real worker.
+    Specialists (code / vision / math / commit / web search) keep their model.
+    Low remaps come from the catalog (e.g. qwen3.6-* → qwen3.5-9b).
+    Off and Low allow llama / codestral. High prefers think-capable, but a
+    leftover no-think worker is left as-is (router omits think=).
     """
-    if mode != "light":
-        return decision
-
     patched = decision.model_copy(deep=True)
     task = (patched.task_type or "").strip().lower()
     selected = (patched.selected_model or "").strip()
+    resolved = _normalize_thinking_mode(mode) or DEFAULT_THINKING_MODE
+    if not think_enabled:
+        resolved = "off"
 
+    if resolved in ("off", "low"):
+        if patched.needs_web_search or selected.startswith(
+            ("web-", "gpt-oss", "codestral", "llava", "mathstral")
+        ):
+            return patched
+        remap = model_catalog.light_remap(selected)
+        if remap:
+            patched.selected_model = remap
+            patched.reasoning = (
+                f"{patched.reasoning}; thinking={resolved}→{remap}"
+            ).strip("; ")
+            return patched
+        if selected.startswith("qwen") or task == "multilingual_chat":
+            return patched
+        if task in _THINKING_KEEP_TASK_TYPES:
+            return patched
+        if selected in (
+            QUALITY_CHAT_WORKER,
+            DEFAULT_CHAT_WORKER,
+            DEFAULT_CHAT_FALLBACK,
+            FAST_CHAT_WORKER,
+        ) or task in (
+            "general",
+            "fast_chat",
+            "reasoning",
+            "casual_chat",
+            "nvidia_chat",
+            "default",
+            "",
+        ):
+            patched.selected_model = LIGHT_CHAT_WORKER
+            patched.reasoning = (
+                f"{patched.reasoning}; thinking={resolved}→{LIGHT_CHAT_WORKER}"
+            ).strip("; ")
+        return patched
+
+    if resolved not in ("medium", "high", "heavy"):
+        return patched
+
+    # Medium/High/Heavy: prefer think-capable for general chat, not specialists.
     if patched.needs_web_search or selected.startswith(
         ("web-", "gpt-oss", "codestral", "llava", "mathstral")
     ):
         return patched
     if task in _THINKING_KEEP_TASK_TYPES:
         return patched
-
-    if selected in (
-        QUALITY_CHAT_WORKER,
-        DEFAULT_CHAT_WORKER,
-        DEFAULT_CHAT_FALLBACK,
-        FAST_CHAT_WORKER,
-    ) or task in (
-        "general",
-        "fast_chat",
-        "reasoning",
+    if model_catalog.supports_thinking(selected):
+        return patched
+    if selected in (FAST_CHAT_WORKER, LIGHT_CHAT_WORKER) or task in (
         "casual_chat",
+        "fast_chat",
+    ):
+        # Tiny greetings stay on llama except on High (prefer think-capable).
+        if resolved != "high" and (
+            task == "casual_chat" or selected == FAST_CHAT_WORKER
+        ):
+            return patched
+    if task in (
+        "general",
+        "reasoning",
         "nvidia_chat",
         "default",
         "",
+    ) or selected in (
+        LIGHT_CHAT_WORKER,
+        FAST_CHAT_WORKER,
+        "llama3.1-8b",
+        "llama3.2-3b",
     ):
-        patched.selected_model = LIGHT_CHAT_WORKER
+        patched.selected_model = DEFAULT_CHAT_WORKER
         patched.reasoning = (
-            f"{patched.reasoning}; thinking=light→{LIGHT_CHAT_WORKER}".strip("; ")
-        )
+            f"{patched.reasoning}; thinking={resolved}→{DEFAULT_CHAT_WORKER}"
+        ).strip("; ")
     return patched
 
 
@@ -3420,6 +3881,7 @@ def _response_headers(
     decision: RoutingDecision,
     hud: Optional[dict[str, Any]] = None,
     thinking: Optional[str] = None,
+    think_enabled: Optional[bool] = None,
 ) -> dict[str, str]:
     reason = (decision.reasoning or "").strip().replace("\n", " ")
     if len(reason) > 240:
@@ -3431,6 +3893,8 @@ def _response_headers(
     }
     if thinking:
         headers["X-Spockify-Thinking"] = thinking
+    if think_enabled is not None:
+        headers["X-Spockify-Think-Enabled"] = "true" if think_enabled else "false"
     if reason:
         # Latin-1 safe for HTTP headers (drop non-ascii).
         headers["X-Spockify-Reasoning"] = reason.encode("ascii", "ignore").decode(
@@ -3749,6 +4213,26 @@ def _pattern_route(user_msg: str, rules: dict[str, Any]) -> Optional[RoutingDeci
     return None
 
 
+def _explicit_model_route(user_msg: str) -> Optional[RoutingDecision]:
+    """Honor 'talk to Qwen' / 'use gpt-oss' / 'switch to gemma' even mid-chat."""
+    alias = model_catalog.resolve_explicit_model_request(user_msg)
+    if not alias:
+        return None
+    leftover = model_catalog.leftover_after_explicit_request(user_msg)
+    needs_web = bool(leftover) and _task_needs_web_search(leftover)
+    display = model_catalog.family_display_name(alias)
+    return RoutingDecision(
+        selected_model=alias,
+        task_type="explicit_model",
+        needs_web_search=needs_web,
+        search_query=leftover if needs_web else None,
+        confidence=0.97,
+        reasoning=f"user asked for {display} → {alias}",
+        prompt_additions=_explicit_model_identity_line(alias),
+        routing_path="explicit_model",
+    )
+
+
 def _heuristic_route(
     user_msg: str,
     messages: Optional[list[ChatMessage]] = None,
@@ -3763,6 +4247,10 @@ def _heuristic_route(
 
     if _is_math_query(user_msg):
         return _math_route(user_msg)
+
+    explicit = _explicit_model_route(user_msg)
+    if explicit is not None:
+        return explicit
 
     if _is_greeting(user_msg):
         return RoutingDecision(
@@ -3818,6 +4306,19 @@ def _heuristic_route(
             confidence=0.78,
             reasoning="code keywords",
             routing_path="heuristic",
+        )
+
+    if _looks_non_latin_script(user_msg):
+        long_ask = len(user_msg) >= _MULTILINGUAL_QUALITY_MIN_CHARS
+        model = (
+            MULTILINGUAL_QUALITY_WORKER if long_ask else MULTILINGUAL_CHAT_WORKER
+        )
+        return RoutingDecision(
+            selected_model=model,
+            task_type="multilingual_chat",
+            confidence=0.86,
+            reasoning="non-Latin script — local Qwen",
+            routing_path="heuristic_multilingual",
         )
 
     # Short messages — only fast-path when context already implies a domain.
@@ -3917,11 +4418,22 @@ def _needs_orchestrator(
     prior = _prior_messages(messages)
     if _coding_awaiting_user_reply(prior):
         return False
-    if _is_acknowledgment(user_msg) or _is_greeting(user_msg):
+    if (
+        _is_acknowledgment(user_msg)
+        or _is_greeting(user_msg)
+        or _is_language_probe(user_msg)
+        or _is_identity_probe(user_msg)
+    ):
+        return False
+    if model_catalog.resolve_explicit_model_request(user_msg):
+        return False
+    if _looks_non_latin_script(user_msg) or _is_pure_code_request(user_msg):
         return False
     if prior and _is_web_follow_up(user_msg, prior):
         return False
     if decision is not None and decision.confidence >= PATTERN_CONFIDENCE_MIN:
+        if decision.routing_path.startswith("explicit_model"):
+            return False
         if (
             decision.needs_web_search
             or _explicit_search_intent(user_msg)
@@ -3940,8 +4452,6 @@ def _needs_orchestrator(
         or _has_weather_routing_intent(user_msg, messages)
     ):
         return False
-    if _is_pure_code_request(user_msg):
-        return False
     if prior and _is_topic_shift(user_msg, prior):
         return len(user_msg.strip()) > 120
     if prior and len(user_msg.strip()) <= 120:
@@ -3953,10 +4463,22 @@ def _needs_orchestrator(
     return decision is None or decision.confidence < PATTERN_CONFIDENCE_MIN
 
 
-def _routing_system_prompt() -> str:
+def _routing_system_prompt(
+    *,
+    think_enabled: bool = True,
+    thinking_mode: Optional[str] = None,
+) -> str:
     if USE_COMPACT_ORCHESTRATOR_PROMPT:
-        return COMPACT_ROUTING_PROMPT
-    return _load_orchestrator_prompt()
+        base = COMPACT_ROUTING_PROMPT
+        catalog = model_catalog.orchestrator_catalog_short()
+    else:
+        base = _load_orchestrator_prompt()
+        catalog = model_catalog.orchestrator_catalog_text()
+    policy = model_catalog.thinking_policy_text(
+        thinking_mode=thinking_mode or DEFAULT_THINKING_MODE,
+        think_enabled=think_enabled,
+    )
+    return f"{base}\n\n{catalog}\n\n{policy}"
 
 
 def _load_orchestrator_prompt() -> str:
@@ -4053,6 +4575,8 @@ def _is_vision_worker(model: str) -> bool:
             "vision",
             "mistral-small3.1",
             "mistral-small3.2",
+            "devstral-small-2",
+            "ministral-3",
         )
     )
 
@@ -4194,9 +4718,14 @@ def _ollama_model_name(model: str) -> str:
     return _to_ollama_model(model)
 
 
+def _ollama_supports_thinking(model: str) -> bool:
+    """Catalog first; Gemma/gpt-oss/Nemotron/Qwen accept think=True; llama 400."""
+    return model_catalog.supports_thinking(model)
+
+
 def _gemma_thinking_disabled(model: str) -> bool:
     """Gemma 4 defaults to thinking mode; without think=false content is often empty."""
-    return "gemma" in _ollama_model_name(model).lower()
+    return _ollama_supports_thinking(model)
 
 
 def _ollama_message_text(message: dict[str, Any]) -> str:
@@ -4207,6 +4736,26 @@ def _ollama_message_text(message: dict[str, Any]) -> str:
     if thinking:
         LOG.warning("ollama returned empty content; using thinking field as fallback")
     return thinking
+
+
+def _maybe_strip_thinking_leak(text: str, *, trivial: bool) -> str:
+    """Drop a leading 'Thinking Process:' dump; keep the actual answer."""
+    if not text:
+        return text
+    stripped = text.strip()
+    if not _THINKING_LEAK_HEAD_RE.match(stripped):
+        return text
+    parts = re.split(
+        r"(?im)^\s*(?:final\s+answer|answer)\s*:\s*",
+        stripped,
+        maxsplit=1,
+    )
+    if len(parts) == 2 and parts[1].strip():
+        return parts[1].strip()
+    body = _THINKING_LEAK_HEAD_RE.sub("", stripped, count=1).strip()
+    if trivial and len(body) > 400:
+        return ""
+    return body or text
 
 
 def _sanitize_ollama_image_b64(raw: str) -> str:
@@ -4277,15 +4826,36 @@ def _ollama_chat_body(
     stream: bool,
     **kwargs: Any,
 ) -> dict[str, Any]:
+    think = kwargs.pop("think", None)
     body: dict[str, Any] = {
         "model": _ollama_model_name(model),
         "messages": _normalize_messages_for_ollama(messages),
         "stream": stream,
         "options": _ollama_options(**kwargs),
     }
-    if _gemma_thinking_disabled(model):
-        body["think"] = False
+    # none-API models never get think=. Effort models get low|medium|high.
+    # Boolean models get True/False. Unset + boolean → False (Gemma default-on).
+    model_catalog.apply_think_to_body(body, model, think)
     return body
+
+
+def _ollama_sse_delta(message: dict[str, Any], *, first: bool) -> dict[str, str]:
+    """Map an Ollama chat message to an OpenAI-style SSE delta.
+
+    Ollama thinking models put chain-of-thought in ``message.thinking`` and the
+    user-visible answer in ``message.content``. OpenWebUI reads
+    ``delta.reasoning_content``.
+    """
+    delta: dict[str, str] = {}
+    thinking = str(message.get("thinking") or "")
+    content = str(message.get("content") or "")
+    if thinking:
+        delta["reasoning_content"] = thinking
+    if content:
+        delta["content"] = content
+    if first and delta:
+        delta["role"] = "assistant"
+    return delta
 
 
 async def _raise_ollama_status(resp: httpx.Response, model: str) -> None:
@@ -4339,32 +4909,45 @@ async def _ollama_chat_stream(
                 await resp.aread()
                 await _raise_ollama_status(resp, model)
             first = True
+            had_content = False
+            thinking_bits: list[str] = []
             async for line in resp.aiter_lines():
                 if not line:
                     continue
                 data = json.loads(line)
+                delta = _ollama_sse_delta(data.get("message") or {}, first=first)
+                if delta.get("content"):
+                    had_content = True
+                if delta.get("reasoning_content"):
+                    thinking_bits.append(delta["reasoning_content"])
+                if delta:
+                    if first:
+                        first = False
+                    chunk = {
+                        "id": req_id,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": model,
+                        "choices": [{"index": 0, "delta": delta}],
+                    }
+                    yield f"data: {json.dumps(chunk)}\n\n".encode()
                 if data.get("done"):
+                    if thinking_bits and not had_content:
+                        fallback = {
+                            "id": req_id,
+                            "object": "chat.completion.chunk",
+                            "created": int(time.time()),
+                            "model": model,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {"content": "".join(thinking_bits)},
+                                }
+                            ],
+                        }
+                        yield f"data: {json.dumps(fallback)}\n\n".encode()
                     yield b"data: [DONE]\n\n"
                     break
-                content = data.get("message", {}).get("content", "")
-                if not content and not first:
-                    continue
-                delta: dict[str, str] = {}
-                if content:
-                    delta["content"] = content
-                if first:
-                    delta["role"] = "assistant"
-                    first = False
-                if not delta:
-                    continue
-                chunk = {
-                    "id": req_id,
-                    "object": "chat.completion.chunk",
-                    "created": int(time.time()),
-                    "model": model,
-                    "choices": [{"index": 0, "delta": delta}],
-                }
-                yield f"data: {json.dumps(chunk)}\n\n".encode()
 
 
 async def _worker_chat_stream(
@@ -4372,6 +4955,10 @@ async def _worker_chat_stream(
     messages: list[dict[str, Any]],
     **kwargs: Any,
 ) -> AsyncIterator[bytes]:
+    think = kwargs.pop("think", None)
+    ollama_kwargs = dict(kwargs)
+    if think is not None:
+        ollama_kwargs["think"] = think
     msgs = messages
     if _is_vision_worker(model) or any(_message_has_images_api(m) for m in messages):
         msgs = _trim_vision_messages(messages)
@@ -4395,7 +4982,7 @@ async def _worker_chat_stream(
             )
     try:
         if USE_DIRECT_OLLAMA:
-            async for chunk in _ollama_chat_stream(model, msgs, **kwargs):
+            async for chunk in _ollama_chat_stream(model, msgs, **ollama_kwargs):
                 yield chunk
             return
         async for chunk in _litellm_chat_stream(model, msgs, **kwargs):
@@ -4410,8 +4997,10 @@ async def _worker_chat_stream(
         tight = _trim_vision_messages(messages, aggressive=True)
         retry_model = model
         retry_kwargs = dict(kwargs)
+        retry_ollama_kwargs = dict(ollama_kwargs)
         if _is_vision_worker(model):
             retry_kwargs["num_ctx"] = max(VISION_NUM_CTX, 8192)
+            retry_ollama_kwargs["num_ctx"] = retry_kwargs["num_ctx"]
         # Prefer alternate multimodal if still overflowing on the primary.
         fallback = (VISION_FALLBACK_WORKER or "").strip()
         if (
@@ -4425,9 +5014,10 @@ async def _worker_chat_stream(
         ):
             retry_model = fallback
             retry_kwargs["num_ctx"] = max(VISION_NUM_CTX, 16384)
+            retry_ollama_kwargs["num_ctx"] = retry_kwargs["num_ctx"]
             LOG.info("vision fallback model=%s", retry_model)
         if USE_DIRECT_OLLAMA:
-            async for chunk in _ollama_chat_stream(retry_model, tight, **retry_kwargs):
+            async for chunk in _ollama_chat_stream(retry_model, tight, **retry_ollama_kwargs):
                 yield chunk
             return
         async for chunk in _litellm_chat_stream(retry_model, tight, **retry_kwargs):
@@ -5796,6 +6386,9 @@ async def _call_orchestrator(
     user_msg: str,
     model: str,
     messages: list[ChatMessage],
+    *,
+    think_enabled: bool = True,
+    thinking_mode: Optional[str] = None,
 ) -> RoutingDecision:
     context_block = _format_routing_context(messages)
     user_content = "Route this request. JSON only.\n\n"
@@ -5804,7 +6397,12 @@ async def _call_orchestrator(
     user_content += f"Latest user message:\n{user_msg}"
 
     route_messages = [
-        {"role": "system", "content": _routing_system_prompt()},
+        {
+            "role": "system",
+            "content": _routing_system_prompt(
+                think_enabled=think_enabled, thinking_mode=thinking_mode
+            ),
+        },
         {"role": "user", "content": user_content},
     ]
     try:
@@ -5834,6 +6432,123 @@ async def _call_orchestrator(
         raise
 
 
+async def _orchestrator_json_chat(
+    client: httpx.AsyncClient,
+    model: str,
+    messages: list[dict[str, Any]],
+    *,
+    timeout: float,
+    max_tokens: int,
+) -> str:
+    use_direct = USE_DIRECT_OLLAMA and not USE_LITELLM_ORCHESTRATOR
+    if use_direct:
+        return await _ollama_chat_text(
+            client,
+            model,
+            messages,
+            timeout,
+            temperature=0.1,
+            max_tokens=max_tokens,
+        )
+    route_resp = await _litellm_chat(
+        client,
+        model,
+        messages,
+        timeout=timeout,
+        temperature=0.1,
+        max_tokens=max_tokens,
+    )
+    return str(route_resp["choices"][0]["message"]["content"] or "")
+
+
+async def _call_orchestrator_heavy_plan(
+    client: httpx.AsyncClient,
+    user_msg: str,
+    messages: list[ChatMessage],
+) -> Optional[dict[str, Any]]:
+    """Ask the orchestrator for ask-first questions + Heavy role plan."""
+    context_block = _format_routing_context(messages)
+    user_content = "Plan Heavy for this request. JSON only.\n\n"
+    if context_block:
+        user_content += f"{context_block}\n\n"
+    user_content += f"Latest user message:\n{user_msg}"
+    system = (
+        f"{HEAVY_ORCH_PROMPT}\n\n"
+        f"{model_catalog.orchestrator_catalog_text()}\n\n"
+        f"{model_catalog.thinking_policy_text(thinking_mode='heavy')}"
+    )
+    route_messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user_content},
+    ]
+    last_exc: Optional[BaseException] = None
+    for model in (ORCHESTRATOR_MODEL, ORCHESTRATOR_FALLBACK):
+        try:
+            raw = await _orchestrator_json_chat(
+                client,
+                model,
+                route_messages,
+                timeout=ROUTING_TIMEOUT,
+                max_tokens=HEAVY_ORCH_MAX_TOKENS,
+            )
+            data = _extract_json(raw)
+            if isinstance(data, dict):
+                LOG.info("heavy-orch model=%s keys=%s", model, sorted(data.keys()))
+                return data
+        except (httpx.HTTPError, json.JSONDecodeError, ValueError, TypeError) as exc:
+            last_exc = exc
+            LOG.warning("heavy orchestrator %s failed: %s", model, exc)
+            continue
+    if last_exc is not None:
+        LOG.warning("heavy orchestrator unavailable: %s", last_exc)
+    return None
+
+
+async def _cheap_heavy_clarify(
+    client: httpx.AsyncClient,
+    user_msg: str,
+    messages: list[ChatMessage],
+) -> tuple[list[str], str]:
+    """llama3.2 ask-first gate when the orchestrator plan call fails."""
+    context_block = _format_routing_context(messages)
+    user_content = "Gate this Heavy request. JSON only.\n\n"
+    if context_block:
+        user_content += f"{context_block}\n\n"
+    user_content += f"Latest user message:\n{user_msg}"
+    route_messages = [
+        {"role": "system", "content": HEAVY_CLARIFY_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
+    try:
+        raw = await _orchestrator_json_chat(
+            client,
+            HEAVY_CLARIFY_MODEL,
+            route_messages,
+            timeout=HEAVY_CLARIFY_TIMEOUT,
+            max_tokens=256,
+        )
+        data = _extract_json(raw)
+        _, questions, reason = pagents.parse_heavy_orch_plan(data)
+        return questions, reason
+    except (httpx.HTTPError, json.JSONDecodeError, ValueError, TypeError) as exc:
+        LOG.warning("heavy clarify gate failed: %s", exc)
+        return [], ""
+
+
+async def _plan_or_clarify_heavy(
+    user_msg: str,
+    messages: list[ChatMessage],
+) -> tuple[Optional[dict[str, Any]], list[str], str]:
+    """Return (orch_plan, ask-first questions, reason). Questions ⇒ skip workers."""
+    async with httpx.AsyncClient() as client:
+        data = await _call_orchestrator_heavy_plan(client, user_msg, messages)
+        if data is None:
+            questions, reason = await _cheap_heavy_clarify(client, user_msg, messages)
+            return None, questions, reason
+        plan, questions, reason = pagents.parse_heavy_orch_plan(data)
+        return plan, questions, reason
+
+
 async def _resolve_routing(
     client: httpx.AsyncClient,
     user_msg: str,
@@ -5841,6 +6556,7 @@ async def _resolve_routing(
     messages: list[ChatMessage],
     thread_id: Optional[str] = None,
     thinking_mode: Optional[str] = None,
+    think_enabled: bool = True,
 ) -> RoutingDecision:
     def _done(dec: RoutingDecision) -> RoutingDecision:
         return _finalize_routing(
@@ -5860,21 +6576,6 @@ async def _resolve_routing(
         )
         return decision
 
-    # Text follow-up after image: stick to vision before cache/heuristics.
-    vision_sticky = _vision_thread_sticky(thread_id, user_msg, messages)
-    if vision_sticky is not None:
-        decision = _done(vision_sticky)
-        _store_routing_plan(
-            thread_id, user_msg, decision, _context_fingerprint(messages)
-        )
-        LOG.info(
-            "vision-sticky model=%s path=%s thread=%s",
-            decision.selected_model,
-            decision.routing_path,
-            (thread_id or "")[:12],
-        )
-        return decision
-
     ctx_fp = _context_fingerprint(messages)
     if _is_commit_message_request(user_msg, messages):
         decision = _done(_commit_message_route())
@@ -5883,6 +6584,34 @@ async def _resolve_routing(
             "commit-message-route model=%s path=%s",
             decision.selected_model,
             decision.routing_path,
+        )
+        return decision
+
+    # Named family ("talk to Qwen") beats vision-sticky, cache, and orchestrator.
+    # Current-turn images still take vision above.
+    explicit = _explicit_model_route(user_msg)
+    if explicit is not None:
+        decision = _done(explicit)
+        _store_routing_plan(thread_id, user_msg, decision, ctx_fp)
+        LOG.info(
+            "explicit-model-route model=%s path=%s",
+            decision.selected_model,
+            decision.routing_path,
+        )
+        return decision
+
+    # Text follow-up after image: stick to vision before cache/heuristics.
+    vision_sticky = _vision_thread_sticky(thread_id, user_msg, messages)
+    if vision_sticky is not None:
+        decision = _done(vision_sticky)
+        _store_routing_plan(
+            thread_id, user_msg, decision, ctx_fp
+        )
+        LOG.info(
+            "vision-sticky model=%s path=%s thread=%s",
+            decision.selected_model,
+            decision.routing_path,
+            (thread_id or "")[:12],
         )
         return decision
 
@@ -5924,8 +6653,8 @@ async def _resolve_routing(
         _store_routing_plan(thread_id, user_msg, decision, ctx_fp)
         return decision
 
-    # Light: skip orchestrator latency — heuristics/patterns are enough.
-    if thinking_mode == "light" and decision is not None:
+    # Off/Low: skip orchestrator latency — heuristics/patterns are enough.
+    if thinking_mode in ("off", "low", "light") and decision is not None:
         decision = _done(decision)
         _store_routing_plan(thread_id, user_msg, decision, ctx_fp)
         return decision
@@ -5938,7 +6667,14 @@ async def _resolve_routing(
 
     for model in (ORCHESTRATOR_MODEL, ORCHESTRATOR_FALLBACK):
         try:
-            decision = await _call_orchestrator(client, user_msg, model, messages)
+            decision = await _call_orchestrator(
+                client,
+                user_msg,
+                model,
+                messages,
+                think_enabled=think_enabled,
+                thinking_mode=thinking_mode,
+            )
             LOG.info(
                 "orchestrator-route model=%s worker=%s conf=%.2f",
                 model,
@@ -6144,6 +6880,44 @@ async def _build_worker_messages(
         ]
         return prefix + kept, []
 
+    # Named-family switch and trivial probes: one short system line, no persona
+    # / RSI / canvas sandwich (those burn the think budget on identity CoT).
+    if _is_trivial_worker_turn(user_msg, decision):
+        kept = [
+            _message_to_api(m)
+            for m in req.messages
+            if m.role in ("user", "assistant")
+        ]
+        prefix = []
+        if decision.prompt_additions:
+            prefix.append({"role": "system", "content": decision.prompt_additions})
+        return prefix + kept, []
+
+    if decision.task_type == "explicit_model":
+        kept = [
+            _message_to_api(m)
+            for m in req.messages
+            if m.role in ("user", "assistant")
+        ]
+        prefix: list[dict[str, Any]] = []
+        if decision.prompt_additions:
+            prefix.append({"role": "system", "content": decision.prompt_additions})
+        sources: list[dict[str, Any]] = []
+        if decision.needs_web_search:
+            query = _refine_search_query(
+                decision.search_query or user_msg, req.messages
+            )
+            search_block, sources = await _searxng_search(
+                client, query, messages=req.messages
+            )
+            prefix.append(
+                {
+                    "role": "system",
+                    "content": f"{search_block}\n\n{WEB_SEARCH_SYSTEM_SUFFIX}",
+                }
+            )
+        return prefix + kept, sources
+
     worker_messages = _apply_session_memory(
         [_message_to_api(m) for m in req.messages],
         user_id=getattr(req, "spockify_user_id", None),
@@ -6221,6 +6995,8 @@ def _resolve_worker_model(decision: RoutingDecision) -> str:
     if decision.routing_path == "vision" or decision.task_type == "vision":
         return selected
     if decision.needs_web_search and not selected.startswith("web-"):
+        if decision.task_type == "explicit_model":
+            return selected
         if selected.startswith("codestral") or decision.task_type.startswith("code"):
             return "web-codestral"
         # Voice path may already have remapped to VOICE_WEB_WORKER.
@@ -7542,16 +8318,46 @@ def _heavy_synth_model() -> str:
     return (pagents.HEAVY_SYNTH_MODEL or QUALITY_CHAT_WORKER).strip() or QUALITY_CHAT_WORKER
 
 
-def _build_heavy_run(
+def _heavy_clarify_payload(text: str) -> dict[str, Any]:
+    return {
+        "id": f"chatcmpl-{uuid.uuid4().hex[:24]}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": SPOCKIFY_DISPLAY_MODEL,
+        "choices": [
+            {"index": 0, "message": {"role": "assistant", "content": text}}
+        ],
+        "selected_model_id": SPOCKIFY_DISPLAY_MODEL,
+        "spockify_worker": "heavy",
+        "spockify_thinking": "heavy",
+        "spockify_think_enabled": True,
+        "spockify_heavy_clarify": True,
+    }
+
+
+async def _build_heavy_run(
     req: ChatCompletionRequest,
     user_msg: str,
-) -> dict[str, Any]:
-    """Heavy profile run: 4 role agents, strong models, raised budgets."""
+    *,
+    think_enabled: bool = True,
+) -> tuple[Optional[dict[str, Any]], str]:
+    """Plan Heavy workers, or return a clarify reply instead of a run.
+
+    Returns (run, clarify_text). clarify_text non-empty means do not launch
+    agents — that text is the user-visible Heavy reply.
+    """
+    del think_enabled  # chip is Heavy; workers always get catalog high effort
+    plan, questions, reason = await _plan_or_clarify_heavy(user_msg, req.messages)
+    if questions:
+        reply = pagents.format_clarify_reply(questions, reason)
+        LOG.info("heavy ask-first n=%s", len(questions))
+        return None, reply
     synth_model = _heavy_synth_model()
+    workers = pagents.plan_heavy_workers(user_msg, orch_plan=plan)
     body = pagents.AgentRunCreate(
         parent_prompt=user_msg,
         model=synth_model,
-        workers=pagents.plan_heavy_workers(user_msg),
+        workers=workers,
         synthesize=True,
         user_id=getattr(req, "spockify_user_id", None),
         parent_message_id=getattr(req, "spockify_message_id", None),
@@ -7561,8 +8367,9 @@ def _build_heavy_run(
         max_tokens=pagents.HEAVY_MAX_TOKENS,
         synth_max_tokens=pagents.HEAVY_MAX_TOKENS,
         synth_model=synth_model,
+        think="high",
     )
-    return pagents.create_run_record(body)
+    return pagents.create_run_record(body), ""
 
 
 async def _heavy_refine(
@@ -7607,8 +8414,13 @@ async def _heavy_refine(
 async def _heavy_completion_json(
     req: ChatCompletionRequest,
     user_msg: str,
+    *,
+    think_enabled: bool = True,
 ) -> dict[str, Any]:
-    run = _build_heavy_run(req, user_msg)
+    run, clarify = await _build_heavy_run(req, user_msg, think_enabled=think_enabled)
+    if clarify:
+        return _heavy_clarify_payload(clarify)
+    assert run is not None
     async with httpx.AsyncClient() as client:
         final = await pagents.execute_run(
             run,
@@ -7635,6 +8447,9 @@ async def _heavy_completion_json(
                     notes=str((critique or {}).get("notes") or ""),
                     model=_heavy_synth_model(),
                 )
+            synthesis = pagents.ensure_questions_visible(
+                synthesis, pagents.collect_run_questions(final)
+            )
     result: dict[str, Any] = {
         "id": f"chatcmpl-{uuid.uuid4().hex[:24]}",
         "object": "chat.completion",
@@ -7646,6 +8461,7 @@ async def _heavy_completion_json(
         "selected_model_id": SPOCKIFY_DISPLAY_MODEL,
         "spockify_worker": "heavy",
         "spockify_thinking": "heavy",
+        "spockify_think_enabled": think_enabled,
         "spockify_agents": pagents.public_run_view(final),
     }
     if critique:
@@ -7655,15 +8471,27 @@ async def _heavy_completion_json(
 
 async def _stream_heavy_completion(
     req: ChatCompletionRequest,
+    *,
+    think_enabled: bool = True,
 ) -> AsyncIterator[bytes]:
-    """Heavy thinking: parallel role agents → synthesis → forced critique.
+    """Heavy: ask-first gate, then wave-1 roles → Skeptic → synthesis.
 
     Same decoupled-run semantics as ``_stream_agents_completion`` (the run keeps
     going if the client disconnects), plus a mandatory confidence pass and one
     optional low-confidence refinement on the synthesizer.
     """
     user_msg = _user_text(req.messages)
-    run = _build_heavy_run(req, user_msg)
+    yield _status_sse("Heavy · checking details…", done=False, worker="heavy")
+    run, clarify = await _build_heavy_run(req, user_msg, think_enabled=think_enabled)
+    if clarify:
+        yield _status_sse("Heavy · need a couple of details…", done=False, worker="heavy")
+        step = 240
+        for i in range(0, len(clarify), step):
+            yield pagents.content_sse_delta(clarify[i : i + step])
+        yield pagents.content_sse_delta("", finish=True)
+        yield b"data: [DONE]\n\n"
+        return
+    assert run is not None
     run_id = str(run["id"])
     n_workers = len(run["workers"])
     yield _status_sse(
@@ -7748,6 +8576,10 @@ async def _stream_heavy_completion(
                     notes=str((critique or {}).get("notes") or ""),
                     model=_heavy_synth_model(),
                 )
+
+        synthesis = pagents.ensure_questions_visible(
+            synthesis, pagents.collect_run_questions(final)
+        )
 
     if synthesis:
         step = 240
@@ -8086,6 +8918,11 @@ async def chat_completions(
         or (request.headers.get("x-spockify-message-id") or "").strip()
         or None
     )
+    mid, mid_cleaned = _message_id_from_messages(req.messages)
+    if mid:
+        req.messages = mid_cleaned
+        if not req.spockify_message_id:
+            req.spockify_message_id = mid
 
     # Wave 9.8 — family/guest enforcement.
     role = (
@@ -8199,9 +9036,10 @@ async def chat_completions(
             "spockify_worker": "room",
         }
 
-    # Thinking depth (Light / Medium / Heavy) — client-selected effort.
+    # Thinking chip (Off / Low / Medium / High / Heavy). Legacy think-off → Off.
     thinking_header = _thinking_mode_from_headers(request.headers)
     thinking_marker, cleaned_messages = _thinking_mode_from_messages(req.messages)
+    think_marker, cleaned_messages = _thinking_enabled_from_messages(cleaned_messages)
     req.messages = cleaned_messages
     thinking_mode = _resolve_thinking_mode(
         model=req.model,
@@ -8209,9 +9047,23 @@ async def chat_completions(
         header_mode=thinking_header,
         marker_mode=thinking_marker,
     )
+    think_enabled = _resolve_thinking_enabled(
+        body_flag=req.spockify_think_enabled,
+        header_flag=_thinking_enabled_from_headers(request.headers),
+        marker_flag=think_marker,
+    )
+    if think_enabled is False:
+        thinking_mode = "off"
+    think_enabled = thinking_mode != "off"
     heavy_user_msg = _user_text(req.messages)
-    heavy_active = thinking_mode == "heavy" and not (
-        _is_greeting(heavy_user_msg) or _is_acknowledgment(heavy_user_msg)
+    explicit_alias = model_catalog.resolve_explicit_model_request(heavy_user_msg)
+    trivial_turn = _is_trivial_worker_turn(heavy_user_msg)
+    # Named-family switch is never the 4-agent ensemble. Think off/low is
+    # applied later via _think_payload_for_turn (do not remap the worker).
+    if explicit_alias and thinking_mode == "heavy":
+        thinking_mode = "high"
+    heavy_active = (
+        thinking_mode == "heavy" and not trivial_turn and not explicit_alias
     )
     if heavy_active:
         import memory_guard as memguard
@@ -8230,7 +9082,9 @@ async def chat_completions(
 
             async def heavy_stream() -> AsyncIterator[bytes]:
                 try:
-                    async for chunk in _stream_heavy_completion(req):
+                    async for chunk in _stream_heavy_completion(
+                        req, think_enabled=True
+                    ):
                         yield chunk
                 except Exception as exc:
                     LOG.exception("heavy stream failed: %s", exc)
@@ -8244,11 +9098,18 @@ async def chat_completions(
                     "Connection": "keep-alive",
                     "X-Spockify-Worker": "heavy",
                     "X-Spockify-Thinking": "heavy",
+                    "X-Spockify-Think-Enabled": "true",
                 },
             )
         return JSONResponse(
-            content=await _heavy_completion_json(req, heavy_user_msg),
-            headers={"X-Spockify-Worker": "heavy", "X-Spockify-Thinking": "heavy"},
+            content=await _heavy_completion_json(
+                req, heavy_user_msg, think_enabled=True
+            ),
+            headers={
+                "X-Spockify-Worker": "heavy",
+                "X-Spockify-Thinking": "heavy",
+                "X-Spockify-Think-Enabled": "true",
+            },
         )
 
     header_mode = _search_mode_from_headers(request.headers)
@@ -8264,14 +9125,28 @@ async def chat_completions(
 
     async with httpx.AsyncClient() as client:
         decision = await _resolve_routing(
-            client, user_msg, rules, req.messages, thread_id, thinking_mode
+            client,
+            user_msg,
+            rules,
+            req.messages,
+            thread_id,
+            thinking_mode,
+            think_enabled,
         )
         decision = _apply_user_search_mode(user_msg, decision, search_mode)
         decision = _apply_voice_mode(decision, voice_mode)
-        decision = _apply_thinking_mode(decision, thinking_mode, user_msg)
+        decision = _apply_thinking_mode(
+            decision, thinking_mode, user_msg, think_enabled
+        )
         worker = _resolve_worker_model(decision)
+        effective_mode = _effective_thinking_mode(
+            thinking_mode, user_msg, decision=decision
+        )
+        send_think = _think_payload_for_turn(
+            worker, thinking_mode, user_msg, decision
+        )
         LOG.info(
-            "route path=%s model=%s worker=%s search=%s mode=%s voice=%s thinking=%s stream=%s thread=%s",
+            "route path=%s model=%s worker=%s search=%s mode=%s voice=%s thinking=%s think=%s stream=%s thread=%s",
             decision.routing_path,
             decision.selected_model,
             worker,
@@ -8279,6 +9154,7 @@ async def chat_completions(
             search_mode,
             voice_mode,
             thinking_mode,
+            send_think,
             req.stream,
             (thread_id or "")[:12],
         )
@@ -8293,7 +9169,7 @@ async def chat_completions(
         pipeline = _resolve_pipeline_options(req, request)
         pipeline_active = (
             (not is_commit)
-            and thinking_mode != "light"
+            and effective_mode not in ("off", "low", "light")
             and pipeline.get("enabled")
             and worker not in ("agents", "room")
             and str(req.model or "").strip() not in ("spockify-room", "spockify-agents")
@@ -8359,7 +9235,12 @@ async def chat_completions(
                     headers={
                         "Cache-Control": "no-cache",
                         "Connection": "keep-alive",
-                        **_response_headers(worker, decision, thinking=thinking_mode),
+                        **_response_headers(
+                            worker,
+                            decision,
+                            thinking=thinking_mode,
+                            think_enabled=think_enabled,
+                        ),
                     },
                 )
 
@@ -8384,6 +9265,7 @@ async def chat_completions(
                         sources=citation_sources,
                         temperature=call_temperature,
                         max_tokens=call_max_tokens,
+                        think=send_think,
                         **({"stop": call_stop} if call_stop else {}),
                     ):
                         # Collect text + usage for HUD / critique (best-effort).
@@ -8429,8 +9311,10 @@ async def chat_completions(
 
                     critique_hdr = (request.headers.get("x-spockify-critique") or "").lower()
                     force_crit = critique_hdr in ("1", "true", "yes", "on")
-                    crit_enabled = False if thinking_mode == "light" else None
-                    if thinking_mode == "light":
+                    crit_enabled = (
+                        False if thinking_mode in ("off", "low", "light") else None
+                    )
+                    if thinking_mode in ("off", "low", "light"):
                         force_crit = False
                     if critique_mod.should_critique(
                         answer, force=force_crit, enabled=crit_enabled
@@ -8462,7 +9346,12 @@ async def chat_completions(
                 headers={
                     "Cache-Control": "no-cache",
                     "Connection": "keep-alive",
-                    **_response_headers(worker, decision, thinking=thinking_mode),
+                    **_response_headers(
+                        worker,
+                        decision,
+                        thinking=thinking_mode,
+                        think_enabled=think_enabled,
+                    ),
                 },
             )
 
@@ -8485,17 +9374,24 @@ async def chat_completions(
                 "spockify_pipeline": pmeta,
             }
             result["spockify_thinking"] = thinking_mode
+            result["spockify_think_enabled"] = think_enabled
             if citation_sources:
                 result["sources"] = citation_sources
             return JSONResponse(
                 content=result,
-                headers=_response_headers(worker, decision, thinking=thinking_mode),
+                headers=_response_headers(
+                    worker,
+                    decision,
+                    thinking=thinking_mode,
+                    think_enabled=think_enabled,
+                ),
             )
 
         t0 = time.perf_counter()
         worker_kwargs: dict[str, Any] = {
             "temperature": call_temperature,
             "max_tokens": call_max_tokens,
+            "think": send_think,
         }
         if call_stop:
             worker_kwargs["stop"] = call_stop
@@ -8505,6 +9401,18 @@ async def chat_completions(
             worker_messages,
             **worker_kwargs,
         )
+        try:
+            raw_ans = str(result["choices"][0]["message"]["content"] or "")
+        except (KeyError, IndexError, TypeError):
+            raw_ans = ""
+        cleaned = _maybe_strip_thinking_leak(
+            raw_ans, trivial=_is_trivial_worker_turn(user_msg, decision)
+        )
+        if cleaned != raw_ans:
+            try:
+                result["choices"][0]["message"]["content"] = cleaned
+            except (KeyError, IndexError, TypeError):
+                pass
         fallback = _web_worker_fallback(worker)
         if fallback and _response_content_empty(result):
             LOG.warning(
@@ -8562,8 +9470,8 @@ async def chat_completions(
         result["spockify_hud"] = hud
         critique_hdr = (request.headers.get("x-spockify-critique") or "").lower()
         force_crit = critique_hdr in ("1", "true", "yes", "on")
-        crit_enabled = False if thinking_mode == "light" else None
-        if thinking_mode == "light":
+        crit_enabled = False if thinking_mode in ("off", "low", "light") else None
+        if thinking_mode in ("off", "low", "light"):
             force_crit = False
         try:
             ans_text = str(result["choices"][0]["message"]["content"] or "")
@@ -8580,6 +9488,7 @@ async def chat_completions(
         result["selected_model_id"] = SPOCKIFY_DISPLAY_MODEL
         result["spockify_worker"] = worker
         result["spockify_thinking"] = thinking_mode
+        result["spockify_think_enabled"] = think_enabled
         if citation_sources:
             result["sources"] = citation_sources
 
@@ -8599,7 +9508,13 @@ async def chat_completions(
             result["spockify"].update(meta)
         return JSONResponse(
             content=result,
-            headers=_response_headers(worker, decision, hud=hud, thinking=thinking_mode),
+            headers=_response_headers(
+                worker,
+                decision,
+                hud=hud,
+                thinking=thinking_mode,
+                think_enabled=think_enabled,
+            ),
         )
 
 

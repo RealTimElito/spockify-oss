@@ -2056,6 +2056,70 @@ a.file-link:hover {
   background: var(--vscode-list-hoverBackground, rgba(127, 127, 127, 0.14));
 }
 
+/* Thinking cycle: Off | Low | Medium | High | Heavy */
+.think-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--vscode-foreground);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.think-chip:hover {
+  opacity: 1;
+}
+.think-chip.think-off {
+  color: var(--spk-text-tertiary, #888);
+  background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
+  border-color: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
+  font-weight: 500;
+}
+.think-chip.think-low {
+  color: #d97706;
+  background: color-mix(in srgb, #f59e0b 16%, transparent);
+  border-color: color-mix(in srgb, #f59e0b 28%, transparent);
+}
+.think-chip.think-medium {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
+  border-color: color-mix(in srgb, var(--vscode-foreground) 14%, transparent);
+}
+.think-chip.think-high {
+  color: #818cf8;
+  background: color-mix(in srgb, #6366f1 18%, transparent);
+  border-color: color-mix(in srgb, #6366f1 36%, transparent);
+}
+.think-chip.think-heavy {
+  color: #c084fc;
+  background: color-mix(in srgb, #a855f7 18%, transparent);
+  border-color: color-mix(in srgb, #a855f7 38%, transparent);
+}
+
+.model-family-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.model-family-qwen {
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #22d3ee);
+}
+
 .composer-mini-btn {
   display: inline-flex;
   align-items: center;
@@ -2610,5 +2674,8 @@ a.file-link:hover {
   }
   .model-chip {
     max-width: 72px;
+  }
+  .think-chip {
+    padding: 0 5px;
   }
 }

@@ -9,6 +9,7 @@ import {
   captureTerminalContext,
 } from '../terminal/contextBuffer';
 import { streamTerminalCommand } from './streamTerminalCommand';
+import { thinkingRequestExtras } from '../chat/thinkingPrefs';
 import { normalizeProposedShellCommand } from './normalizeShellCommand';
 import {
   InlineEditWidgetPanel,
@@ -219,6 +220,7 @@ export async function startTerminalInlineEdit(
             recentOutput: snap?.recentOutput,
             model: defaultModel(),
             signal: abort.signal,
+            requestExtras: thinkingRequestExtras(),
             onPartial: (partial) => {
               session.proposedCommand = partial;
               ui.setPreviewCommand(partial);
@@ -312,6 +314,7 @@ async function runTerminalFollowUp(
       selection: snap?.selection,
       recentOutput: snap?.recentOutput,
       model: defaultModel(),
+      requestExtras: thinkingRequestExtras(),
       onPartial: (partial) => {
         session.proposedCommand = partial;
         ui.setPreviewCommand(partial);

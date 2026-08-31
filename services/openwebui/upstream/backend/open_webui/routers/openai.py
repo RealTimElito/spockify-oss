@@ -183,6 +183,10 @@ async def get_headers_and_cookies(
         headers['X-Spockify-Voice'] = '1'
     if metadata and metadata.get('spockify_thinking'):
         headers['X-Spockify-Thinking'] = str(metadata['spockify_thinking'])
+    if metadata and metadata.get('spockify_think_enabled') is not None:
+        headers['X-Spockify-Think-Enabled'] = (
+            '1' if metadata['spockify_think_enabled'] else '0'
+        )
     if user is not None:
         headers['X-Spockify-User-Id'] = str(getattr(user, 'id', '') or '')
         if not headers.get('X-Spockify-Role'):

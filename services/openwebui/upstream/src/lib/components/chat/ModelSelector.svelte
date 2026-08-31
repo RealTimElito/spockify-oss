@@ -43,9 +43,16 @@
 		await updateUserSettings(localStorage.token, { ui: $settings });
 	};
 
-	$: if (selectedModels.length > 0 && $models.length > 0) {
+	$: modelIds = $models.map((m) => m.id);
+	$: modelItems = $models.map((model) => ({
+		value: model.id,
+		label: model.name,
+		model: model
+	}));
+
+	$: if (selectedModels.length > 0 && modelIds.length > 0) {
 		const _selectedModels = selectedModels.map((model) =>
-			$models.map((m) => m.id).includes(model) ? model : ''
+			modelIds.includes(model) ? model : ''
 		);
 
 		if (!equal(_selectedModels, selectedModels)) {
@@ -62,11 +69,7 @@
 					<Selector
 						id={`${selectedModelIdx}`}
 						placeholder={$i18n.t('Select a model')}
-						items={$models.map((model) => ({
-							value: model.id,
-							label: model.name,
-							model: model
-						}))}
+						items={modelItems}
 						{pinModelHandler}
 						value={selectedModels[selectedModelIdx]}
 						on:select={(e) => setModelAt(selectedModelIdx, e.detail)}

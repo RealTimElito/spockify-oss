@@ -22,6 +22,7 @@ import {
 } from './shadowWorkspace';
 import { collectComposerPatches } from './collectPatches';
 import { textFromContent } from '../chat/chatContent';
+import { thinkingRequestExtras } from '../chat/thinkingPrefs';
 import {
   formatVerifyFailureContext,
   looksMultiFile,
@@ -192,6 +193,7 @@ async function generateComposerTurn(
       systemPrompt: system,
       messages: history,
       maxTurns: opts?.maxTurns ?? 10,
+      requestExtras: thinkingRequestExtras(),
       sessionId: managed.id,
       signal: managed.abort.signal,
       onEvent: (ev) => {
@@ -247,6 +249,7 @@ async function generateComposerTurn(
       { role: 'user', content: userContent },
     ],
     stream: false,
+    ...thinkingRequestExtras(),
   });
   const text = textFromContent(res.choices?.[0]?.message?.content ?? '');
   output.appendLine(

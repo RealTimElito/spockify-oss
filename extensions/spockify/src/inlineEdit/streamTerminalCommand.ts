@@ -24,6 +24,7 @@ export interface StreamTerminalCommandOptions {
   cwdHint?: string;
   model?: string;
   signal?: AbortSignal;
+  requestExtras?: Record<string, unknown>;
   onPartial?: (text: string) => void;
 }
 
@@ -59,6 +60,7 @@ export async function streamTerminalCommand(
         ],
         stream: true,
         temperature: 0.1,
+        ...(opts.requestExtras || {}),
       },
       opts.signal,
     )) {
@@ -89,6 +91,7 @@ export async function streamTerminalCommand(
         { role: 'user', content: user },
       ],
       temperature: 0.1,
+      ...(opts.requestExtras || {}),
     });
     const text = res.choices?.[0]?.message?.content ?? '';
     const final = cleanPartial(String(text));

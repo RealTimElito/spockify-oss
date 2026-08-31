@@ -253,6 +253,39 @@ model_list:
     model_info:
       description: "OpenAI gpt-oss-120b — flagship reasoning (~65GB; prefer solo load)"
 
+  # --- Local Qwen (Ollama locally; not prewarmed; no cloud API) ---
+  - model_name: qwen3.5-9b
+    litellm_params:
+      model: ollama_chat/qwen3.5:9b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+    model_info:
+      description: "Qwen3.5 9B — fast multilingual / CJK (~6.6GB, thinking+vision, on-demand)"
+
+  - model_name: qwen3.6-27b
+    litellm_params:
+      model: ollama_chat/qwen3.6:27b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 240
+    model_info:
+      description: "Qwen3.6 27B — mid family (~18GB, thinking+vision, on-demand)"
+
+  - model_name: qwen3.6-35b
+    litellm_params:
+      model: ollama_chat/qwen3.6:35b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 300
+    model_info:
+      description: "Qwen3.6 35B-A3B — family flagship MoE (~23GB, thinking+vision, on-demand)"
+
+  - model_name: qwen3.6-coder-27b
+    litellm_params:
+      model: ollama_chat/qwen3.6:27b-coding
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 240
+    model_info:
+      description: "Qwen3.6 27B coding specialist (~18GB, thinking, on-demand; not default English code)"
+
   # --- Mistral extras ---
   - model_name: mathstral
     litellm_params:
@@ -261,6 +294,30 @@ model_list:
       timeout: 120
     model_info:
       description: "Mistral MathΣtral 7B — math and scientific reasoning"
+
+  - model_name: magistral
+    litellm_params:
+      model: ollama_chat/magistral
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+    model_info:
+      description: "Mistral Magistral 24B — local reasoning (~14GB, think=boolean, on-demand)"
+
+  - model_name: devstral-small-2
+    litellm_params:
+      model: ollama_chat/devstral-small-2
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 240
+    model_info:
+      description: "Mistral Devstral Small 2 24B — agentic coding (~15GB, on-demand; not default English code)"
+
+  - model_name: ministral-3-14b
+    litellm_params:
+      model: ollama_chat/ministral-3:14b
+      api_base: os.environ/OLLAMA_API_BASE
+      timeout: 180
+    model_info:
+      description: "Ministral 3 14B — compact instruct+vision (~9GB, on-demand)"
 
   # --- AI2 OLMo ---
   - model_name: olmo2-7b
@@ -451,11 +508,11 @@ model_list:
 router_settings:
   routing_strategy: simple-shuffle
   model_group_alias:
-    code: ["gpt-oss-120b", "gpt-oss-20b", "codestral", "codestral-latest", "codestral-22b", "codestral-vllm", "codegemma-7b", "codellama-7b", "codellama-13b", "codellama-34b", "mathstral"]
-    chat: ["spockify-chat", "llama3.1-8b", "llama3.2-3b", "mistral-nemo", "mistral-small", "mistral-small3.2", "mistral-7b", "phi4", "phi4-mini", "granite", "olmo2-7b", "gpt-oss-20b"]
-    reasoning: ["gpt-oss-120b", "gpt-oss-20b", "llama3.3-70b", "nemotron-70b", "gemma4-26b", "gemma4-12b", "gemma4-31b", "gemma3-27b", "gemma3-12b", "phi3-14b", "mixtral-8x7b", "nemotron-nano-30b"]
+    code: ["gpt-oss-120b", "gpt-oss-20b", "codestral", "codestral-latest", "codestral-22b", "codestral-vllm", "devstral-small-2", "qwen3.6-coder-27b", "codegemma-7b", "codellama-7b", "codellama-13b", "codellama-34b", "mathstral"]
+    chat: ["spockify-chat", "llama3.1-8b", "llama3.2-3b", "mistral-nemo", "mistral-small", "mistral-small3.2", "mistral-7b", "ministral-3-14b", "phi4", "phi4-mini", "granite", "olmo2-7b", "gpt-oss-20b", "qwen3.5-9b"]
+    reasoning: ["gpt-oss-120b", "gpt-oss-20b", "llama3.3-70b", "nemotron-70b", "gemma4-26b", "gemma4-12b", "gemma4-31b", "gemma3-27b", "gemma3-12b", "phi3-14b", "mixtral-8x7b", "nemotron-nano-30b", "qwen3.6-35b", "qwen3.6-27b", "magistral"]
     fast: ["spockify-chat", "phi4-mini", "phi3-3.8b", "nemotron-nano-4b", "nemotron-mini", "llama3.2-1b", "llama3.2-3b", "llama3.1-8b", "granite-2b"]
-    vision: ["gemma4-26b", "mistral-small3.2", "llava-llama3", "llava-13b", "llava-7b", "granite-vision"]
+    vision: ["gemma4-26b", "mistral-small3.2", "ministral-3-14b", "devstral-small-2", "llava-llama3", "llava-13b", "llava-7b", "granite-vision"]
     embed: ["nomic-embed", "mxbai-embed"]
     web: ["web-codestral", "web-gemma", "web-llama"]
 

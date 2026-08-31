@@ -6,6 +6,7 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock
 
+import model_catalog
 import parallel_agents as pagents
 
 
@@ -16,6 +17,13 @@ class ParallelAgentsTests(unittest.TestCase):
         pagents._CANCEL_FLAGS.clear()
         pagents._WORKER_CANCEL.clear()
         pagents._RUN_TASKS.clear()
+
+    def test_context_rules_search_before_ask(self) -> None:
+        rules = pagents._CONTEXT_RULES.lower()
+        self.assertIn("search first", rules)
+        self.assertIn("sources:", rules)
+        self.assertIn("never invent", rules)
+        self.assertIn("ask_user", rules)
 
     def test_wants_parallel_agents(self) -> None:
         self.assertTrue(pagents.wants_parallel_agents("Please spawn agents to research this"))
@@ -238,6 +246,22 @@ class ParallelAgentsTests(unittest.TestCase):
         self.assertEqual(models[1], "model-b")
         self.assertEqual(models[2], "model-a")
 
+    def test_plan_heavy_workers_qwen_for_cjk(self) -> None:
+        specs = pagents.plan_heavy_workers("请用中文解释一下什么是递归")
+        models = [s.model for s in specs]
+        self.assertEqual(models[0], "gpt-oss-20b")
+        self.assertEqual(models[1], "qwen3.5-9b")
+        self.assertEqual(models[2], "gemma4-26b")
+        self.assertEqual(models[3], "qwen3.5-9b")
+
+    def test_plan_heavy_workers_english_stays_default(self) -> None:
+        specs = pagents.plan_heavy_workers("Design a resilient job queue")
+        models = [s.model for s in specs]
+        self.assertEqual(models[0], "gpt-oss-20b")
+        self.assertEqual(models[1], "gemma4-12b")
+        self.assertEqual(models[2], "gemma4-26b")
+        self.assertEqual(models[3], "gemma4-12b")
+
     def test_heavy_run_uses_per_run_budgets(self) -> None:
         async def _run() -> None:
             body = pagents.AgentRunCreate(
@@ -272,6 +296,242 @@ class ParallelAgentsTests(unittest.TestCase):
             # Every worker + synth call should have used the raised heavy budget.
             self.assertTrue(seen_tokens)
             self.assertTrue(all(t == 4096 for t in seen_tokens))
+
+        asyncio.run(_run())
+
+    def test_heavy_run_sends_high_effort_per_worker(self) -> None:
+        async def _run() -> None:
+            body = pagents.AgentRunCreate(
+                parent_prompt="deep question",
+                model="gemma4-26b",
+                workers=pagents.plan_heavy_workers("deep question"),
+                synthesize=True,
+                profile="heavy",
+                think="high",
+            )
+            run = pagents.create_run_record(body)
+            seen: list[tuple[str, object]] = []
+
+            async def fake_chat(client, model, messages, **kwargs):
+                seen.append((model, kwargs.get("think")))
+                return {"choices": [{"message": {"content": f"ok {model}"}}]}
+
+            final = await pagents.execute_run(
+                run, client=object(), worker_chat=fake_chat
+            )
+            self.assertEqual(final["status"], "done")
+            self.assertTrue(seen)
+            for model, think in seen:
+                if model_catalog.thinking_api_kind(model) == "none":
+                    self.assertIsNone(think, model)
+                else:
+                    self.assertEqual(think, "high", model)
+
+        asyncio.run(_run())
+
+    def test_plan_heavy_workers_uses_orchestrator_plan(self) -> None:
+        plan = {
+            "roles": [
+                {
+                    "id": "explorer",
+                    "model": "gpt-oss-20b",
+                    "tools": ["search"],
+                    "skill": "map APIs",
+                    "wave": 1,
+                },
+                {
+                    "id": "analyst",
+                    "model": "gemma4-12b",
+                    "tools": ["search"],
+                    "skill": "risks",
+                },
+                {
+                    "id": "builder",
+                    "model": "gpt-oss-120b",
+                    "tools": [],
+                    "skill": "implement",
+                },
+                {
+                    "id": "skeptic",
+                    "model": "gemma4-12b",
+                    "tools": [],
+                    "skill": "holes",
+                    "wave": 1,
+                },
+            ]
+        }
+        specs = pagents.plan_heavy_workers("write a rust parser", orch_plan=plan)
+        by_id = {s.id: s for s in specs}
+        self.assertEqual(by_id["explorer"].model, "gpt-oss-20b")
+        self.assertEqual(by_id["analyst"].model, "gemma4-12b")
+        self.assertEqual(by_id["builder"].model, "gpt-oss-120b")
+        self.assertEqual(by_id["skeptic"].wave, 2)
+        self.assertIn("map APIs", by_id["explorer"].prompt or "")
+        self.assertEqual(by_id["explorer"].tools, ["search"])
+
+    def test_plan_heavy_workers_fallback_on_bad_orch(self) -> None:
+        specs = pagents.plan_heavy_workers(
+            "Design a resilient job queue", orch_plan={"roles": "nope"}
+        )
+        models = [s.model for s in specs]
+        self.assertEqual(models, list(model_catalog.DEFAULT_HEAVY_MODELS))
+
+    def test_plan_heavy_workers_unknown_orch_model_falls_back(self) -> None:
+        plan = {
+            "roles": [
+                {"id": "explorer", "model": "kimi-cloud"},
+                {"id": "analyst", "model": "gemma4-12b"},
+                {"id": "builder", "model": "gemma4-26b"},
+                {"id": "skeptic", "model": "gemma4-12b"},
+            ]
+        }
+        specs = pagents.plan_heavy_workers("hello world design", orch_plan=plan)
+        self.assertEqual(specs[0].model, "gpt-oss-20b")
+
+    def test_plan_heavy_workers_31b_when_no_120b(self) -> None:
+        plan = {
+            "roles": [
+                {"id": "explorer", "model": "gpt-oss-20b"},
+                {"id": "analyst", "model": "gemma4-31b"},
+                {"id": "builder", "model": "gemma4-26b"},
+                {"id": "skeptic", "model": "gemma4-12b"},
+            ]
+        }
+        specs = pagents.plan_heavy_workers("compare two designs", orch_plan=plan)
+        self.assertEqual(specs[1].model, "gemma4-31b")
+
+    def test_parse_heavy_orch_ask_first(self) -> None:
+        plan, questions, reason = pagents.parse_heavy_orch_plan(
+            {
+                "ask_user": ["Which cloud?", "What's the budget cap?"],
+                "ask_reason": "Need target before designing.",
+                "roles": [{"id": "explorer", "model": "gpt-oss-20b"}],
+            }
+        )
+        self.assertIsNotNone(plan)
+        self.assertEqual(len(questions), 2)
+        self.assertIn("cloud", questions[0].lower())
+        reply = pagents.format_clarify_reply(questions, reason)
+        self.assertIn("Which cloud?", reply)
+        self.assertIn("Need target", reply)
+
+    def test_skeptic_waits_for_wave1_and_sees_outputs(self) -> None:
+        async def _run() -> None:
+            body = pagents.AgentRunCreate(
+                parent_prompt="Design a queue",
+                workers=pagents.plan_heavy_workers("Design a queue"),
+                synthesize=False,
+                profile="heavy",
+                think="high",
+            )
+            run = pagents.create_run_record(body)
+            started: list[str] = []
+            finished: list[str] = []
+            skeptic_prompt = ""
+
+            async def fake_chat(client, model, messages, **kwargs):
+                nonlocal skeptic_prompt
+                sysmsg = str(messages[0]["content"])
+                name = "unknown"
+                for label in ("Explorer", "Analyst", "Builder", "Skeptic"):
+                    if label in sysmsg or f"'{label}'" in sysmsg:
+                        name = label
+                        break
+                if "Skeptic" in sysmsg:
+                    name = "Skeptic"
+                    skeptic_prompt = str(messages[-1]["content"])
+                    still_running = [n for n in started if n not in finished]
+                    self.assertNotIn("Explorer", still_running)
+                    self.assertNotIn("Analyst", still_running)
+                    self.assertNotIn("Builder", still_running)
+                    self.assertIn("explorer-out", skeptic_prompt)
+                    self.assertIn("analyst-out", skeptic_prompt)
+                    self.assertIn("builder-out", skeptic_prompt)
+                started.append(name)
+                await asyncio.sleep(0.02)
+                finished.append(name)
+                return {
+                    "choices": [
+                        {"message": {"content": f"{name.lower()}-out"}}
+                    ]
+                }
+
+            final = await pagents.execute_run(
+                run, client=object(), worker_chat=fake_chat
+            )
+            self.assertEqual(final["status"], "done")
+            self.assertTrue(started)
+            self.assertEqual(started[-1], "Skeptic")
+            self.assertIn("explorer-out", skeptic_prompt)
+
+        asyncio.run(_run())
+
+    def test_leftover_ask_user_surfaces_in_synthesis(self) -> None:
+        async def _run() -> None:
+            body = pagents.AgentRunCreate(
+                parent_prompt="Plan a migration",
+                workers=pagents.plan_heavy_workers("Plan a migration"),
+                synthesize=True,
+                profile="heavy",
+            )
+            run = pagents.create_run_record(body)
+
+            async def fake_chat(client, model, messages, **kwargs):
+                sysmsg = str(messages[0]["content"])
+                user = str(messages[-1]["content"])
+                if "Write the final answer" in user:
+                    return {
+                        "choices": [
+                            {"message": {"content": "Here is a full AWS plan."}}
+                        ]
+                    }
+                if "Explorer" in sysmsg:
+                    return {
+                        "choices": [
+                            {
+                                "message": {
+                                    "content": (
+                                        "Need cloud vendor.\n"
+                                        'ASK_USER: ["Which cloud should this run on?"]'
+                                    )
+                                }
+                            }
+                        ]
+                    }
+                return {"choices": [{"message": {"content": "ok"}}]}
+
+            final = await pagents.execute_run(
+                run, client=object(), worker_chat=fake_chat
+            )
+            self.assertIn("Which cloud should this run on?", final["synthesis"])
+            self.assertIn("Need from you", final["synthesis"])
+
+        asyncio.run(_run())
+
+    def test_heavy_think_omitted_for_no_think_models(self) -> None:
+        async def _run() -> None:
+            body = pagents.AgentRunCreate(
+                parent_prompt="deep question",
+                workers=pagents.plan_heavy_workers(
+                    "deep question",
+                    models=["llama3.1-8b", "gemma4-12b", "codestral", "gemma4-12b"],
+                ),
+                synthesize=True,
+                profile="heavy",
+                think="high",
+            )
+            run = pagents.create_run_record(body)
+            seen: list[tuple[str, object]] = []
+
+            async def fake_chat(client, model, messages, **kwargs):
+                seen.append((model, kwargs.get("think")))
+                return {"choices": [{"message": {"content": f"ok {model}"}}]}
+
+            await pagents.execute_run(run, client=object(), worker_chat=fake_chat)
+            kinds = {m: t for m, t in seen}
+            self.assertIsNone(kinds.get("llama3.1-8b"))
+            self.assertIsNone(kinds.get("codestral"))
+            self.assertEqual(kinds.get("gemma4-12b"), "high")
 
         asyncio.run(_run())
 

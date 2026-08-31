@@ -507,6 +507,17 @@
             'MAX Mode preference',
             'Stored for the model picker',
             toggle('chat.maxMode', !!state.chatMaxMode),
+          ) +
+          row(
+            'Thinking',
+            'Off → Low → Medium → High → Heavy. Off omits think=. Heavy is the 4-agent ensemble. Default High for Agent.',
+            select('chat.thinking', state.chatThinking || 'high', [
+              { value: 'off', label: 'Off' },
+              { value: 'low', label: 'Low' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'high', label: 'High' },
+              { value: 'heavy', label: 'Heavy' },
+            ]),
           ),
       ) +
       card(

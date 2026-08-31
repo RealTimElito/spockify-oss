@@ -101,7 +101,7 @@
 	} from '$lib/apis';
 	import { getTools } from '$lib/apis/tools';
 	import { getSkills } from '$lib/apis/skills';
-	import { cancelAgentRun, getAgentRunByMessageId } from '$lib/apis/spockify';
+	import { cancelAgentRun, getAgentRunByMessageId, listAgentRuns } from '$lib/apis/spockify';
 	import {
 		composerUiModeAddon,
 		normalizeComposerUiMode,
@@ -109,7 +109,10 @@
 	} from '$lib/utils/composerModes';
 	import {
 		normalizeThinkingMode,
+		migratePersistedThinking,
 		DEFAULT_THINKING_MODE,
+		plannedHeavyWorkers,
+		pickHeavyRunForPoll,
 		type ThinkingMode
 	} from '$lib/utils/thinkingModes';
 	import { uploadFile } from '$lib/apis/files';
@@ -184,7 +187,7 @@
 	let spockifySearchMode: 'auto' | 'on' | 'off' = 'auto';
 	/** Web composer mode: Regular (default), Plan, or Multitask — + menu only. */
 	let spockifyComposerMode: ComposerUiMode = 'regular';
-	/** Thinking depth: Light | Medium | Heavy (session preference). */
+	/** Thinking chip: Off | Low | Medium | High | Heavy (session preference). */
 	let spockifyThinking: ThinkingMode = DEFAULT_THINKING_MODE;
 	/** Derived Multitask flag — used by Stop (leave subagents alone). */
 	$: spockifyParallelAgents = spockifyComposerMode === 'multitask';
@@ -219,8 +222,14 @@
 					parallel === '1' || parallel === 'true' ? 'multitask' : 'regular';
 			}
 			const thinkingRaw = localStorage.getItem('spockifyThinking');
-			if (thinkingRaw) {
-				spockifyThinking = normalizeThinkingMode(thinkingRaw);
+			const thinkOn = localStorage.getItem('spockifyThinkEnabled');
+			if (thinkingRaw || thinkOn != null) {
+				spockifyThinking = migratePersistedThinking(thinkingRaw, thinkOn);
+				try {
+					localStorage.setItem('spockifyThinking', spockifyThinking);
+				} catch {
+					/* ignore */
+				}
 			}
 		} catch {
 			/* ignore */
@@ -379,8 +388,18 @@
 		if (!token) return;
 		try {
 			const res = await getAgentRunByMessageId(token, messageId);
-			if (res?.run) {
-				commitHistoryMessage(messageId, { spockifyAgents: res.run });
+			let listed: Record<string, unknown>[] | undefined;
+			if (!res?.run?.workers?.length) {
+				try {
+					const all = await listAgentRuns(token, 10);
+					listed = all?.runs;
+				} catch {
+					listed = undefined;
+				}
+			}
+			const run = pickHeavyRunForPoll(res?.run, listed);
+			if (run) {
+				commitHistoryMessage(messageId, { spockifyAgents: run });
 			}
 		} catch {
 			/* LiteLLM strips agent SSE; poll is the live HUD path */
@@ -783,8 +802,17 @@
 						statusHistory.push(data);
 					}
 					commitHistoryMessage(event.message_id, { statusHistory });
+					return;
 				} else if (type === 'chat:completion') {
-					chatCompletionEventHandler(data, history.messages[event.message_id], event.chat_id);
+					// Immutable commits happen synchronously before the first
+					// await. Do not write the stale `message` snapshot back
+					// (that re-armed Stop / thinking chrome after done).
+					void chatCompletionEventHandler(
+						data,
+						history.messages[event.message_id],
+						event.chat_id
+					);
+					return;
 				} else if (type === 'chat:tasks:cancel') {
 					if (event.message_id === history.currentId) {
 						taskIds = null;
@@ -801,8 +829,10 @@
 					commitHistoryMessage(event.message_id, {
 						content: `${prev.content ?? ''}${data.content ?? ''}`
 					});
+					return;
 				} else if (type === 'chat:message' || type === 'replace') {
 					commitHistoryMessage(event.message_id, { content: data.content });
+					return;
 				} else if (type === 'chat:message:files' || type === 'files') {
 					message.files = data.files;
 				} else if (type === 'chat:message:tasks') {
@@ -2150,6 +2180,17 @@
 			patch.sources = sources;
 		}
 
+		const delta = choices?.[0]?.delta ?? {};
+		const reasoningDelta =
+			delta.reasoning_content || delta.reasoning || delta.thinking || '';
+		if (reasoningDelta) {
+			patch.spockifyModelReasoning = `${current.spockifyModelReasoning ?? ''}${reasoningDelta}`;
+		}
+
+		const finishReason = choices?.[0]?.finish_reason;
+		const turnDone =
+			Boolean(done) || finishReason === 'stop' || finishReason === 'length';
+
 		if (choices) {
 			if (choices[0]?.message?.content) {
 				patch.content = `${current.content ?? ''}${choices[0]?.message?.content ?? ''}`;
@@ -2174,7 +2215,7 @@
 
 		if (content) {
 			patch.content = content;
-			if (current.done) {
+			if (turnDone || current.done) {
 				const started =
 					typeof current.timestamp === 'number'
 						? current.timestamp > 1e12
@@ -2232,7 +2273,7 @@
 			? commitHistoryMessage(message.id, patch)
 			: current;
 
-		if (done) {
+		if (turnDone) {
 			stopHeavyAgentsPoll(message.id);
 			taskIds = null;
 			commitHistoryMessage(message.id, { done: true });
@@ -2472,8 +2513,10 @@
 		const parentMsg = parentId ? _history.messages[parentId] : null;
 		const parentText = typeof parentMsg?.content === 'string' ? parentMsg.content : '';
 		const wantsParallel =
-			spockifyThinking !== 'light' &&
+			spockifyThinking !== 'off' &&
+			spockifyThinking !== 'low' &&
 			spockifyThinking !== 'medium' &&
+			spockifyThinking !== 'high' &&
 			spockifyThinking !== 'heavy' &&
 			(spockifyComposerMode === 'multitask' ||
 				spockifyParallelAgents ||
@@ -2503,6 +2546,14 @@
 					modelName: model.name ?? model.id,
 					modelIdx: modelIdx ? modelIdx : _modelIdx,
 					spockifyThinking,
+					...(spockifyThinking === 'heavy'
+						? {
+								spockifyAgents: {
+									status: 'pending',
+									workers: plannedHeavyWorkers(parentText)
+								}
+							}
+						: {}),
 					timestamp: Math.floor(Date.now() / 1000) // Unix epoch
 				};
 
@@ -2992,8 +3043,10 @@
 			} else {
 				// Backend returns task_ids (multi-model) or task_id (single model).
 				// Replace (don't accumulate) so Stop targets only this generation.
+				// If the socket already marked this turn done, do not re-arm Stop.
 				const newTaskIds = res.task_ids ?? (res.task_id ? [res.task_id] : []);
-				taskIds = newTaskIds.length > 0 ? newTaskIds : null;
+				const alreadyDone = history.messages[responseMessageId]?.done === true;
+				taskIds = newTaskIds.length > 0 && !alreadyDone ? newTaskIds : null;
 
 				// Backend returns chat_id for new chats — set store + URL.
 				// Only update if the user hasn't navigated to a different chat
@@ -3549,6 +3602,7 @@
 						{history}
 						title={$chatTitle}
 						bind:selectedModels
+						showModelSelector={false}
 						shareEnabled={!!history.currentId}
 						{initNewChat}
 						scrollToTop={!isNearTop ? scrollToTop : null}
@@ -3639,7 +3693,7 @@
 									bind:this={messageInput}
 									{history}
 									{taskIds}
-									{selectedModels}
+									bind:selectedModels
 									bind:files
 									bind:prompt
 									bind:autoScroll
@@ -3741,7 +3795,7 @@
 							<div class="flex items-center h-full">
 								<Placeholder
 									{history}
-									{selectedModels}
+									bind:selectedModels
 									bind:messageInput
 									bind:files
 									bind:prompt

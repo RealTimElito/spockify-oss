@@ -73,6 +73,7 @@
 	import SpockifyThinkingPanel from './ResponseMessage/SpockifyThinkingPanel.svelte';
 	import FullHeightIframe from '$lib/components/common/FullHeightIframe.svelte';
 	import OutputEditView from './OutputEditView.svelte';
+	import { stripReasoningDetails, extractReasoningText } from '$lib/utils/thinkingModes';
 
 	interface MessageType {
 		id: string;
@@ -126,6 +127,9 @@
 		spockifyWorker?: string;
 		spockifyWebSearch?: boolean;
 		spockifyThinking?: string;
+		spockifyThinkEnabled?: boolean;
+		spockifyModelReasoning?: string;
+		spockifyReason?: string;
 		spockifyHud?: {
 			worker?: string;
 			model?: string;
@@ -178,7 +182,7 @@
 	export let selectedModels = [];
 
 	const spockifyStreamSig = (m: MessageType | undefined) =>
-		`${JSON.stringify(m?.spockifyAgents ?? null)}|${JSON.stringify(m?.spockifyCritique ?? null)}|${m?.statusHistory?.length ?? 0}|${m?.spockifyThinking ?? ''}`;
+		`${JSON.stringify(m?.spockifyAgents ?? null)}|${JSON.stringify(m?.spockifyCritique ?? null)}|${m?.statusHistory?.length ?? 0}|${m?.spockifyThinking ?? ''}|${m?.spockifyModelReasoning ?? ''}|${m?.done}`;
 
 	let message: MessageType = structuredClone(history.messages[messageId]);
 	$: if (history.messages) {
@@ -268,6 +272,9 @@
 		) {
 			text = stripSpockifyAgentMarkdown(text);
 		}
+		if (hasSpockifyThinkingPanel) {
+			text = stripReasoningDetails(text);
+		}
 		return text;
 	})();
 
@@ -276,11 +283,20 @@
 		(message?.spockifyAgents?.workers?.length ?? 0) > 0 ||
 		Boolean(message?.spockifyCritique?.level || message?.spockifyCritique?.notes) ||
 		Boolean(message?.spockifyReason) ||
+		Boolean(extractReasoningText(message as Record<string, unknown>)) ||
 		(message?.statusHistory?.length ?? 0) > 1;
+
+	$: thinkingMode = String(message?.spockifyThinking || '');
+	$: expectingThink =
+		Boolean(thinkingMode) &&
+		thinkingMode !== 'off' &&
+		thinkingMode !== 'light';
 
 	$: hasSpockifyThinkingPanel =
 		(!(message?.done ?? false) &&
-			(Boolean(message?.spockifyThinking) ||
+			(expectingThink ||
+				message?.spockifyThinking === 'heavy' ||
+				Boolean(extractReasoningText(message as Record<string, unknown>)) ||
 				(message?.statusHistory?.length ?? 0) > 0 ||
 				(message?.spockifyAgents?.workers?.length ?? 0) > 0 ||
 				Boolean(message?.spockifyCritique?.level || message?.spockifyCritique?.notes) ||
@@ -889,12 +905,16 @@
 						class="text-xs font-normal shrink-0 rounded-full px-1.5 py-[1px] {mode ===
 						'heavy'
 							? 'text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-400/10'
-							: mode === 'light'
-								? 'text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-400/10'
-								: 'text-gray-500 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/60'}"
+							: mode === 'high'
+								? 'text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-400/10'
+								: mode === 'low' || mode === 'light'
+									? 'text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-400/10'
+									: mode === 'off'
+										? 'text-gray-500 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/60'
+										: 'text-gray-500 dark:text-gray-400 bg-gray-100/70 dark:bg-gray-800/60'}"
 					>
 						{#if mode === 'heavy'}Heavy{#if heavyWorkers}
-								· {heavyWorkers} agents{/if}{:else if mode === 'light'}Light{:else}Medium{/if}
+								· {heavyWorkers} agents{/if}{:else if mode === 'off'}Off{:else if mode === 'low' || mode === 'light'}Low{:else if mode === 'high'}High{:else}Medium{/if}
 					</span>
 				{/if}
 

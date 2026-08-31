@@ -16,10 +16,12 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
+
+import model_catalog
 
 LOG = logging.getLogger("spockify.router.agents")
 
@@ -109,6 +111,8 @@ class AgentWorkerSpec(BaseModel):
     tools: Optional[list[str]] = None
     children: Optional[list["AgentWorkerSpec"]] = None
     endpoint: Optional[str] = None  # mesh peer base URL override
+    wave: Optional[int] = None  # 1 = independent; 2 = after wave 1 (Skeptic)
+    skill: Optional[str] = None
 
 
 AgentWorkerSpec.model_rebuild()
@@ -131,6 +135,8 @@ class AgentRunCreate(BaseModel):
     max_tokens: Optional[int] = None
     synth_max_tokens: Optional[int] = None
     synth_model: Optional[str] = None
+    # Chip mode or effort. Catalog maps per worker (string / bool / omit).
+    think: Optional[Union[bool, str]] = None
 
 
 _PARALLEL_INTENT_RE = re.compile(
@@ -149,6 +155,19 @@ def wants_parallel_agents(text: str) -> bool:
 
 def _utc_now() -> str:
     return datetime.now(tz=ZoneInfo("UTC")).isoformat()
+
+
+def _run_think_mode(run: dict[str, Any]) -> str:
+    raw = run.get("think")
+    if raw is False or raw is None:
+        return "off"
+    if raw is True:
+        return "heavy" if str(run.get("profile") or "") == "heavy" else "medium"
+    return str(raw)
+
+
+def _run_think_value(run: dict[str, Any], model: str) -> Any:
+    return model_catalog.ollama_think_value(model, _run_think_mode(run))
 
 
 def _cfg_worker_timeout(run: dict[str, Any]) -> float:
@@ -196,7 +215,8 @@ _ROLE_TEMPLATES: list[tuple[str, str, str, list[str]]] = [
         (
             "You are Explorer. Map the problem space, key facts, and options. "
             "Be concrete and thorough; bullets OK. Prefer evidence over guesses. "
-            "Do not write the final user-facing answer."
+            "If tools include search, search first for factual questions. "
+            "Cite tool URLs under Sources:. Do not write the final user-facing answer."
         ),
         ["search"],
     ),
@@ -222,22 +242,158 @@ _ROLE_TEMPLATES: list[tuple[str, str, str, list[str]]] = [
         "skeptic",
         "Skeptic",
         (
-            "You are Skeptic. Find gaps, failure modes, and missing edge cases. "
+            "You are Skeptic. You run AFTER Explorer, Analyst, and Builder. "
+            "Critique their outputs: holes, contradictions, missing edge cases. "
+            "Do not redo the problem from first principles. "
             "Do not write the final user-facing answer."
         ),
         [],
     ),
 ]
 
+_CONTEXT_RULES = (
+    "If your tools include search: for news, prices, who/what/when, docs, or "
+    "anything that can go stale, search first, then answer. Cite only URLs from "
+    "tool results under Sources:. Never invent URLs. If search failed, say so.\n"
+    "Facts you can look up (web, docs, news, public APIs): use search/browse; "
+    "do not wait for the user to fetch those.\n"
+    "If you still need the user's intent, private details, or a choice only they "
+    "can make, do not bury it in private reasoning. End with:\n"
+    'ASK_USER: ["concrete question 1", "concrete question 2"]\n'
+    "Questions must be specific enough for the user to answer. Do not ask "
+    "instead of searching public facts."
+)
 
-def _role_prompt(system: str, prompt: str) -> str:
+_ASK_USER_JSON_RE = re.compile(
+    r"(?:ASK_USER|NEED_USER)\s*:\s*(\[[\s\S]*?\])",
+    re.IGNORECASE,
+)
+_ASK_USER_LIST_RE = re.compile(
+    r"(?:ASK_USER|NEED_USER)\s*:\s*\n((?:\s*[-*]\s+.+\n?)+)",
+    re.IGNORECASE,
+)
+
+
+def _role_prompt(
+    system: str,
+    prompt: str,
+    *,
+    skill: str = "",
+    wave: int = 1,
+) -> str:
+    skill_line = f"\nFocus for this query: {skill.strip()}\n" if skill.strip() else ""
+    wave_line = ""
+    if wave >= 2:
+        wave_line = (
+            "\nYou receive the other agents' outputs below. Critique those; "
+            "do not start from scratch.\n"
+        )
     return (
-        f"{system}\n\nUser request:\n{prompt}\n\n"
+        f"{system}\n{skill_line}{wave_line}\n"
+        f"User request:\n{prompt}\n\n"
+        f"{_CONTEXT_RULES}\n"
         "Respond with your role's contribution only.\n"
         "Optional: to spawn up to "
         f"{AGENTS_MAX_NESTED_PER_WORKER} child workers (depth-capped), "
         'end with SPAWN_CHILDREN:[{"name":"...","prompt":"..."}]'
     )
+
+
+def _dedupe_questions(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for raw in items:
+        q = " ".join(str(raw).split()).strip()
+        if len(q) < 8:
+            continue
+        key = q.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(q)
+    return out[:8]
+
+
+def extract_ask_user(text: str) -> list[str]:
+    """Parse ASK_USER JSON arrays or markdown lists from a worker trace."""
+    questions: list[str] = []
+    blob = text or ""
+    for match in _ASK_USER_JSON_RE.finditer(blob):
+        try:
+            raw = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(raw, list):
+            questions.extend(str(x).strip() for x in raw if str(x).strip())
+        elif isinstance(raw, str) and raw.strip():
+            questions.append(raw.strip())
+    for match in _ASK_USER_LIST_RE.finditer(blob):
+        for line in match.group(1).splitlines():
+            item = re.sub(r"^\s*[-*]\s+", "", line).strip()
+            if item:
+                questions.append(item)
+    return _dedupe_questions(questions)
+
+
+def collect_run_questions(run: dict[str, Any]) -> list[str]:
+    found: list[str] = []
+    for worker in run.get("workers") or []:
+        found.extend(extract_ask_user(str(worker.get("output") or "")))
+    return _dedupe_questions(found)
+
+
+def format_clarify_reply(questions: list[str], reason: str = "") -> str:
+    """User-visible Heavy reply when we must ask before launching workers."""
+    qs = _dedupe_questions(questions)
+    if not qs:
+        return ""
+    lines = ["Before I go deep on this, I need:", ""]
+    for i, q in enumerate(qs, 1):
+        lines.append(f"{i}. {q}")
+    why = (reason or "").strip()
+    if why:
+        lines.extend(["", why])
+    return "\n".join(lines)
+
+
+def ensure_questions_visible(answer: str, questions: list[str]) -> str:
+    """Append leftover ASK_USER questions if synthesis swallowed them."""
+    qs = _dedupe_questions(questions)
+    if not qs:
+        return answer
+    lowered = (answer or "").lower()
+    missing = [q for q in qs if q.lower() not in lowered]
+    if not missing:
+        return answer
+    block = "\n".join(f"- {q}" for q in qs)
+    return (answer or "").rstrip() + f"\n\nNeed from you:\n{block}"
+
+
+def _coerce_question_list(raw: Any) -> list[str]:
+    if isinstance(raw, str) and raw.strip():
+        return _dedupe_questions([raw.strip()])
+    if not isinstance(raw, list):
+        return []
+    return _dedupe_questions([str(x).strip() for x in raw if str(x).strip()])
+
+
+def parse_heavy_orch_plan(
+    data: Any,
+) -> tuple[Optional[dict[str, Any]], list[str], str]:
+    """Split orchestrator JSON into (plan, ask-first questions, reason).
+
+    Non-empty questions mean: do not launch workers yet.
+    """
+    if not isinstance(data, dict):
+        return None, [], ""
+    questions = _coerce_question_list(
+        data.get("ask_user") if data.get("ask_user") is not None
+        else data.get("questions")
+    )
+    reason = str(data.get("ask_reason") or data.get("reason") or "").strip()
+    roles = data.get("roles") or data.get("workers")
+    plan = data if isinstance(roles, list) and roles else None
+    return plan, questions[:5], reason
 
 
 def _auto_plan_workers(parent_prompt: str, default_model: str) -> list[dict[str, Any]]:
@@ -249,15 +405,18 @@ def _auto_plan_workers(parent_prompt: str, default_model: str) -> list[dict[str,
     n = min(n, AGENTS_MAX_WORKERS, len(_ROLE_TEMPLATES))
     workers: list[dict[str, Any]] = []
     for wid, name, system, tools in _ROLE_TEMPLATES[:n]:
+        wave = 2 if wid == "skeptic" else 1
         workers.append(
             {
                 "id": wid,
                 "name": name,
                 "model": base,
-                "prompt": _role_prompt(system, prompt),
+                "prompt": _role_prompt(system, prompt, wave=wave),
                 "tools": tools if tools else None,
                 "children": None,
                 "endpoint": None,
+                "wave": wave,
+                "skill": None,
             }
         )
     return workers
@@ -266,25 +425,70 @@ def _auto_plan_workers(parent_prompt: str, default_model: str) -> list[dict[str,
 def plan_heavy_workers(
     parent_prompt: str,
     models: Optional[list[str]] = None,
+    orch_plan: Optional[dict[str, Any]] = None,
 ) -> list["AgentWorkerSpec"]:
-    """Grok-Heavy-style ensemble: always the full role set, strong models.
+    """Heavy ensemble: four named roles, models from orchestrator or catalog.
 
-    Roles are pinned (Explorer / Analyst / Builder / Skeptic, capped at
-    AGENTS_MAX_WORKERS) and models are assigned round-robin from
-    HEAVY_WORKER_MODELS so a single cold worker cannot stall the whole run.
+    Skeptic is always wave 2. Explorer/Analyst/Builder are wave 1.
+    Invalid orchestrator models fall back to plan_heavy_models.
     """
     prompt = (parent_prompt or "").strip()
-    pool = [m for m in (models or HEAVY_WORKER_MODELS) if m] or [AGENTS_DEFAULT_MODEL]
+    if models:
+        fallback = [m for m in models if m] or [AGENTS_DEFAULT_MODEL]
+    else:
+        fallback = model_catalog.plan_heavy_models(prompt)
+        if not fallback:
+            fallback = [m for m in HEAVY_WORKER_MODELS if m] or [AGENTS_DEFAULT_MODEL]
     n = min(len(_ROLE_TEMPLATES), max(1, AGENTS_MAX_WORKERS))
-    specs: list[AgentWorkerSpec] = []
+    orch_by_id: dict[str, dict[str, Any]] = {}
+    if isinstance(orch_plan, dict):
+        raw_roles = orch_plan.get("roles") or orch_plan.get("workers") or []
+        if isinstance(raw_roles, list):
+            for entry in raw_roles:
+                if not isinstance(entry, dict):
+                    continue
+                rid = str(entry.get("id") or entry.get("name") or "").strip().lower()
+                if rid:
+                    orch_by_id[rid] = entry
+
+    chosen_models: list[str] = []
+    rows: list[tuple[str, str, str, Optional[list[str]], str, int]] = []
     for i, (wid, name, system, tools) in enumerate(_ROLE_TEMPLATES[:n]):
+        entry = orch_by_id.get(wid) or orch_by_id.get(name.lower())
+        skill = ""
+        role_tools: Optional[list[str]] = tools or None
+        wave = 2 if wid == "skeptic" else 1
+        model = ""
+        if entry:
+            model = str(entry.get("model") or "").strip()
+            skill = str(entry.get("skill") or entry.get("focus") or "").strip()
+            if "tools" in entry:
+                sanitized = model_catalog.sanitize_heavy_tools(entry.get("tools"))
+                role_tools = sanitized if sanitized is not None else role_tools
+            if wid != "skeptic":
+                wv = entry.get("wave")
+                if wv in (1, 2, "1", "2"):
+                    wave = int(wv)
+        chosen_models.append(model or fallback[i % len(fallback)])
+        rows.append((wid, name, system, role_tools, skill, wave))
+
+    if orch_plan:
+        pool = model_catalog.sanitize_heavy_models(chosen_models, prompt)
+    else:
+        pool = chosen_models
+    if not pool:
+        pool = fallback
+    specs: list[AgentWorkerSpec] = []
+    for i, (wid, name, system, role_tools, skill, wave) in enumerate(rows):
         specs.append(
             AgentWorkerSpec(
                 id=wid,
                 name=name,
                 model=_resolve_worker_model(pool[i % len(pool)]),
-                prompt=_role_prompt(system, prompt),
-                tools=tools or None,
+                prompt=_role_prompt(system, prompt, skill=skill, wave=wave),
+                tools=role_tools or None,
+                wave=wave,
+                skill=skill or None,
             )
         )
     return specs
@@ -325,6 +529,8 @@ def _normalize_workers(
                 "tools": spec.tools,
                 "children": children,
                 "endpoint": (spec.endpoint or "").strip() or None,
+                "wave": spec.wave,
+                "skill": spec.skill,
             }
         )
     if not out:
@@ -350,6 +556,8 @@ def _empty_worker_state(spec: dict[str, Any], *, depth: int = 0) -> dict[str, An
         "mesh": False,
         "children": [],
         "tools_used": [],
+        "wave": spec.get("wave"),
+        "skill": spec.get("skill"),
     }
 
 
@@ -607,6 +815,7 @@ def public_run_view(run: dict[str, Any]) -> dict[str, Any]:
             "depth": w.get("depth", 0),
             "mesh": bool(w.get("mesh")),
             "endpoint": w.get("endpoint"),
+            "wave": w.get("wave"),
             "tools_used": w.get("tools_used") or [],
             "started_at": w.get("started_at"),
             "finished_at": w.get("finished_at"),
@@ -742,6 +951,7 @@ def create_run_record(body: AgentRunCreate) -> dict[str, Any]:
         "max_tokens": body.max_tokens,
         "synth_max_tokens": body.synth_max_tokens,
         "synth_model": (body.synth_model or "").strip() or None,
+        "think": body.think,
         "mesh_enabled": AGENTS_MESH_ENABLED and bool(AGENTS_MESH_ENDPOINTS),
         "workers": [_empty_worker_state(s, depth=depth) for s in specs],
         "worker_specs": specs,
@@ -1079,6 +1289,7 @@ async def _run_child_workers(
             if search_blob:
                 user_content = (
                     f"Shared tool context:\n{search_blob}\n\n"
+                    "Cite only URLs from this context under Sources:. Never invent URLs.\n\n"
                     f"Your task:\n{spec['prompt']}"
                 )
             messages = [
@@ -1214,6 +1425,7 @@ async def _run_one_worker(
         if search_blob:
             user_content = (
                 f"Shared tool context:\n{search_blob}\n\n"
+                "Cite only URLs from this context under Sources:. Never invent URLs.\n\n"
                 f"Your task:\n{spec['prompt']}"
             )
 
@@ -1238,6 +1450,13 @@ async def _run_one_worker(
         endpoint = _pick_mesh_endpoint(worker, index)
         worker_timeout = _cfg_worker_timeout(run)
         try:
+            chat_kwargs: dict[str, Any] = {
+                "temperature": 0.4,
+                "max_tokens": _cfg_worker_max_tokens(run),
+            }
+            think_val = _run_think_value(run, spec["model"])
+            if think_val is not None:
+                chat_kwargs["think"] = think_val
             result, used_mesh = await asyncio.wait_for(
                 _chat_with_optional_mesh(
                     client=client,
@@ -1246,8 +1465,7 @@ async def _run_one_worker(
                     endpoint=endpoint,
                     model=spec["model"],
                     messages=messages,
-                    temperature=0.4,
-                    max_tokens=_cfg_worker_max_tokens(run),
+                    **chat_kwargs,
                 ),
                 timeout=worker_timeout,
             )
@@ -1367,9 +1585,15 @@ async def _synthesize(
         {
             "role": "system",
             "content": (
-                "You are Spockify's synthesizer. Merge parallel agent outputs into one "
+                "You are Spockify's synthesizer. Merge agent outputs into one "
                 "coherent, user-facing answer. Prefer clarity over repeating every point. "
-                "Do not invent facts the workers did not support."
+                "Do not invent facts the workers did not support. "
+                "End with Sources: using only URLs/titles from worker tool results. "
+                "Never invent URLs. If search was not used or failed, say so. "
+                "If any worker listed ASK_USER questions (user intent, private details, "
+                "or a choice only they can make), include a clear 'Need from you' "
+                "section with those questions. Do not replace them with a guessed "
+                "full answer; a partial answer plus the questions is OK. Merge duplicates."
             ),
         },
         {
@@ -1381,13 +1605,19 @@ async def _synthesize(
             ),
         },
     ]
+    synth_kwargs: dict[str, Any] = {
+        "temperature": 0.3,
+        "max_tokens": _cfg_synth_max_tokens(run),
+    }
+    think_val = _run_think_value(run, model)
+    if think_val is not None:
+        synth_kwargs["think"] = think_val
     result = await asyncio.wait_for(
         worker_chat(
             client,
             model,
             messages,
-            temperature=0.3,
-            max_tokens=_cfg_synth_max_tokens(run),
+            **synth_kwargs,
         ),
         timeout=_cfg_synth_timeout(run),
     )
@@ -1395,6 +1625,48 @@ async def _synthesize(
         return (result["choices"][0]["message"]["content"] or "").strip()
     except (KeyError, IndexError, TypeError):
         return ""
+
+
+def _wave_of(spec: dict[str, Any]) -> int:
+    wv = spec.get("wave")
+    if wv in (2, "2"):
+        return 2
+    if wv in (1, "1"):
+        return 1
+    wid = str(spec.get("id") or "").lower()
+    name = str(spec.get("name") or "").lower()
+    if "skeptic" in wid or "skeptic" in name:
+        return 2
+    return 1
+
+
+def _peer_outputs_block(run: dict[str, Any], exclude_id: str) -> str:
+    parts: list[str] = []
+    for worker in run.get("workers") or []:
+        if str(worker.get("id") or "") == str(exclude_id):
+            continue
+        status = worker.get("status") or "pending"
+        if status not in ("done", "failed", "cancelled"):
+            continue
+        text = str(worker.get("output") or "").strip() or "(empty)"
+        if len(text) > 4000:
+            text = text[:3999] + "…"
+        parts.append(f"### {worker.get('name')} ({status})\n{text}")
+    if not parts:
+        return ""
+    return (
+        "--- Other agents' outputs (critique these; do not redo from scratch) ---\n\n"
+        + "\n\n".join(parts)
+    )
+
+
+def _inject_peer_outputs(run: dict[str, Any], index: int) -> None:
+    spec = run["worker_specs"][index]
+    block = _peer_outputs_block(run, exclude_id=str(spec.get("id") or ""))
+    if not block:
+        return
+    spec["prompt"] = str(spec.get("prompt") or "") + "\n\n" + block
+    run["workers"][index]["prompt"] = spec["prompt"]
 
 
 async def execute_run(
@@ -1413,22 +1685,39 @@ async def execute_run(
     _emit(run_id, {"type": "run_status", "status": "running", "run": public_run_view(run)})
 
     try:
+        n = len(run["workers"])
+        specs = run.get("worker_specs") or []
+        wave1 = [i for i in range(n) if _wave_of(specs[i] if i < len(specs) else {}) == 1]
+        wave2 = [i for i in range(n) if i not in wave1]
+        if not wave1:
+            wave1, wave2 = list(range(n)), []
         sem = asyncio.Semaphore(AGENTS_MAX_WORKERS)
-        await asyncio.gather(
-            *[
-                _run_one_worker(
-                    client=client,
-                    worker_chat=worker_chat,
-                    mesh_chat=mesh_chat,
-                    search_tool=search_tool,
-                    browse_tool=browse_tool,
-                    run=run,
-                    index=i,
-                    sem=sem,
-                )
-                for i in range(len(run["workers"]))
-            ]
-        )
+
+        async def _launch(indices: list[int]) -> None:
+            if not indices:
+                return
+            await asyncio.gather(
+                *[
+                    _run_one_worker(
+                        client=client,
+                        worker_chat=worker_chat,
+                        mesh_chat=mesh_chat,
+                        search_tool=search_tool,
+                        browse_tool=browse_tool,
+                        run=run,
+                        index=i,
+                        sem=sem,
+                    )
+                    for i in indices
+                ]
+            )
+
+        await _launch(wave1)
+        if wave2 and not is_cancelled(run_id):
+            for i in wave2:
+                _inject_peer_outputs(run, i)
+            _persist_run(run)
+            await _launch(wave2)
     except asyncio.CancelledError:
         request_cancel(run_id)
         return run
@@ -1463,7 +1752,10 @@ async def execute_run(
             if is_cancelled(run_id):
                 request_cancel(run_id)
                 return _load_run(run_id) or run
-            run["synthesis"] = synthesis or "(synthesis empty)"
+            run["synthesis"] = ensure_questions_visible(
+                synthesis or "(synthesis empty)",
+                collect_run_questions(run),
+            )
         except asyncio.CancelledError:
             request_cancel(run_id)
             return _load_run(run_id) or run

@@ -74,6 +74,7 @@ export type HostToWebview =
       type: 'modelPrefs';
       auto: boolean;
       maxMode: boolean;
+      thinking?: string;
       runAllUnsandboxed?: boolean;
       agentPermissionMode?: string;
       selectedModel: string;
@@ -209,6 +210,7 @@ export type WebviewToHost =
   | { type: 'selectAgentMode'; mode: AgentModeUi }
   | { type: 'setAutoModel'; enabled: boolean }
   | { type: 'setMaxMode'; enabled: boolean }
+  | { type: 'setThinkingMode'; mode: string }
   | { type: 'setRunAllUnsandboxed'; enabled: boolean }
   | { type: 'setAgentPermissionMode'; mode: string }
   | { type: 'addModels' }

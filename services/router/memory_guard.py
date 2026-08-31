@@ -31,7 +31,8 @@ UNLOAD_MODEL_PRIORITY = [
     p.strip()
     for p in os.getenv(
         "MEMORY_GUARD_UNLOAD_PRIORITY",
-        "gpt-oss:120b,gemma4:26b,gemma4:12b,gpt-oss:20b",
+        "gpt-oss:120b,qwen3.6:35b,qwen3.6:27b-coding,qwen3.6:27b,"
+        "gemma4:31b,gemma4:26b,gemma4:12b,gpt-oss:20b",
     ).split(",")
     if p.strip()
 ]

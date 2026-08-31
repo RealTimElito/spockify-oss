@@ -11,7 +11,7 @@ import type {
   ModelInfo,
 } from './types';
 import { textFromContent } from './chatContent';
-import { MOCK_OSS_MODELS } from './mockTransport';
+import { mergePickerModels } from './modelCatalog';
 
 export function adaptModelTransport(
   transport: ModelTransport,
@@ -26,8 +26,7 @@ export function adaptModelTransport(
           label: m.name || m.id,
           oss: true,
         }));
-      // Remote OSS filter can return [] (auth lag / renamed ids) — keep picker usable.
-      return mapped.length ? mapped : MOCK_OSS_MODELS.slice();
+      return mergePickerModels(mapped);
     },
 
     chatCompletions(
@@ -53,6 +52,12 @@ async function* streamFromTransport(
             content: m.content,
           })),
           stream: true,
+          ...(request.spockify_thinking
+            ? {
+                spockify_thinking: request.spockify_thinking,
+                spockify_think_enabled: request.spockify_think_enabled,
+              }
+            : {}),
         },
         signal,
       )) {
@@ -92,6 +97,12 @@ async function* streamFromTransport(
       content: m.content,
     })),
     stream: false,
+    ...(request.spockify_thinking
+      ? {
+          spockify_thinking: request.spockify_thinking,
+          spockify_think_enabled: request.spockify_think_enabled,
+        }
+      : {}),
   });
   const text = textFromContent(res.choices?.[0]?.message?.content ?? '');
   if (!text) {

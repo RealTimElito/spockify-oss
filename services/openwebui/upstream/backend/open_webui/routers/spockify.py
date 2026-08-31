@@ -288,7 +288,7 @@ async def unload_ollama_for_gpu(user=Depends(get_admin_user)):
         ),
         'note': (
             'Does not scale ComfyUI. For host training with ComfyUI down, '
-            'run free-gpu-for-training on the cluster host.'
+            'run make free-gpu-for-training on the cluster host.'
         ),
     }
 
@@ -2162,17 +2162,17 @@ async def generate_briefing_video(form_data: BriefingVideoForm, user=Depends(get
 # - Additive `deb*` / `darwin` / `win32` fields are for marketing + multi-OS clients;
 #   Linux AppImage clients ignore unknown keys.
 #
-_IDE_APPIMAGE_SPOCKIFY_VERSION = '0.9.13'
+_IDE_APPIMAGE_SPOCKIFY_VERSION = '0.9.15'
 _IDE_APPIMAGE_PRODUCT_VERSION = '1.129.1'
 # 2026-07-23: extension 0.8.7 — map router worker status→state so Agents UI
 # leaves queued; kick poll from tool create; completion toast + chat summary;
 # shell/ping prompts run local terminal_run workers; hide raw create_agent_run JSON.
 _IDE_APPIMAGE_LATEST_SHA256_X86_64 = (
-    'a46867728ef41d33b796ca7a43a0c132d29f8fc856b97b8b3a3e3d43f8db2612'
+    'b7bc783beb0378864d8eb5ba17cc1f6fa48bd6f5617e27c8ecfdf5d79f799434'
 )
 # Debian package (amd64) — same product tree as the x86_64 AppImage.
 _IDE_DEB_LATEST_SHA256_AMD64 = (
-    '611cc521f9e4efc0e4f078b14af3cb8c4dd127d42085dd6f04a8b9573f671bd5'
+    'ea6dc8b47bc238a19018caa61843341078c8201e0545cb04f367774e430d87f4'
 )
 # Published arches only — aarch64 returns 404 until an artifact is hosted.
 _IDE_APPIMAGE_PUBLISHED = {
@@ -2493,7 +2493,7 @@ def _public_base(request: Request) -> str:
         or request.headers.get('host')
         or 'spockify.eu'
     ).split(',')[0].strip()
-    # Edge terminates TLS on spock; inner hops may report http — force https for public host.
+    # Edge terminates TLS at the edge; inner hops may report http — force https for public host.
     if host.endswith('spockify.eu') and proto == 'http':
         proto = 'https'
     return f'{proto}://{host}'

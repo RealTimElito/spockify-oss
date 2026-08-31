@@ -1,6 +1,11 @@
 <script lang="ts">
 	import StatusHistory from './StatusHistory.svelte';
-	import { thinkingModeLabel, HEAVY_ENSEMBLE_PLAN } from '$lib/utils/thinkingModes';
+	import {
+		thinkingModeLabel,
+		extractReasoningText,
+		buildEnsembleRows,
+		formatEnsembleHeader
+	} from '$lib/utils/thinkingModes';
 
 	export let message: Record<string, unknown> = {};
 	export let messageDone = false;
@@ -25,6 +30,7 @@
 	$: webSearch = Boolean(message.spockifyWebSearch);
 	$: hud = (message.spockifyHud || agents?.hud) as Record<string, unknown> | undefined;
 	$: runActive = agentsRunActive(agents?.status as string | undefined);
+	$: modelReasoning = extractReasoningText(message);
 
 	/** Live progress or post-hoc detail worth keeping after the answer. */
 	$: hasInterestingDetails =
@@ -32,54 +38,23 @@
 		workers.length > 0 ||
 		Boolean(critique?.level || critique?.notes) ||
 		Boolean(routingReason) ||
+		Boolean(modelReasoning) ||
 		statusHistory.length > 1;
 
-	// Light/Medium: show only while streaming; hide once done unless there is
-	// real detail (heavy/agents/critique). Mode chip next to the model name is enough.
+	// Off: do not show an empty thinking animation as if CoT is expected.
+	$: expectingThink = Boolean(thinking) && thinking !== 'off' && thinking !== 'light';
 	$: hasPanel =
 		(!messageDone &&
-			(Boolean(thinking) ||
+			(expectingThink ||
+				thinking === 'heavy' ||
+				Boolean(modelReasoning) ||
 				statusHistory.length > 0 ||
 				workers.length > 0 ||
 				Boolean(critique?.level || critique?.notes) ||
 				Boolean(routingPath || routingReason || worker))) ||
 		(messageDone && hasInterestingDetails);
 
-	$: ensembleRows = (() => {
-		const liveByKey = new Map<string, Record<string, unknown>>();
-		for (const w of workers) {
-			const key = String(w.name || w.id || '').toLowerCase();
-			if (key) liveByKey.set(key, w);
-		}
-		if (thinking === 'heavy') {
-			if (workers.length > 0 || worker === 'heavy' || runActive) {
-				return HEAVY_ENSEMBLE_PLAN.map((p) => {
-					const w = liveByKey.get(p.role.toLowerCase());
-					if (w) {
-						return {
-							role: p.role,
-							model: String(w.model || p.model),
-							status: String(w.status || ''),
-							output: String(w.output || w.error || ''),
-							preview: String(w.preview || '')
-						};
-					}
-					return { ...p, status: 'pending', output: '', preview: '' };
-				});
-			}
-			return [];
-		}
-		if (workers.length > 0) {
-			return workers.map((w) => ({
-				role: String(w.name || w.id || 'Agent'),
-				model: String(w.model || '—'),
-				status: String(w.status || ''),
-				output: String(w.output || w.error || ''),
-				preview: String(w.preview || '')
-			}));
-		}
-		return [];
-	})();
+	$: ensembleRows = buildEnsembleRows(thinking, workers);
 
 	$: doneWorkers = workers.filter((w) =>
 		['done', 'failed', 'cancelled'].includes((w.status as string) || '')
@@ -99,18 +74,22 @@
 		}
 		if (critique?.notes) return 'Verifying answer…';
 		if (thinking === 'heavy') return 'Heavy thinking…';
-		if (thinking) return `${thinkingModeLabel(thinking as import('$lib/utils/thinkingModes').ThinkingMode)}…`;
+		if (modelReasoning && !messageDone) return 'Reasoning';
 		return '';
 	})();
 
 	let panelOpen = false;
 	let userToggled = false;
 
-	// Auto-open while streaming interesting work; collapse when the turn finishes.
+	// Auto-open while streaming interesting work or live reasoning.
 	$: if (hasPanel && !userToggled) {
 		panelOpen =
 			!messageDone &&
-			(thinking === 'heavy' || workers.length > 0 || Boolean(phaseLabel) || Boolean(critique?.notes));
+			(thinking === 'heavy' ||
+				workers.length > 0 ||
+				Boolean(phaseLabel) ||
+				Boolean(critique?.notes) ||
+				Boolean(modelReasoning));
 	}
 	$: if (messageDone && !userToggled) {
 		panelOpen = false;
@@ -121,14 +100,25 @@
 		panelOpen = !panelOpen;
 	};
 
-	$: headerLabel = messageDone ? 'Thought' : 'Thinking';
+	$: headerLabel =
+		thinking === 'off'
+			? messageDone
+				? 'Reply'
+				: 'Working'
+			: messageDone
+				? 'Thought'
+				: 'Thinking';
 
 	$: modeChipClass =
 		thinking === 'heavy'
 			? 'text-violet-700 dark:text-violet-200 bg-violet-50 dark:bg-violet-400/10 border-violet-200/50 dark:border-violet-500/20'
-			: thinking === 'light'
-				? 'text-amber-700 dark:text-amber-200 bg-amber-50 dark:bg-amber-400/10 border-amber-200/50 dark:border-amber-500/20'
-				: 'text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 border-gray-200/60 dark:border-gray-700/60';
+			: thinking === 'high'
+				? 'text-indigo-700 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-400/10 border-indigo-200/50 dark:border-indigo-500/20'
+				: thinking === 'low' || thinking === 'light'
+					? 'text-amber-700 dark:text-amber-200 bg-amber-50 dark:bg-amber-400/10 border-amber-200/50 dark:border-amber-500/20'
+					: thinking === 'off'
+						? 'text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/60 border-gray-200/60 dark:border-gray-700/60'
+						: 'text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 border-gray-200/60 dark:border-gray-700/60';
 
 	$: critiqueClass =
 		critique?.level === 'low'
@@ -167,10 +157,12 @@
 			{/if}
 			{#if phaseLabel}
 				<span class="text-gray-500 dark:text-gray-400 line-clamp-1">{phaseLabel}</span>
+			{:else if modelReasoning && !panelOpen}
+				<span class="text-gray-500 dark:text-gray-400 line-clamp-1">{modelReasoning}</span>
 			{/if}
 			{#if ensembleRows.length}
-				<span class="text-gray-400 dark:text-gray-500 shrink-0 hidden md:inline line-clamp-1"
-					>{ensembleRows.map((r) => r.model).join(' · ')}</span
+				<span class="text-gray-400 dark:text-gray-500 min-w-0 line-clamp-1"
+					>{formatEnsembleHeader(ensembleRows)}</span
 				>
 			{/if}
 			{#if workers.length}
@@ -197,13 +189,22 @@
 
 		{#if panelOpen}
 			<div class="px-3 pb-3 flex flex-col gap-3 border-t border-gray-200/60 dark:border-gray-700/60">
+				{#if modelReasoning}
+					<section>
+						<h4 class="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Reasoning</h4>
+						<pre
+							class="whitespace-pre-wrap break-words text-[11px] text-gray-700 dark:text-gray-300 max-h-56 overflow-auto rounded-lg border border-gray-200/60 dark:border-gray-700/60 bg-white/50 dark:bg-gray-950/30 p-2"
+						>{modelReasoning}</pre>
+					</section>
+				{/if}
+
 				{#if ensembleRows.length}
 					<section>
 						<h4 class="text-[10px] uppercase tracking-wide text-gray-400 mb-1.5">
 							{thinking === 'heavy' ? 'Heavy ensemble · reasoning' : 'Agent models'}
 						</h4>
 						<div class="flex flex-col gap-1.5">
-							{#each ensembleRows as row (row.role + row.model)}
+							{#each ensembleRows as row (row.role)}
 								<details
 									class="rounded-lg border border-violet-200/50 dark:border-violet-500/20 bg-white/60 dark:bg-gray-950/30 overflow-hidden"
 									open={row.status === 'running' || Boolean(row.output)}

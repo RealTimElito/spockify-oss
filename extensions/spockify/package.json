@@ -2,7 +2,7 @@
   "name": "spockify",
   "displayName": "Spockify",
   "description": "Open-source Cursor alternative — chat, tab complete, Ctrl+K, composer, agents, terminal agent via spockify.eu",
-  "version": "0.9.14",
+  "version": "0.9.15",
   "publisher": "spockify",
   "license": "MIT",
   "icon": "media/spockify-icon.png",
@@ -1073,7 +1073,26 @@
         "spockify.chat.maxMode": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "MAX Mode preference (Cursor-like). Stored for the model picker; larger-context / higher-effort routing may use this later."
+          "markdownDescription": "MAX Mode preference (Cursor-like). Stored for the model picker; larger-context routing may use this later."
+        },
+        "spockify.chat.thinking": {
+          "type": "string",
+          "default": "high",
+          "enum": [
+            "off",
+            "low",
+            "medium",
+            "high",
+            "heavy"
+          ],
+          "enumDescriptions": [
+            "Never send think= — any model is OK",
+            "Low effort, fast/cheap single worker",
+            "Balanced auto route (single worker)",
+            "High effort, best single thinking model (default for Agent / gpt-oss-120b)",
+            "High effort + 4-agent ensemble (Explorer/Analyst/Builder → Skeptic)"
+          ],
+          "markdownDescription": "Thinking cycle (Off → Low → Medium → High → Heavy). Off omits think=. Heavy is high effort plus the parallel ensemble. Default High for IDE Agent."
         },
         "spockify.chat.pipeline.enabled": {
           "type": "boolean",

@@ -20,6 +20,12 @@ import {
   formatRoutingHud,
   recordTurnRouting,
 } from '../util/routingHud';
+import { mergePickerModels } from '../chat/modelCatalog';
+import {
+  readIdeThinkingMode,
+  writeIdeThinkingMode,
+} from '../chat/thinkingPrefs';
+import { normalizeThinkingMode } from '../chat/thinkingModes';
 
 const COMPOSER_BUSY_CTX = 'spockify.composer.busy';
 
@@ -28,7 +34,7 @@ const VIEW_TYPE = 'spockify.composerPanel';
 export type TransportFactory = () => Promise<ModelTransport | undefined>;
 
 type HostMsg =
-  | { type: 'ready'; status?: string; pending?: PendingFileUi[]; models?: Array<{ id: string; label?: string }>; selectedModel?: string; agentMode?: string }
+  | { type: 'ready'; status?: string; pending?: PendingFileUi[]; models?: Array<{ id: string; label?: string }>; selectedModel?: string; agentMode?: string; thinking?: string }
   | { type: 'status'; text: string }
   | { type: 'assistant'; text: string }
   | { type: 'streamStart'; model?: string }
@@ -49,7 +55,8 @@ type HostMsg =
   | { type: 'pending'; files: PendingFileUi[] }
   | { type: 'focusInput' }
   | { type: 'done'; text?: string }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'thinking'; mode: string };
 
 type WebMsg =
   | { type: 'ready' }
@@ -61,7 +68,8 @@ type WebMsg =
   | { type: 'diffFile'; path: string }
   | { type: 'acceptAll' }
   | { type: 'discardAll' }
-  | { type: 'diffReview' };
+  | { type: 'diffReview' }
+  | { type: 'setThinkingMode'; mode: string };
 
 export interface PendingFileUi {
   path: string;
@@ -160,6 +168,12 @@ export class ComposerPanelProvider implements vscode.WebviewViewProvider {
       case 'stop':
         this.stopGeneration();
         break;
+      case 'setThinkingMode': {
+        const mode = normalizeThinkingMode(msg.mode);
+        await writeIdeThinkingMode(mode);
+        this.post({ type: 'thinking', mode });
+        break;
+      }
       case 'newSession':
         this.abort?.abort();
         resetComposerPanelSession();
@@ -216,13 +230,17 @@ export class ComposerPanelProvider implements vscode.WebviewViewProvider {
     let models: Array<{ id: string; label?: string }> = [];
     if (transport) {
       try {
-        models = (await transport.listModels({ ossOnly: true })).map((m) => ({
-          id: m.id,
-          label: m.name || m.id,
-        }));
+        models = mergePickerModels(
+          (await transport.listModels({ ossOnly: true })).map((m) => ({
+            id: m.id,
+            label: m.name || m.id,
+          })),
+        );
       } catch {
-        /* soft */
+        models = mergePickerModels([]);
       }
+    } else {
+      models = mergePickerModels([]);
     }
     if (!this.selectedModel) {
       this.selectedModel =
@@ -240,6 +258,7 @@ export class ComposerPanelProvider implements vscode.WebviewViewProvider {
       models,
       selectedModel: this.selectedModel,
       agentMode: mode,
+      thinking: readIdeThinkingMode(),
     } as HostMsg);
   }
 
@@ -445,6 +464,7 @@ export class ComposerPanelProvider implements vscode.WebviewViewProvider {
           <option value="strict">Strict</option>
         </select>
         <select id="model" class="model-select" title="Model"></select>
+        <button type="button" class="think-chip think-high" id="thinkBtn" title="Thinking High — click to cycle">High</button>
         <button type="button" class="icon-btn" id="newSession" title="New session">New</button>
       </div>
     </div>

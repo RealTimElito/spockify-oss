@@ -13,7 +13,7 @@ import type {
   ChatModelTransport,
   ModelInfo,
 } from './types';
-import { MockChatTransport, MOCK_OSS_MODELS } from './mockTransport';
+import { MockChatTransport } from './mockTransport';
 import {
   buildAtContext,
   resolveWebSection,
@@ -54,6 +54,16 @@ import {
   normalizeComposerUiMode,
   toRuntimeAgentMode,
 } from './composerModes';
+import { mergePickerModels } from './modelCatalog';
+import {
+  readIdeThinkingMode,
+  thinkingRequestExtras,
+  writeIdeThinkingMode,
+} from './thinkingPrefs';
+import {
+  normalizeThinkingMode,
+  type ThinkingMode,
+} from './thinkingModes';
 import { getComposerTree } from '../composer/composerView';
 import {
   hasActiveTerminalInlineEdit,
@@ -162,6 +172,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
           e.affectsConfiguration('spockify.runAllUnsandboxed') ||
           e.affectsConfiguration('spockify.agentPermissionMode') ||
           e.affectsConfiguration('spockify.chat.maxMode') ||
+          e.affectsConfiguration('spockify.chat.thinking') ||
           e.affectsConfiguration('spockify.agent.mode')
         ) {
           this.postModelPrefs();
@@ -445,6 +456,13 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
         void vscode.workspace
           .getConfiguration('spockify')
           .update('chat.maxMode', enabled, vscode.ConfigurationTarget.Global);
+        this.postModelPrefs();
+        break;
+      }
+      case 'setThinkingMode': {
+        const mode = normalizeThinkingMode(msg.mode);
+        this.setStoreValue('spockify.chat.thinking', mode);
+        void writeIdeThinkingMode(mode);
         this.postModelPrefs();
         break;
       }
@@ -743,6 +761,12 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     return !!this.getStoreValue<boolean>('spockify.chat.maxMode');
   }
 
+  private thinkingMode(): ThinkingMode {
+    const stored = this.getStoreValue<string>('spockify.chat.thinking');
+    if (stored) return normalizeThinkingMode(stored);
+    return readIdeThinkingMode();
+  }
+
   private getAgentPermissionMode(): string {
     const cfg = vscode.workspace.getConfiguration('spockify');
     const raw = cfg.get<string>('agentPermissionMode');
@@ -768,6 +792,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
       type: 'modelPrefs',
       auto: this.isAutoModel(),
       maxMode: this.isMaxMode(),
+      thinking: this.thinkingMode(),
       runAllUnsandboxed: this.isRunAllUnsandboxed(),
       agentPermissionMode: this.getAgentPermissionMode(),
       selectedModel: this.selectedModel,
@@ -1026,10 +1051,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
       );
     }
     models = (models || []).filter((m) => m && m.id && m.oss !== false);
-    if (!models.length) {
-      models = MOCK_OSS_MODELS.filter((m) => m.oss !== false);
-    }
-    return models;
+    return mergePickerModels(models);
   }
 
   private async refreshModels(): Promise<void> {
@@ -1348,7 +1370,10 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
       resumeStreaming: true,
     });
     const assistantIndex = this.messages.length - 1;
-    const requestExtras = this.chatPipelineRequestExtras();
+    const requestExtras = {
+      ...this.chatPipelineRequestExtras(),
+      ...thinkingRequestExtras(this.thinkingMode()),
+    };
 
     const host = getChatTabAgentHost();
     await host.runTurn(
@@ -1798,6 +1823,9 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
             <button type="button" id="modelBtn" class="model-chip" aria-haspopup="menu" aria-expanded="false" title="Model">
               <span id="modelBtnLabel">Auto</span>
               <span class="chev" aria-hidden="true">▾</span>
+            </button>
+            <button type="button" id="thinkBtn" class="think-chip think-high" title="Thinking High — click to cycle" aria-label="Thinking High. Click to cycle.">
+              <span id="thinkBtnLabel">High</span>
             </button>
             <button type="button" id="permBtn" class="perm-chip" aria-haspopup="menu" aria-expanded="false" title="Tool &amp; file permissions">
               <span id="permBtnLabel">Ask</span>

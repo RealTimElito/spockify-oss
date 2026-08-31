@@ -6,6 +6,8 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getAccount, getApiKey } from '../auth';
+import { mergePickerModels } from '../chat/modelCatalog';
+import { readIdeThinkingMode } from '../chat/thinkingPrefs';
 import { tryGetCodebaseProvider } from '../codebase/provider';
 import { getEffectiveRules, userRulesStorageUri } from '../rules/load';
 import { getMemories } from '../rules/memories';
@@ -131,6 +133,7 @@ export async function buildSettingsSnapshot(
       /* offline OK */
     }
   }
+  models = mergePickerModels(models);
 
   const effective = await getEffectiveRules(context);
   const memories = await getMemories(context);
@@ -161,6 +164,7 @@ export async function buildSettingsSnapshot(
         ? 'allowAll'
         : 'askEveryTime'),
     chatMaxMode: cfg.get<boolean>('chat.maxMode', false),
+    chatThinking: readIdeThinkingMode(),
     chatAttachTerminal: cfg.get<boolean>('chat.attachTerminal', true),
     completionsEnabled: cfg.get<boolean>('completions.enabled', true),
     terminalPolicy: termCfg.get<string>('policy') || 'ask',

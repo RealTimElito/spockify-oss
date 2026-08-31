@@ -23,6 +23,8 @@
     modelList: document.getElementById('modelList'),
     autoToggle: document.getElementById('autoToggle'),
     maxToggle: document.getElementById('maxToggle'),
+    thinkBtn: document.getElementById('thinkBtn'),
+    thinkBtnLabel: document.getElementById('thinkBtnLabel'),
     permBtn: document.getElementById('permBtn'),
     permBtnLabel: document.getElementById('permBtnLabel'),
     permMenu: document.getElementById('permMenu'),
@@ -181,6 +183,7 @@
   let agentMode = 'agent';
   let autoModel = true;
   let maxMode = false;
+  let thinkingMode = 'high';
   let agentPermissionMode = 'askEveryTime';
   /** @type {null | {id:string}} */
   let toolConsent = null;
@@ -1879,16 +1882,65 @@
     }
   }
 
-  function modelTagsFor(id, label) {
-    const s = ((label || '') + ' ' + (id || '')).toLowerCase();
-    const tags = [];
-    if (/fast|flash|mini|haiku|lite/.test(s)) tags.push('Fast');
-    if (/high|pro|opus|ultra|max|large/.test(s)) tags.push('High');
-    if (!tags.length && /medium|sonnet|gpt/.test(s)) tags.push('Medium');
-    if (!tags.length && (id === 'spockify-auto' || /auto/.test(s))) {
-      tags.push('Fast');
+  const THINKING_CYCLE = ['off', 'low', 'medium', 'high', 'heavy'];
+  const THINKING_META = {
+    off: { label: 'Off', hint: 'Never send think= — any model is OK' },
+    low: { label: 'Low', hint: 'Low effort, fast/cheap single worker' },
+    medium: { label: 'Medium', hint: 'Balanced auto route (single worker)' },
+    high: { label: 'High', hint: 'High effort, best single thinking model' },
+    heavy: {
+      label: 'Heavy',
+      hint: 'High effort + 4-agent ensemble (Explorer/Analyst/Builder → Skeptic)',
+    },
+  };
+
+  function normalizeThinking(value) {
+    const raw = String(value || '')
+      .trim()
+      .toLowerCase();
+    if (raw === 'light') return 'low';
+    if (raw === 'think-off' || raw === 'disabled' || raw === 'none') return 'off';
+    if (THINKING_CYCLE.indexOf(raw) >= 0) return raw;
+    return 'high';
+  }
+
+  function nextThinking(mode) {
+    const cur = normalizeThinking(mode);
+    const idx = THINKING_CYCLE.indexOf(cur);
+    return THINKING_CYCLE[(idx + 1) % THINKING_CYCLE.length];
+  }
+
+  function syncThinkChip() {
+    const mode = normalizeThinking(thinkingMode);
+    thinkingMode = mode;
+    const meta = THINKING_META[mode] || THINKING_META.high;
+    if (el.thinkBtnLabel) el.thinkBtnLabel.textContent = meta.label;
+    if (el.thinkBtn) {
+      el.thinkBtn.className = 'think-chip think-' + mode;
+      el.thinkBtn.title = 'Thinking ' + meta.label + ' — ' + meta.hint + ' (click to cycle)';
+      el.thinkBtn.setAttribute(
+        'aria-label',
+        'Thinking ' + meta.label + '. Click to cycle.',
+      );
     }
-    return tags;
+  }
+
+  function modelTagsFor(id, label, family) {
+    const fam = String(family || '').toLowerCase();
+    if (fam === 'qwen') return ['Qwen'];
+    if (fam === 'gemma') return ['Gemma'];
+    if (fam === 'gpt-oss') return ['gpt-oss'];
+    if (fam === 'mistral') return ['Mistral'];
+    if (fam === 'llama') return ['Llama'];
+    if (fam === 'nemotron') return ['Nemotron'];
+    if (fam === 'codestral') return ['FIM'];
+    if (fam === 'auto') return ['Auto'];
+    const s = ((label || '') + ' ' + (id || '')).toLowerCase();
+    if (/qwen/.test(s)) return ['Qwen'];
+    if (/gemma/.test(s)) return ['Gemma'];
+    if (/gpt-oss/.test(s)) return ['gpt-oss'];
+    if (id === 'spockify-auto' || /auto/.test(s)) return ['Auto'];
+    return [];
   }
 
   function closePopovers() {
@@ -2080,6 +2132,7 @@
     if (el.maxToggle) {
       el.maxToggle.setAttribute('aria-checked', maxMode ? 'true' : 'false');
     }
+    syncThinkChip();
     syncPermChip();
     if (el.model) el.model.value = selectedModelId;
   }
@@ -2106,11 +2159,16 @@
       btn.type = 'button';
       btn.className = 'model-row';
       btn.setAttribute('role', 'option');
-      const tags = modelTagsFor(m.id, m.label);
+      const tags = modelTagsFor(m.id, m.label, m.family);
       const isNew = idx === 0 && /new|latest|4\.5|5\./i.test(m.label || m.id);
       const selected = !autoModel && m.id === selectedModelId;
+      const qwenMark =
+        (m.family || '').toLowerCase() === 'qwen'
+          ? '<span class="model-family-mark model-family-qwen" aria-hidden="true">Q</span>'
+          : '';
       btn.innerHTML =
         '<span class="model-row-name">' +
+        qwenMark +
         (m.label || m.id) +
         '</span>' +
         (tags.length
@@ -2306,6 +2364,9 @@
     if (!prefs) return;
     if (typeof prefs.auto === 'boolean') autoModel = prefs.auto;
     if (typeof prefs.maxMode === 'boolean') maxMode = prefs.maxMode;
+    if (typeof prefs.thinking === 'string') {
+      thinkingMode = normalizeThinking(prefs.thinking);
+    }
     if (typeof prefs.agentPermissionMode === 'string') {
       agentPermissionMode = prefs.agentPermissionMode;
     } else if (typeof prefs.runAllUnsandboxed === 'boolean') {
@@ -4204,6 +4265,14 @@
       maxMode = next;
       syncModelChip();
       vscode.postMessage({ type: 'setMaxMode', enabled: next });
+    });
+  }
+  if (el.thinkBtn) {
+    el.thinkBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      thinkingMode = nextThinking(thinkingMode);
+      syncThinkChip();
+      vscode.postMessage({ type: 'setThinkingMode', mode: thinkingMode });
     });
   }
   if (el.addModelsBtn) {

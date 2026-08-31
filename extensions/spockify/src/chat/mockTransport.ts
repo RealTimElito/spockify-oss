@@ -12,15 +12,10 @@ import type {
   ModelInfo,
 } from './types';
 import { textFromContent } from './chatContent';
+import { mergePickerModels } from './modelCatalog';
 
 /** Built-in OSS catalog when remote list is empty / unavailable. */
-export const MOCK_OSS_MODELS: ModelInfo[] = [
-  { id: 'spockify-auto', label: 'spockify-auto (orchestrator)', oss: true },
-  { id: 'codestral', label: 'codestral', oss: true },
-  { id: 'gpt-oss-120b', label: 'gpt-oss-120b', oss: true },
-  { id: 'spockify-agents', label: 'spockify-agents', oss: true },
-  { id: 'web-gemma', label: 'web-gemma', oss: true },
-];
+export const MOCK_OSS_MODELS: ModelInfo[] = mergePickerModels([]);
 
 /** Deterministic fake stream for UI plumbing without network. */
 async function* mockStream(
@@ -49,7 +44,6 @@ function delay(ms: number): Promise<void> {
 
 export class MockChatTransport implements ChatModelTransport {
   async listModels(): Promise<ModelInfo[]> {
-    // TODO(WS-E): Filter via packages/spockify-oss-models once available.
     return MOCK_OSS_MODELS.filter((m) => m.oss !== false);
   }
 

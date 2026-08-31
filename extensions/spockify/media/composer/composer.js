@@ -18,10 +18,39 @@
     newSession: document.getElementById('newSession'),
     model: document.getElementById('model'),
     agentMode: document.getElementById('agentMode'),
+    thinkBtn: document.getElementById('thinkBtn'),
     ctxChips: document.querySelectorAll('.ctx-chip'),
   };
 
   let busy = false;
+  let thinkingMode = 'high';
+  const THINKING_CYCLE = ['off', 'low', 'medium', 'high', 'heavy'];
+  const THINKING_META = {
+    off: { label: 'Off', hint: 'Never send think=' },
+    low: { label: 'Low', hint: 'Low effort' },
+    medium: { label: 'Medium', hint: 'Balanced' },
+    high: { label: 'High', hint: 'High effort (Agent default)' },
+    heavy: { label: 'Heavy', hint: 'High + 4-agent ensemble' },
+  };
+
+  function normalizeThinking(value) {
+    const raw = String(value || '')
+      .trim()
+      .toLowerCase();
+    if (raw === 'light') return 'low';
+    if (THINKING_CYCLE.indexOf(raw) >= 0) return raw;
+    return 'high';
+  }
+
+  function syncThinkChip() {
+    const mode = normalizeThinking(thinkingMode);
+    thinkingMode = mode;
+    const meta = THINKING_META[mode] || THINKING_META.high;
+    if (!el.thinkBtn) return;
+    el.thinkBtn.textContent = meta.label;
+    el.thinkBtn.className = 'think-chip think-' + mode;
+    el.thinkBtn.title = 'Thinking ' + meta.label + ' — ' + meta.hint + ' (click to cycle)';
+  }
   let assistantNode = null;
   let assistantRaw = '';
   let pendingDelta = '';
@@ -466,6 +495,14 @@
   el.newSession.addEventListener('click', function () {
     vscode.postMessage({ type: 'newSession' });
   });
+  if (el.thinkBtn) {
+    el.thinkBtn.addEventListener('click', function () {
+      const idx = THINKING_CYCLE.indexOf(normalizeThinking(thinkingMode));
+      thinkingMode = THINKING_CYCLE[(idx + 1) % THINKING_CYCLE.length];
+      syncThinkChip();
+      vscode.postMessage({ type: 'setThinkingMode', mode: thinkingMode });
+    });
+  }
   el.acceptAll.addEventListener('click', function () {
     vscode.postMessage({ type: 'acceptAll' });
   });
@@ -515,7 +552,15 @@
         if (msg.agentMode && el.agentMode) {
           el.agentMode.value = msg.agentMode;
         }
+        if (msg.thinking) {
+          thinkingMode = normalizeThinking(msg.thinking);
+          syncThinkChip();
+        }
         if (!el.log.children.length) showEmpty();
+        break;
+      case 'thinking':
+        thinkingMode = normalizeThinking(msg.mode);
+        syncThinkChip();
         break;
       case 'status':
         setStatus(msg.text || '');

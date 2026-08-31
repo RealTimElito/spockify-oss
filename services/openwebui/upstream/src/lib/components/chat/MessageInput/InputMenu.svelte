@@ -34,8 +34,6 @@
 	} from '$lib/utils/composerModes';
 	import {
 		THINKING_MODE_META,
-		nextThinkingMode,
-		normalizeThinkingMode,
 		type ThinkingMode
 	} from '$lib/utils/thinkingModes';
 
@@ -62,10 +60,15 @@
 	export let onComposerModeChange: (mode: ComposerUiMode) => void = () => {};
 	export let onParallelAgentsChange: (on: boolean) => void = () => {};
 
-	/** Light / Medium / Heavy — mobile + menu when Spockify auto/agents selected. */
+	/** Off / Low / Medium / High / Heavy — menu picker when Spockify auto. */
 	export let showThinkingModes = false;
 	export let spockifyThinking: ThinkingMode = 'medium';
 	export let onSpockifyThinkingChange: (mode: ThinkingMode) => void = () => {};
+
+	/** Local-only privacy — + menu so it does not occupy the chat bar. */
+	export let showPrivacyMode = false;
+	export let spockifyPrivacyMode = false;
+	export let onSpockifyPrivacyModeChange: (on: boolean) => void = () => {};
 
 	$: composerModeId = normalizeComposerUiMode(composerMode);
 
@@ -423,13 +426,60 @@
 						{/each}
 					{/if}
 
+					{#if showPrivacyMode}
+						<div
+							class="my-1 mx-2 border-t border-gray-100 dark:border-gray-800"
+							aria-hidden="true"
+						></div>
+						<button
+							type="button"
+							class="flex w-full gap-2 items-center px-3 py-1.5 text-sm select-none cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl {spockifyPrivacyMode
+								? 'bg-gray-50 dark:bg-gray-800/60'
+								: ''}"
+							aria-pressed={spockifyPrivacyMode}
+							aria-label="Local-only privacy mode"
+							on:click={() => {
+								const next = !spockifyPrivacyMode;
+								spockifyPrivacyMode = next;
+								onSpockifyPrivacyModeChange(next);
+							}}
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								class="size-4 shrink-0 {spockifyPrivacyMode
+									? 'text-emerald-600 dark:text-emerald-300'
+									: 'text-gray-500'}"
+								aria-hidden="true"
+							>
+								<path
+									fill-rule="evenodd"
+									d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z"
+									clip-rule="evenodd"
+								/>
+							</svg>
+							<div class="flex flex-col items-start min-w-0">
+								<span class="line-clamp-1 font-medium"
+									>{spockifyPrivacyMode ? 'Local-only on' : 'Local-only'}</span
+								>
+								<span class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2"
+									>Web search off, spend UI hidden</span
+								>
+							</div>
+							{#if spockifyPrivacyMode}
+								<span class="ml-auto text-xs text-gray-400" aria-hidden="true">✓</span>
+							{/if}
+						</button>
+					{/if}
+
 					{#if showThinkingModes}
 						<div
 							class="my-1 mx-2 border-t border-gray-100 dark:border-gray-800"
 							aria-hidden="true"
 						></div>
 						<div class="px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
-							Thinking depth
+							Thinking
 						</div>
 						{#each THINKING_MODE_META as m (m.id)}
 							<button

@@ -191,10 +191,13 @@ const DENY_PREFIXES = [
   'anthropic',
   'gemini-',
   'copilot',
+  'kimi',
+  'mimo',
 ];
 const ALLOW_PREFIXES = [
   'spockify-',
   'gpt-oss-',
+  'gpt-oss:',
   'codestral',
   'web-codestral',
   'web-gemma',
@@ -204,9 +207,14 @@ const ALLOW_PREFIXES = [
   'llama',
   'mistral',
   'mixtral',
+  'magistral',
+  'ministral',
+  'mathstral',
+  'devstral',
+  'nemotron',
   'qwen',
-  'deepseek',
-  'phi-',
+  'phi',
+  'llava',
   'starcoder',
   'codellama',
   'ollama/',
@@ -214,7 +222,7 @@ const ALLOW_PREFIXES = [
 
 function isDenied(id: string): boolean {
   const n = id.toLowerCase();
-  if (n.startsWith('gpt-oss-')) return false;
+  if (n.startsWith('gpt-oss-') || n.startsWith('gpt-oss:')) return false;
   return DENY_PREFIXES.some((p) => n === p || n.startsWith(p));
 }
 
@@ -234,6 +242,50 @@ export function filterModelsOss(
     if (!ossOnly) return true;
     return isAllowed(m.id);
   });
+}
+
+const THINKING_MODES = new Set(['off', 'low', 'medium', 'high', 'heavy']);
+const THINKING_MARKER_ONLY_RE =
+  /^\s*\[spockify_thinking:(off|low|light|medium|high|heavy)\]\s*$/i;
+
+function normalizeThinkingMode(raw: unknown): string | undefined {
+  const s = String(raw ?? '')
+    .trim()
+    .toLowerCase();
+  if (s === 'light') return 'low';
+  if (THINKING_MODES.has(s)) return s;
+  return undefined;
+}
+
+function applyThinkingToRequest(request: ChatCompletionsRequest): {
+  payload: ChatCompletionsRequest;
+  headers: Record<string, string>;
+} {
+  const mode = normalizeThinkingMode(request.spockify_thinking);
+  if (!mode) {
+    return { payload: request, headers: {} };
+  }
+  const messages = Array.isArray(request.messages) ? [...request.messages] : [];
+  const cleaned = messages.filter((m) => {
+    if (m.role !== 'system' || typeof m.content !== 'string') return true;
+    return !THINKING_MARKER_ONLY_RE.test(m.content);
+  });
+  cleaned.unshift({
+    role: 'system',
+    content: `[spockify_thinking:${mode}]`,
+  });
+  return {
+    payload: {
+      ...request,
+      messages: cleaned,
+      spockify_thinking: mode,
+      spockify_think_enabled: mode !== 'off',
+    },
+    headers: {
+      'X-Spockify-Thinking': mode,
+      'X-Spockify-Think-Enabled': mode === 'off' ? '0' : '1',
+    },
+  };
 }
 
 /**
@@ -316,10 +368,11 @@ export class RemoteSpockifyProvider implements ModelTransport {
   async chatCompletions(
     request: ChatCompletionsRequest,
   ): Promise<ChatCompletionsResponse> {
-    const payload = { ...request, stream: false };
+    const { payload, headers } = applyThinkingToRequest(request);
     return this.http.request<ChatCompletionsResponse>(this.chatPath, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      headers,
+      body: JSON.stringify({ ...payload, stream: false }),
     });
   }
 
@@ -327,10 +380,12 @@ export class RemoteSpockifyProvider implements ModelTransport {
     request: ChatCompletionsRequest,
     signal?: AbortSignal,
   ): AsyncIterable<ChatStreamChunk> {
+    const { payload: thinkReq, headers: thinkHeaders } =
+      applyThinkingToRequest(request);
     // LiteLLM strips orchestrator SSE/HUD on stream; non-stream keeps
     // spockify_worker. For auto/room/agents, fetch once then emit as a stream.
-    if (wantsWorkerMetadata(request.model)) {
-      const full = await this.chatCompletions({ ...request, stream: false });
+    if (wantsWorkerMetadata(thinkReq.model)) {
+      const full = await this.chatCompletions({ ...thinkReq, stream: false });
       if (!full || typeof full !== 'object') {
         yield {
           content: '',
@@ -343,7 +398,7 @@ export class RemoteSpockifyProvider implements ModelTransport {
       const textStr = messageContentToString(choice?.message?.content);
       const workerModel =
         extractSpockifyWorker(full as unknown as Record<string, unknown>) ||
-        (full.model && full.model !== request.model ? full.model : undefined);
+        (full.model && full.model !== thinkReq.model ? full.model : undefined);
       const native = parseMessageToolCalls(choice?.message);
       if (textStr) {
         yield {
@@ -364,9 +419,10 @@ export class RemoteSpockifyProvider implements ModelTransport {
       return;
     }
 
-    const payload = { ...request, stream: true };
+    const payload = { ...thinkReq, stream: true };
     const res = await this.http.requestStream(this.chatPath, {
       method: 'POST',
+      headers: thinkHeaders,
       body: JSON.stringify(payload),
       signal,
     });
@@ -378,7 +434,7 @@ export class RemoteSpockifyProvider implements ModelTransport {
 
     if (!res.body) {
       // Fallback: non-stream
-      const full = await this.chatCompletions(request);
+      const full = await this.chatCompletions(thinkReq);
       if (!full || typeof full !== 'object') {
         yield { content: '', done: true, finishReason: 'error' };
         return;
@@ -388,7 +444,7 @@ export class RemoteSpockifyProvider implements ModelTransport {
       const workerModel =
         extractSpockifyWorker(full as unknown as Record<string, unknown>) ||
         headerWorker ||
-        (full.model && full.model !== request.model ? full.model : undefined);
+        (full.model && full.model !== thinkReq.model ? full.model : undefined);
       if (textStr) yield { content: textStr, model: full.model, workerModel };
       const native = parseMessageToolCalls(choice?.message);
       yield {

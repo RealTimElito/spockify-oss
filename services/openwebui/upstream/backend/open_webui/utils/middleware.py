@@ -3110,23 +3110,39 @@ async def process_chat_payload(request, form_data, user, metadata, model):
             extra_headers['X-Spockify-Voice'] = '1'
             form_data['extra_headers'] = extra_headers
 
-        # Thinking depth (Light / Medium / Heavy) → router resolves the effort.
+        # Thinking chip (Off / Low / Medium / High / Heavy) → router.
         thinking = str(features.get('spockify_thinking') or 'medium').strip().lower()
+        if thinking == 'light':
+            thinking = 'low'
         if model_id == 'spockify-light':
-            thinking = 'light'
+            thinking = 'low'
+        elif model_id in ('spockify-off', 'spockify-low'):
+            thinking = model_id.split('-', 1)[1]
         elif model_id == 'spockify-medium':
             thinking = 'medium'
+        elif model_id == 'spockify-high':
+            thinking = 'high'
         elif model_id == 'spockify-heavy':
             thinking = 'heavy'
-        if thinking not in ('light', 'medium', 'heavy'):
+        think_on = features.get('spockify_think_enabled')
+        if think_on is not None and str(think_on).strip().lower() in (
+            '0',
+            'false',
+            'no',
+            'off',
+        ):
+            thinking = 'off'
+        if thinking not in ('off', 'low', 'medium', 'high', 'heavy'):
             thinking = 'medium'
         metadata['spockify_thinking'] = thinking
         thinking_marker = f'[spockify_thinking:{thinking}]'
         thinking_only = re.compile(
-            r'^\s*\[spockify_thinking:(light|medium|heavy)\]\s*$', re.IGNORECASE
+            r'^\s*\[spockify_thinking:(off|low|light|medium|high|heavy)\]\s*$',
+            re.IGNORECASE,
         )
         thinking_any = re.compile(
-            r'\[spockify_thinking:(light|medium|heavy)\]', re.IGNORECASE
+            r'\[spockify_thinking:(off|low|light|medium|high|heavy)\]',
+            re.IGNORECASE,
         )
         thinking_cleaned = []
         for msg in form_data.get('messages') or []:
@@ -3152,6 +3168,9 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         if not isinstance(extra_headers, dict):
             extra_headers = {}
         extra_headers['X-Spockify-Thinking'] = thinking
+        extra_headers['X-Spockify-Think-Enabled'] = '0' if thinking == 'off' else '1'
+        form_data['spockify_think_enabled'] = thinking != 'off'
+        metadata['spockify_think_enabled'] = thinking != 'off'
         form_data['extra_headers'] = extra_headers
 
     # Wave 9.4 — forward Spockify skill pack ids to the router.
@@ -3176,7 +3195,38 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         extra_headers['X-Spockify-Role'] = str(role)
         extra_headers['X-Spockify-User-Id'] = str(getattr(user, 'id', '') or '')
         if metadata.get('message_id'):
-            extra_headers['X-Spockify-Message-Id'] = str(metadata['message_id'])
+            mid = str(metadata['message_id'])
+            extra_headers['X-Spockify-Message-Id'] = mid
+            # LiteLLM drops custom headers; embed so heavy poll can find the run.
+            mid_re = re.compile(
+                r'\[spockify_message_id:[A-Za-z0-9_-]{8,80}\]',
+                re.IGNORECASE,
+            )
+            mid_only = re.compile(
+                r'^\s*\[spockify_message_id:[A-Za-z0-9_-]{8,80}\]\s*$',
+                re.IGNORECASE,
+            )
+            mid_msgs = []
+            for msg in form_data.get('messages') or []:
+                if not isinstance(msg, dict):
+                    mid_msgs.append(msg)
+                    continue
+                content = msg.get('content')
+                if (
+                    msg.get('role') == 'system'
+                    and isinstance(content, str)
+                    and mid_only.match(content)
+                ):
+                    continue
+                if isinstance(content, str) and mid_re.search(content):
+                    msg = {**msg, 'content': mid_re.sub('', content).strip()}
+                    if msg.get('role') == 'system' and not msg['content']:
+                        continue
+                mid_msgs.append(msg)
+            mid_msgs.insert(
+                0, {'role': 'system', 'content': f'[spockify_message_id:{mid}]'}
+            )
+            form_data['messages'] = mid_msgs
         form_data['extra_headers'] = extra_headers
         metadata['spockify_role'] = role
 

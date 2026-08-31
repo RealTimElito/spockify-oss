@@ -38,6 +38,8 @@ export interface ModelInfo {
   label?: string;
   /** True when model passes OSS policy (WS-E). */
   oss?: boolean;
+  /** Catalog family (gemma / gpt-oss / qwen / …) for picker tags. */
+  family?: string;
 }
 
 export interface ChatCompletionChunk {
@@ -55,6 +57,10 @@ export interface ChatCompletionRequest {
   stream?: boolean;
   /** Cancel in-flight SSE / fallback chunking. */
   signal?: AbortSignal;
+  /** Off | low | medium | high | heavy — router chip (see thinkingModes). */
+  spockify_thinking?: string;
+  spockify_think_enabled?: boolean;
+  [key: string]: unknown;
 }
 
 /**

@@ -16,6 +16,8 @@ export const DENY_PREFIXES: readonly string[] = [
   'davinci',
   'text-davinci',
   'cursor-',
+  'kimi',
+  'mimo',
 ];
 
 /** Exact deny ids. */
@@ -38,6 +40,7 @@ export const DENY_IDS: ReadonlySet<string> = new Set([
 export const ALLOW_PREFIXES: readonly string[] = [
   'spockify-',
   'gpt-oss-',
+  'gpt-oss:',
   'codestral',
   'web-codestral',
   'web-gemma',
@@ -47,9 +50,15 @@ export const ALLOW_PREFIXES: readonly string[] = [
   'llama',
   'mistral',
   'mixtral',
+  'magistral',
+  'ministral',
+  'mathstral',
+  'devstral',
+  'nemotron',
   'qwen',
   'deepseek',
-  'phi-',
+  'phi',
+  'llava',
   'starcoder',
   'codellama',
   'command-r',
@@ -63,6 +72,16 @@ export const ALLOW_IDS: ReadonlySet<string> = new Set([
   'spockify-agents',
   'gpt-oss-20b',
   'gpt-oss-120b',
+  'gemma4-31b',
+  'gemma4-26b',
+  'gemma4-12b',
+  'qwen3.5-9b',
+  'qwen3.6-27b',
+  'qwen3.6-35b',
+  'qwen3.6-coder-27b',
+  'magistral',
+  'devstral-small-2',
+  'ministral-3-14b',
   'codestral',
   'web-codestral',
   'web-gemma',
@@ -87,7 +106,7 @@ function norm(id: string): string {
 /** True if id is explicitly denied (closed cloud). */
 export function isDeniedModel(id: string): boolean {
   const n = norm(id);
-  if (ALLOW_IDS.has(n) || n.startsWith('gpt-oss-')) {
+  if (ALLOW_IDS.has(n) || n.startsWith('gpt-oss-') || n.startsWith('gpt-oss:')) {
     return false;
   }
   if (DENY_IDS.has(n)) {

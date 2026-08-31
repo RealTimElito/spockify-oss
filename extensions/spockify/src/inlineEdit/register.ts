@@ -20,6 +20,7 @@ import {
   type InlineEditSession,
 } from './session';
 import { streamOrFetchEdit } from './streamEdit';
+import { thinkingRequestExtras } from '../chat/thinkingPrefs';
 import {
   InlineEditWidgetPanel,
   useInlineEditWidget,
@@ -284,6 +285,7 @@ async function runGhostAndPreview(
       suffix: full.slice(endOff, endOff + 2000),
       model: defaultModel(),
       signal: abort.signal,
+      requestExtras: thinkingRequestExtras(),
       onPartial: (text) => {
         streamed = true;
         schedulePaint(text);

@@ -38,6 +38,8 @@ export interface StreamEditOptions {
   suffix?: string;
   model?: string;
   signal?: AbortSignal;
+  /** Router thinking chip (passed from host so this module stays vscode-free). */
+  requestExtras?: Record<string, unknown>;
   /** Called with cleaned partial replacement (RAF-coalesce upstream). */
   onPartial?: (text: string) => void;
 }
@@ -80,6 +82,7 @@ export async function streamOrFetchEdit(
           ],
           stream: true,
           temperature: 0.2,
+          ...(opts.requestExtras || {}),
         },
         opts.signal,
       )) {

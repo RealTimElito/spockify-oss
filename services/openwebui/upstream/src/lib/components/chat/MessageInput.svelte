@@ -61,6 +61,7 @@
 	import { getTools } from '$lib/apis/tools';
 	import { getSkills } from '$lib/apis/skills';
 
+	import { metaForThinkingMode, nextThinkingMode } from '$lib/utils/thinkingModes';
 	import { WEBUI_BASE_URL, WEBUI_API_BASE_URL, PASTED_TEXT_CHARACTER_LIMIT } from '$lib/constants';
 	import { getOAuthClientAuthorizationUrl } from '$lib/apis/configs';
 
@@ -68,6 +69,7 @@
 	import { getSuggestionRenderer } from '../common/RichTextInput/suggestions';
 
 	import InputMenu from './MessageInput/InputMenu.svelte';
+	import ModelSelector from './ModelSelector.svelte';
 	import AgentsActivityBar from './MessageInput/AgentsActivityBar.svelte';
 	import VoiceRecording from './MessageInput/VoiceRecording.svelte';
 
@@ -138,12 +140,12 @@
 	$: selectedModelIds = atSelectedModel !== undefined ? [atSelectedModel.id] : selectedModels;
 
 	export let history;
-	export let taskIds = null;
+	export let taskIds = null; // Stop() still uses Chat.svelte taskIds; chrome keys off assistant.done.
 
+	$: currentTurn = history?.currentId ? history.messages[history.currentId] : null;
 	$: isActive =
-		(taskIds && taskIds.length > 0) ||
-		(history.currentId && history.messages[history.currentId]?.done != true) ||
-		generating;
+		generating ||
+		(currentTurn?.role === 'assistant' && currentTurn?.done != true);
 
 	export let prompt = '';
 	export let files = [];
@@ -160,7 +162,7 @@
 	/** Spockify router: auto (heuristics) | on (prefer search) | off (never). */
 	export let spockifySearchMode: 'auto' | 'on' | 'off' = 'auto';
 	export let onSpockifySearchModeChange: (mode: 'auto' | 'on' | 'off') => void = () => {};
-	/** Spockify thinking depth: light | medium | heavy. */
+	/** Spockify thinking chip: off | low | medium | high | heavy. */
 	export let spockifyThinking: import('$lib/utils/thinkingModes').ThinkingMode = 'medium';
 	export let onSpockifyThinkingChange: (
 		mode: import('$lib/utils/thinkingModes').ThinkingMode
@@ -601,16 +603,6 @@
 		onSpockifySearchModeChange(next);
 	};
 
-	const toggleSpockifyPrivacyMode = () => {
-		const next = !spockifyPrivacyMode;
-		spockifyPrivacyMode = next;
-		onSpockifyPrivacyModeChange(next);
-		if (next) {
-			spockifySearchMode = 'off';
-			onSpockifySearchModeChange('off');
-		}
-	};
-
 	const spockifySearchLabel = (mode: 'auto' | 'on' | 'off') =>
 		mode === 'auto' ? 'Search auto' : mode === 'on' ? 'Search on' : 'Search off';
 
@@ -619,17 +611,34 @@
 		atSelectedModel?.id ? [atSelectedModel.id] : selectedModels
 	).some((id) => id === 'spockify-auto' || id === 'spockify-agents');
 
-	const cycleSpockifyThinking = () => {
-		const order = ['light', 'medium', 'heavy'] as const;
-		const idx = order.indexOf(spockifyThinking);
-		const next = order[(idx + 1) % order.length];
-		spockifyThinking = next;
-		onSpockifyThinkingChange(next);
+	const selectSpockifyThinking = (
+		mode: import('$lib/utils/thinkingModes').ThinkingMode
+	) => {
+		spockifyThinking = mode;
+		onSpockifyThinkingChange(mode);
 	};
 
-	const spockifyThinkingLabel = (
+	const cycleSpockifyThinking = () => {
+		selectSpockifyThinking(nextThinkingMode(spockifyThinking));
+	};
+
+	const thinkingChipClass = (
 		mode: import('$lib/utils/thinkingModes').ThinkingMode
-	) => (mode === 'light' ? 'Light' : mode === 'heavy' ? 'Heavy' : 'Medium');
+	) => {
+		if (mode === 'off') {
+			return 'text-gray-500 dark:text-gray-400 bg-gray-100/80 dark:bg-gray-800/60 border border-gray-200/60 dark:border-gray-700/50';
+		}
+		if (mode === 'low') {
+			return 'text-amber-600 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-400/10 border border-amber-200/40 dark:border-amber-500/20';
+		}
+		if (mode === 'high') {
+			return 'text-indigo-600 dark:text-indigo-300 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-400/10 border border-indigo-200/40 dark:border-indigo-500/20';
+		}
+		if (mode === 'heavy') {
+			return 'text-violet-600 dark:text-violet-300 bg-violet-50 hover:bg-violet-100 dark:bg-violet-400/10 border border-violet-200/40 dark:border-violet-500/20';
+		}
+		return 'text-gray-700 dark:text-gray-200 bg-gray-100/80 dark:bg-gray-800/60 border border-gray-200/60 dark:border-gray-700/50';
+	};
 
 	let showImageGenerationButton = false;
 	$: showImageGenerationButton =
@@ -1819,6 +1828,15 @@
 							</div>
 
 							<div class=" flex justify-between mt-0.5 mb-2.5 mx-0.5 max-w-full gap-1" dir="ltr">
+								<!-- svelte-ignore a11y-no-static-element-interactions -->
+								<div
+									class="spockify-input-model-selector shrink-0 self-end"
+									on:click|stopPropagation
+									on:mousedown|stopPropagation
+									on:pointerdown|stopPropagation
+								>
+									<ModelSelector bind:selectedModels showSetDefault={false} />
+								</div>
 								<div
 									class="ml-1 self-end flex items-center flex-1 min-w-0 max-w-[min(100%,calc(100%-2.75rem))] overflow-x-auto scrollbar-none gap-0.5"
 								>
@@ -1875,8 +1893,11 @@
 										}}
 										showComposerModes={showSpockifySearchControl}
 										showThinkingModes={showSpockifyThinkingControl}
+										showPrivacyMode={showSpockifySearchControl}
 										bind:spockifyThinking
 										onSpockifyThinkingChange={onSpockifyThinkingChange}
+										bind:spockifyPrivacyMode
+										onSpockifyPrivacyModeChange={onSpockifyPrivacyModeChange}
 										bind:composerMode={spockifyComposerMode}
 										onComposerModeChange={onSpockifyComposerModeChange}
 										onParallelAgentsChange={onSpockifyParallelAgentsChange}
@@ -1895,28 +1916,8 @@
 										<div
 											class="hidden sm:flex self-center w-[1px] h-4 mx-1 bg-gray-200/50 dark:bg-gray-800/50 shrink-0"
 										/>
-										<!-- Desktop: labeled search / privacy pills -->
+										<!-- Desktop: search + thinking cycle pills -->
 										<div class="hidden sm:flex items-center gap-0.5 shrink-0">
-											<Tooltip
-												content={spockifyPrivacyMode
-													? 'Local-only: web search off, spend UI hidden'
-													: 'Local-only mode (no web search / hide spend)'}
-												placement="top"
-											>
-												<button
-													type="button"
-													aria-pressed={spockifyPrivacyMode}
-													aria-label="Local-only privacy mode"
-													on:click|preventDefault={toggleSpockifyPrivacyMode}
-													class="px-2 py-[5px] flex gap-1 items-center text-xs rounded-full transition-colors duration-300 focus:outline-hidden {spockifyPrivacyMode
-														? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-400/10 border border-emerald-200/50 dark:border-emerald-500/20'
-														: 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'}"
-												>
-													<span class="whitespace-nowrap"
-														>{spockifyPrivacyMode ? 'Local-only on' : 'Local-only'}</span
-													>
-												</button>
-											</Tooltip>
 											<Tooltip
 												content={spockifyPrivacyMode
 													? 'Privacy mode locks search off'
@@ -1946,65 +1947,23 @@
 												</button>
 											</Tooltip>
 											{#if showSpockifyThinkingControl}
-												<Tooltip
-													content={spockifyThinking === 'light'
-														? 'Thinking: Light — fast, no ensemble'
-														: spockifyThinking === 'heavy'
-															? 'Thinking: Heavy — parallel agents + critique'
-															: 'Thinking: Medium — balanced auto (default)'}
-													placement="top"
-												>
+												{@const thinkingMeta = metaForThinkingMode(spockifyThinking)}
+												<Tooltip content={`${thinkingMeta.hint} (click to cycle)`} placement="top">
 													<button
 														type="button"
-														aria-label={`Thinking ${spockifyThinkingLabel(spockifyThinking)}`}
+														aria-label={`Thinking ${thinkingMeta.label}. Click to cycle.`}
 														on:click|preventDefault={cycleSpockifyThinking}
-														class="px-2 py-[5px] flex gap-1 items-center text-xs rounded-full transition-colors duration-300 focus:outline-hidden {spockifyThinking ===
-														'heavy'
-															? 'text-violet-600 dark:text-violet-300 bg-violet-50 hover:bg-violet-100 dark:bg-violet-400/10 border border-violet-200/40 dark:border-violet-500/20'
-															: spockifyThinking === 'light'
-																? 'text-amber-600 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-400/10 border border-amber-200/40 dark:border-amber-500/20'
-																: 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'}"
+														class="px-2 py-[5px] flex gap-1 items-center text-xs rounded-full transition-colors duration-300 focus:outline-hidden {thinkingChipClass(
+															spockifyThinking
+														)}"
 													>
-														<Sparkles className="size-3.5" strokeWidth="1.75" />
-														<span class="whitespace-nowrap"
-															>{spockifyThinkingLabel(spockifyThinking)}</span
-														>
+														<span class="whitespace-nowrap">{thinkingMeta.label}</span>
 													</button>
 												</Tooltip>
 											{/if}
 										</div>
-										<!-- Mobile: icon-only search + privacy -->
+										<!-- Mobile: icon-only search + thinking cycle -->
 										<div class="flex sm:hidden items-center shrink-0">
-											<Tooltip
-												content={spockifyPrivacyMode
-													? 'Local-only on (tap to disable)'
-													: 'Local-only mode'}
-												placement="top"
-											>
-												<button
-													type="button"
-													aria-pressed={spockifyPrivacyMode}
-													aria-label="Local-only privacy mode"
-													on:click|preventDefault={toggleSpockifyPrivacyMode}
-													class="rounded-full size-10 flex justify-center items-center outline-hidden focus:outline-hidden {spockifyPrivacyMode
-														? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-400/10'
-														: 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}"
-												>
-													<svg
-														xmlns="http://www.w3.org/2000/svg"
-														viewBox="0 0 20 20"
-														fill="currentColor"
-														class="size-5"
-														aria-hidden="true"
-													>
-														<path
-															fill-rule="evenodd"
-															d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z"
-															clip-rule="evenodd"
-														/>
-													</svg>
-												</button>
-											</Tooltip>
 											<Tooltip
 												content={spockifyPrivacyMode
 													? 'Privacy mode locks search off'
@@ -2030,6 +1989,21 @@
 													<GlobeAlt className="size-5" strokeWidth="1.75" />
 												</button>
 											</Tooltip>
+											{#if showSpockifyThinkingControl}
+												{@const thinkingMeta = metaForThinkingMode(spockifyThinking)}
+												<Tooltip content={`${thinkingMeta.hint} (tap to cycle)`} placement="top">
+													<button
+														type="button"
+														aria-label={`Thinking ${thinkingMeta.label}. Tap to cycle.`}
+														on:click|preventDefault={cycleSpockifyThinking}
+														class="px-2 py-[5px] flex gap-1 items-center text-xs rounded-full transition-colors duration-300 focus:outline-hidden {thinkingChipClass(
+															spockifyThinking
+														)}"
+													>
+														<span class="whitespace-nowrap">{thinkingMeta.label}</span>
+													</button>
+												</Tooltip>
+											{/if}
 										</div>
 									{/if}
 

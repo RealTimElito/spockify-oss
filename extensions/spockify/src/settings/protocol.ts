@@ -69,6 +69,7 @@ export interface SettingsSnapshot {
   runAllUnsandboxed: boolean;
   agentPermissionMode: string;
   chatMaxMode: boolean;
+  chatThinking: string;
   chatAttachTerminal: boolean;
   completionsEnabled: boolean;
   terminalPolicy: string;
