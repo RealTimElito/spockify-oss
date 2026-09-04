@@ -25,6 +25,9 @@ cp "${ROOT}/docker/litellm.yaml" "${STAGE}/"
 cp "${ROOT}/docker/searxng-settings.yml" "${STAGE}/"
 cp "${ROOT}/docker/routing-rules.json" "${STAGE}/"
 cp "${ROOT}/docker/postgres-init/01-create-litellm.sql" "${STAGE}/postgres-init/"
+mkdir -p "${STAGE}/modelfiles"
+cp "${ROOT}/config/modelfiles/coder.Modelfile" "${STAGE}/modelfiles/"
+cp "${ROOT}/config/modelfiles/devstral-16g.Modelfile" "${STAGE}/modelfiles/"
 cp "${ROOT}/config/orchestrator-prompt.md" "${STAGE}/"
 cp "${ROOT}/docker/README.md" "${STAGE}/README.md"
 cp "${ROOT}/docker/run.sh" "${STAGE}/run.sh"
@@ -52,9 +55,10 @@ POSTGRES_INIT=./postgres-init
 SPOCKIFY_ROUTER_IMAGE=${ROUTER_IMAGE}
 SPOCKIFY_OPENWEBUI_IMAGE=${OWUI_IMAGE}
 
-# Pulled automatically on compose up (~2 GiB). Space-separated.
-OLLAMA_PULL_MODELS=llama3.2:3b
+# Pulled automatically on compose up (~42 GiB first time). Space-separated.
+OLLAMA_PULL_MODELS=llama3.2:3b llama3.1:8b gemma4:12b codestral devstral-small-2
 OLLAMA_PULL_SCRIPT=./ollama-pull.sh
+OLLAMA_MODELFILES=./modelfiles
 EOF
 
 cat > "${STAGE}/IMAGES.txt" <<EOF

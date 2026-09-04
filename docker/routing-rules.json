@@ -1,8 +1,8 @@
 {
-  "version": "oss-1",
+  "version": "oss-2",
   "orchestrator": {
     "primary": "llama3.2:3b",
-    "fallback": "llama3.2:3b",
+    "fallback": "llama3.1:8b",
     "alias": "spockify-auto"
   },
   "backends": {
@@ -16,5 +16,37 @@
     "internal_url": "http://searxng:8080",
     "fast_mode": true
   },
-  "task_routes": []
+  "task_routes": [
+    {
+      "task_type": "casual_chat",
+      "patterns": ["hello", "hi ", "hey", "how are you", "good morning", "good evening", "what's up", "thanks", "thank you", "greetings"],
+      "model": "llama3.2-3b",
+      "confidence": 0.92
+    },
+    {
+      "task_type": "code_generation",
+      "patterns": ["write code", "implement", "refactor", "debug", "fix bug", "unit test", "python script", "typescript", "fibonacci", "write a function", "create a class"],
+      "model": "codestral",
+      "confidence": 0.9,
+      "prompt_additions": "Write complete runnable code. No outlines or refusals. Prefer correctness over cleverness."
+    },
+    {
+      "task_type": "code_review",
+      "patterns": ["review code", "code review", "pull request"],
+      "model": "codestral",
+      "confidence": 0.88
+    },
+    {
+      "task_type": "code_generation",
+      "patterns": ["agentic", "explore the repo", "multi-file", "edit multiple files", "software engineering agent"],
+      "model": "devstral-small-2",
+      "confidence": 0.88
+    },
+    {
+      "task_type": "web_search",
+      "patterns": ["search web", "look up", "latest version", "news today", "current events"],
+      "model": "web-gemma",
+      "confidence": 0.88
+    }
+  ]
 }

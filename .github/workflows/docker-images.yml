@@ -113,7 +113,7 @@ jobs:
 
             1. Download `spockify-docker.zip`
             2. `cp .env.example .env` (image names are pre-filled)
-            3. `docker compose up -d` (pulls llama3.2:3b automatically)
+            3. `docker compose up -d` (pulls gemma4, llamas, Codestral, Devstral Small 2)
             4. Open http://localhost:3080 and create the first admin account
 
             Images:

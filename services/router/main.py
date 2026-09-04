@@ -460,6 +460,7 @@ CODE_REQUEST_PHRASES = (
 OLLAMA_MODEL_MAP: dict[str, str] = {
     "nemotron-nano-4b": "nemotron-3-nano:4b",
     "llama3.2-3b": "llama3.2:3b",
+    "llama3.2-8b": "llama3.1:8b",
     "llama3.2-1b": "llama3.2:1b",
     "llama3.1-8b": "llama3.1:8b",
     "codestral": "spockify-coder",
@@ -7033,7 +7034,7 @@ def _read_meminfo_bytes() -> dict[str, Any]:
     return {
         "ok": True,
         "source": "proc_meminfo",
-        "note": "Pod/cgroup view; unified-memory hosts may differ from this reading.",
+        "note": "Pod/cgroup view; unified-memory hardware unified memory may differ on the host.",
         "total_bytes": total,
         "available_bytes": available,
         "used_bytes": used,
@@ -7163,7 +7164,7 @@ async def _probe_federation_peers(client: httpx.AsyncClient) -> list[dict[str, A
 
 @app.get("/spockify/status")
 async def spockify_status() -> dict[str, Any]:
-    """Read-only cluster health: Ollama loaded models, ComfyUI, free RAM/GPU."""
+    """Read-only the host health: Ollama loaded models, ComfyUI, free RAM/GPU."""
     async with httpx.AsyncClient() as client:
         ollama = await _probe_ollama(client)
         comfyui = await _probe_comfyui(client)
@@ -7172,7 +7173,7 @@ async def spockify_status() -> dict[str, Any]:
     gpu: dict[str, Any] = {
         "source": None,
         "devices": [],
-        "note": "Unified-memory hosts share RAM/VRAM; prefer ComfyUI device stats when up.",
+        "note": "unified-memory hardware uses unified memory; prefer ComfyUI device stats when up.",
     }
     if comfyui.get("up") and comfyui.get("devices"):
         gpu["source"] = "comfyui_system_stats"

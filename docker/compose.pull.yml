@@ -61,9 +61,10 @@ services:
     restart: "no"
     environment:
       OLLAMA_HOST: http://ollama:11434
-      OLLAMA_PULL_MODELS: ${OLLAMA_PULL_MODELS:-llama3.2:3b}
+      OLLAMA_PULL_MODELS: ${OLLAMA_PULL_MODELS:-llama3.2:3b llama3.1:8b gemma4:12b codestral devstral-small-2}
     volumes:
       - ${OLLAMA_PULL_SCRIPT:-./ollama-pull.sh}:/ollama-pull.sh:ro,z
+      - ${OLLAMA_MODELFILES:-./modelfiles}:/modelfiles:ro,z
     entrypoint: ["/bin/sh"]
     command: ["/ollama-pull.sh"]
     depends_on:
@@ -100,7 +101,21 @@ services:
       OLLAMA_URL: http://ollama:11434
       USE_DIRECT_OLLAMA: "true"
       ORCHESTRATOR_MODEL: llama3.2-3b
-      ORCHESTRATOR_FALLBACK: llama3.2-3b
+      ORCHESTRATOR_FALLBACK: llama3.1-8b
+      DEFAULT_CHAT_WORKER: gemma4-12b
+      DEFAULT_CHAT_FALLBACK: llama3.1-8b
+      LIGHT_CHAT_WORKER: llama3.1-8b
+      QUALITY_CHAT_WORKER: gemma4-12b
+      DEFAULT_VISION_WORKER: gemma4-12b
+      DEFAULT_WEB_WORKER: web-gemma
+      WEB_WORKER_FALLBACK: web-llama
+      ROOM_CODER_WORKER: codestral
+      COMMIT_MESSAGE_WORKER: codestral
+      HEAVY_WORKER_MODELS: gemma4-12b,llama3.1-8b,codestral,gemma4-12b
+      HEAVY_SYNTH_MODEL: gemma4-12b
+      GHOST_FIM_BACKEND: ollama
+      GHOST_OLLAMA_FIM_MODEL: codestral
+      GHOST_COMPLETE_MODEL: codestral
       USE_COMPACT_ORCHESTRATOR_PROMPT: "true"
       PREWARM_ON_STARTUP: "false"
       PLAYWRIGHT_LOCAL: "0"

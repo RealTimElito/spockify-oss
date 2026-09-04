@@ -1,7 +1,7 @@
-"""Single source of truth for local chat models.
+"""Single source of truth for local the host chat models.
 
 Imported by the router, parallel-agent planner, and tests. Keep aliases in
-sync with OLLAMA_MODEL_MAP / pull-models.sh local + Qwen sets.
+sync with OLLAMA_MODEL_MAP / pull-models.sh the host + Qwen sets.
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ class ChatModel:
     web_alias: bool = False
 
 
-# Local chat models actually pulled locally (plus web-* wrappers).
+# Local chat models actually pulled on the host (plus web-* wrappers).
 # Do not list cloud-only / excluded families (DeepSeek, Kimi cloud).
 _MODELS: tuple[ChatModel, ...] = (
     ChatModel(
@@ -465,6 +465,7 @@ _EXPLICIT_FAMILY_SPECS: tuple[tuple[str, str], ...] = (
     (r"gemma4?[\s\-]?12b", "gemma4-12b"),
     (r"gemma4?|gemma", "gemma4-12b"),
     (r"magistral(?:[\s\-]?24b)?", "magistral"),
+    (r"llama\s*3\.2[\s\-:]*8b", "llama3.1-8b"),
     (r"llama3?\.?3(?:[\s\-]?70b)?", "llama3.3-70b"),
     (r"llama3?\.?1(?:[\s\-]?8b)?", "llama3.1-8b"),
     (r"llama3?\.?2(?:[\s\-]?3b)?", "llama3.2-3b"),

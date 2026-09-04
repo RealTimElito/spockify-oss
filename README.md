@@ -24,12 +24,13 @@ are the tested distros. A GPU is optional (CPU works for small models).
 ```bash
 git clone <your-fork-url> spockify && cd spockify
 cp .env.example .env        # then edit the secrets
-./docker/run.sh             # builds, starts, and pulls llama3.2:3b (~2 GiB)
+./docker/run.sh             # builds, starts, pulls chat + Tab + Devstral Small 2
 ```
 
-Or `docker compose up -d --build` — same model pull happens automatically.
-Extra tags: `OLLAMA_PULL_MODELS` in `.env` (and a matching `docker/litellm.yaml`
-entry). Full guide: [docker/README.md](docker/README.md).
+Or `docker compose up -d --build` — same model pull happens automatically
+(~42 GiB first time: llama3.2:3b, llama3.1:8b, gemma4:12b, codestral,
+devstral-small-2 with 8k ctx for 16 GiB GPUs). Extra tags: `OLLAMA_PULL_MODELS`
+in `.env`. Full guide: [docker/README.md](docker/README.md).
 
 Create the first admin at http://localhost:3080, then set `ENABLE_SIGNUP=false`
 and `docker compose up -d` again.

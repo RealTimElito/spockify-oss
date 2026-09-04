@@ -29,6 +29,10 @@ if you drop one in). `run.sh` picks Docker vs Podman, X11 vs Wayland, and
 
 Open a repo: `SPOCKIFY_WORKSPACE=~/src/myapp ./docker/ide/run.sh`
 
+For Tab completions against the compose stack, set IDE
+`spockify.baseUrl` to `http://localhost:3080` (after `./docker/run.sh`).
+The compose stack pulls **Codestral** for Ghost FIM.
+
 ## Distrobox (often better on Fedora GNOME)
 
 Raw Docker GUI pass-through is fiddly. Distrobox is the usual Fedora way to run

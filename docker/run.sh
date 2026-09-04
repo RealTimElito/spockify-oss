@@ -18,7 +18,8 @@ usage() {
 Usage: ./docker/run.sh [up|down|logs|pull-model|status] [--gpu]
 
   up          Build (if source is present) and start the stack (default).
-              Also downloads OLLAMA_PULL_MODELS (default: llama3.2:3b).
+              Also downloads OLLAMA_PULL_MODELS
+              (default: llama3.2:3b llama3.1:8b gemma4:12b codestral devstral-small-2).
   down        Stop containers (keeps ./data)
   logs        Follow all service logs
   pull-model  Re-run the model pull (same tags as up)
@@ -108,7 +109,7 @@ case "${CMD}" in
     echo
     echo "Chat UI:  http://localhost:${SPOCKIFY_CHAT_PORT:-3080}"
     echo "API:      http://localhost:${SPOCKIFY_API_PORT:-4000}/v1"
-    echo "Models:   ${OLLAMA_PULL_MODELS:-llama3.2:3b} (pulled on startup; extra tags via OLLAMA_PULL_MODELS)"
+    echo "Models:   ${OLLAMA_PULL_MODELS:-llama3.2:3b llama3.1:8b gemma4:12b codestral devstral-small-2}"
     echo "Open the UI and create the first admin account."
     ;;
   down)

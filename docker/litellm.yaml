@@ -1,5 +1,5 @@
 # LiteLLM — OSS / docker-compose. spockify-auto is the router, not a raw Ollama tag.
-# Add more ollama_chat/ models as you `ollama pull` them.
+# Default pull: llama3.2:3b, llama3.1:8b, gemma4:12b, codestral, devstral-small-2.
 
 model_list:
   - model_name: llama3.2-3b
@@ -7,6 +7,42 @@ model_list:
       model: ollama_chat/llama3.2:3b
       api_base: http://ollama:11434
       timeout: 120
+
+  - model_name: llama3.1-8b
+    litellm_params:
+      model: ollama_chat/llama3.1:8b
+      api_base: http://ollama:11434
+      timeout: 180
+
+  - model_name: llama3.2-8b
+    litellm_params:
+      model: ollama_chat/llama3.1:8b
+      api_base: http://ollama:11434
+      timeout: 180
+    model_info:
+      description: "Alias — Llama 3.2 has no 8B; this is llama3.1:8b"
+
+  - model_name: gemma4-12b
+    litellm_params:
+      model: ollama_chat/gemma4:12b
+      api_base: http://ollama:11434
+      timeout: 180
+
+  - model_name: codestral
+    litellm_params:
+      model: ollama_chat/codestral
+      api_base: http://ollama:11434
+      timeout: 300
+    model_info:
+      description: "Code + IDE Tab FIM"
+
+  - model_name: devstral-small-2
+    litellm_params:
+      model: ollama_chat/devstral-small-2
+      api_base: http://ollama:11434
+      timeout: 300
+    model_info:
+      description: "Devstral Small 2 24B agentic coder (~15GB, 16GB VRAM)"
 
   - model_name: orchestrator
     litellm_params:
@@ -16,9 +52,9 @@ model_list:
 
   - model_name: orchestrator-fallback
     litellm_params:
-      model: ollama_chat/llama3.2:3b
+      model: ollama_chat/llama3.1:8b
       api_base: http://ollama:11434
-      timeout: 120
+      timeout: 180
 
   - model_name: spockify-auto
     litellm_params:

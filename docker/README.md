@@ -34,17 +34,28 @@ use the `:z` SELinux label so Fedora/RHEL can write them.
 
 ## Quick start (git clone — build)
 
-Needs Docker Engine **or** Podman, Compose v2, and ~20 GiB disk for the Open WebUI
-image build (Node + PyTorch). RAM: 16 GiB comfortable; 8 GiB is tight.
+Needs Docker Engine **or** Podman, Compose v2, and ~45 GiB disk for the first
+model pull (plus ~20 GiB if you **build** Open WebUI). RAM: 32 GiB comfortable
+for Gemma 12B + Codestral. A **16 GiB GPU** can run Devstral Small 2 (Q4, 8k
+ctx); do not expect Gemma + Codestral + Devstral all resident at once.
 
 ```bash
 cp .env.example .env          # change WEBUI_SECRET_KEY and passwords
 ./docker/run.sh               # detects docker compose vs podman
 ```
 
-`up` waits until **llama3.2:3b** (~2 GiB) is in Ollama. Extra tags: set
-`OLLAMA_PULL_MODELS` in `.env` (space-separated) and add them to
-`docker/litellm.yaml`.
+`up` waits until these Ollama tags are present (~42 GiB first time):
+
+| Tag | Role |
+|-----|------|
+| `llama3.2:3b` | Fast greetings / orchestrator |
+| `llama3.1:8b` | 8B chat (Llama 3.2 has no 8B; also aliased as `llama3.2:8b`) |
+| `gemma4:12b` | Default English chat |
+| `codestral` | Code + IDE Tab FIM |
+| `devstral-small-2` | Agentic coder (~15 GiB Q4; 8k ctx for 16 GiB VRAM) |
+
+Extra tags: `OLLAMA_PULL_MODELS` in `.env` (space-separated) and matching
+`docker/litellm.yaml` entries.
 
 Or by hand:
 
@@ -113,7 +124,7 @@ sudo firewall-cmd --add-port=3080/tcp --permanent && sudo firewall-cmd --reload
 2. Unzip, `cp .env.example .env`, fill `SPOCKIFY_ROUTER_IMAGE` and
    `SPOCKIFY_OPENWEBUI_IMAGE` (Release notes list the tags; the zip `.env.example`
    is pre-filled when packed by CI).
-3. `docker compose up -d` (no `--build`; pulls `llama3.2:3b` automatically)
+3. `docker compose up -d` (no `--build`; pulls chat + Tab models automatically)
 
 Images are published to GHCR (`ghcr.io/<github-owner>/spockify-router` and
 `spockify-openwebui`). If GHCR is blocked, build from git or load a `docker save`
@@ -202,8 +213,8 @@ laptops) build locally: `docker compose up -d --build`.
 
 ## Adding models
 
-The default pull is `llama3.2:3b` (orchestrator + chat worker). To pull more on
-every `up`:
+The default pull is `llama3.2:3b`, `llama3.1:8b`, `gemma4:12b`, `codestral`,
+and `devstral-small-2`. To pull more on every `up`:
 
 ```bash
 # .env
@@ -219,6 +230,13 @@ One-off: `./docker/run.sh pull-model` or
 
 Whisper (`base`) and other Open WebUI weights download into
 `./data/spockify/openwebui` on first voice/RAG use (`PRELOAD_MODELS=false`).
+
+## IDE Tab
+
+Compose pulls **Codestral** and the router serves native FIM (`GHOST_OLLAMA_FIM_MODEL=codestral`).
+In the desktop IDE: Settings → `spockify.baseUrl` = `http://localhost:3080`, then
+sign in with the admin account from the chat UI. Tab completions need that local
+URL (the default `https://spockify.eu` is the hosted stack).
 
 ## Backup
 
