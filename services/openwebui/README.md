@@ -2,6 +2,8 @@
 
 Custom Docker image based on [open-webui](https://github.com/open-webui/open-webui) **v0.9.6** with Spockify UX changes baked into the vendored source tree (no runtime sed or patch scripts).
 
+**Self-host on any Linux distro (Ubuntu / Fedora):** [docker/README.md](../../docker/README.md) — `docker compose up --build`, or pull GHCR images / download `spockify-docker.zip`.
+
 ## Layout
 
 ```
@@ -76,7 +78,7 @@ Postgres schema migrations still run via the `migrate-db` init container (`migra
 
 ## Speech-to-text (dictation / microphone)
 
-Server STT uses **local faster-whisper** (`AUDIO_STT_ENGINE` unset). On GPU/CPU hosts the model is **`large-v3`** (int8, CPU) with **auto language detection** (`WHISPER_LANGUAGE` unset, `WHISPER_MULTILINGUAL=true`). Weights live on the OpenWebUI PVC under `cache/whisper/models`.
+Server STT uses **local faster-whisper** (`AUDIO_STT_ENGINE` unset). On the host/the edge host the model is **`large-v3`** (int8, CPU) with **auto language detection** (`WHISPER_LANGUAGE` unset, `WHISPER_MULTILINGUAL=true`). Weights live on the OpenWebUI PVC under `cache/whisper/models`.
 
 | Setting | Value | Notes |
 |---------|-------|-------|

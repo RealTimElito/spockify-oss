@@ -1,10 +1,24 @@
 # syntax=docker/dockerfile:1
 # Spockify OpenWebUI — vendored upstream @ v0.9.6 with Spockify edits in-tree.
 ARG BUILD_HASH=spockify-dev
+# CI/downloadable builds can skip embedding Whisper/embed models (first run downloads).
+ARG PRELOAD_MODELS=true
+
+######## Branding (generated, or prebuilt PNGs in branding/) ########
+FROM python:3.12-slim-bookworm AS branding
+WORKDIR /work
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends fonts-dejavu-core && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip3 install --no-cache-dir pillow
+COPY generate_branding.py ./
+COPY branding/ ./prebuilt/
+RUN python3 generate_branding.py --prebuilt /work/prebuilt --out /out
 
 ######## Frontend build ########
 FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS frontend-build
 ARG BUILD_HASH
+ARG NODE_MAX_OLD_SPACE=8192
 
 WORKDIR /src
 COPY upstream/ upstream/
@@ -12,13 +26,11 @@ COPY upstream/ upstream/
 WORKDIR /src/upstream
 RUN npm ci --force
 ENV APP_BUILD_HASH=${BUILD_HASH}
-# Vite/Svelte build needs headroom on aarch64 builds (default ~2GB OOMs).
-ENV NODE_OPTIONS="--max-old-space-size=8192"
+ENV NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE}"
 RUN npm run build
 
-# Spockify branding (generated before docker build — see scripts/build-openwebui.sh)
-COPY branding/ /branding/
-RUN cp -f /branding/* /src/upstream/build/static/ && \
+COPY --from=branding /out/ /branding/
+RUN cp -a /branding/. /src/upstream/build/static/ && \
     cp -f /branding/favicon.ico /src/upstream/build/favicon.ico && \
     cp -f /branding/favicon.png /src/upstream/build/favicon.png
 
@@ -59,17 +71,23 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=frontend-build /src/upstream/backend/requirements.txt ./requirements.txt
+ARG PRELOAD_MODELS=true
 ENV UV_LINK_MODE=copy
 RUN pip3 install --no-cache-dir uv && \
     pip3 install 'torch<=2.9.1' torchvision torchaudio \
       --index-url https://download.pytorch.org/whl/cpu --no-cache-dir && \
     uv pip install --system -r requirements.txt --no-cache-dir && \
-    python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')" && \
-    python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['AUXILIARY_EMBEDDING_MODEL'], device='cpu')" && \
-    python -c "import os; from faster_whisper import WhisperModel; WhisperModel(os.environ['WHISPER_MODEL'], device='cpu', compute_type='int8', download_root=os.environ['WHISPER_MODEL_DIR'])" && \
-    python -c "import os; import tiktoken; tiktoken.get_encoding(os.environ['TIKTOKEN_ENCODING_NAME'])" && \
-    python -c "import nltk; nltk.download('punkt_tab')" && \
-    mkdir -p /app/backend/data
+    mkdir -p /app/backend/data && \
+    if [ "${PRELOAD_MODELS}" = "true" ]; then \
+      python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')" && \
+      python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['AUXILIARY_EMBEDDING_MODEL'], device='cpu')" && \
+      python -c "import os; from faster_whisper import WhisperModel; WhisperModel(os.environ['WHISPER_MODEL'], device='cpu', compute_type='int8', download_root=os.environ['WHISPER_MODEL_DIR'])" && \
+      python -c "import os; import tiktoken; tiktoken.get_encoding(os.environ['TIKTOKEN_ENCODING_NAME'])" && \
+      python -c "import nltk; nltk.download('punkt_tab')"; \
+    else \
+      python -c "import nltk; nltk.download('punkt_tab')" && \
+      echo "PRELOAD_MODELS=false: Whisper/embed weights download on first use"; \
+    fi
 
 # Spockify: Microsoft Edge neural TTS (no API key) for Swedish/English fallback
 RUN pip3 install --no-cache-dir 'edge-tts>=6.1.0' && python -c "import edge_tts"

@@ -1,6 +1,7 @@
 # =============================================================================
-# Spockify — root .gitignore
-# Keep secrets, build artifacts, vendor blobs, and large binaries out of git.
+# Spockify / agentHub — root .gitignore
+# Keep secrets, build artifacts, vendor blobs, and large binaries out of git
+# before `git init` / first push.
 # =============================================================================
 
 # --- Secrets & local env ------------------------------------------------------
@@ -74,9 +75,14 @@ pnpm-debug.log*
 .nuxt/
 coverage/
 
-# --- Local data / runtime state ----------------------------------------------
-data/
-/data/spockify/
+# --- OpenWebUI branding (local overlays) --------------------------------------
+services/openwebui/branding/*
+!services/openwebui/branding/.gitkeep
+!services/openwebui/branding/.gitignore
+
+# --- LiteLLM local config overrides -------------------------------------------
+k8s/litellm/config/*
+!k8s/litellm/config/.gitkeep
 
 # --- Spockify Desktop IDE — fetched upstreams / vendor blobs ------------------
 apps/spockify-ide/vendor/code-oss/
@@ -140,6 +146,12 @@ tmp/
 temp/
 .tmp/
 .cache/
+
+# --- OSS docker kit (local data + packed releases) ----------------------------
+/data/
+/dist/
+docker/ide/payload/*.AppImage
+
 
 # --- Tab train local artifacts (synth/distill JSONL, adapters) ---------------
 services/tab-train/data/

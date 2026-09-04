@@ -1,0 +1,16 @@
+branding/.gitkeep
+upstream/node_modules
+upstream/.git
+upstream/.github
+upstream/cypress
+upstream/test
+upstream/docs
+upstream/.svelte-kit
+upstream/.venv
+upstream/venv
+upstream/**/__pycache__
+upstream/**/*.pyc
+upstream/backend/data
+**/.DS_Store
+**/.env
+**/.env.*

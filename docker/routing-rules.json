@@ -1,0 +1,20 @@
+{
+  "version": "oss-1",
+  "orchestrator": {
+    "primary": "llama3.2:3b",
+    "fallback": "llama3.2:3b",
+    "alias": "spockify-auto"
+  },
+  "backends": {
+    "ollama": {
+      "api_base_env": "OLLAMA_URL",
+      "default": "http://ollama:11434"
+    }
+  },
+  "web_search": {
+    "provider": "searxng",
+    "internal_url": "http://searxng:8080",
+    "fast_mode": true
+  },
+  "task_routes": []
+}

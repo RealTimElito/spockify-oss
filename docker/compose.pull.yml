@@ -1,12 +1,10 @@
-# Spockify self-host stack — Ubuntu, Fedora, and other Linux distros.
-# Chat UI + router + LiteLLM + Ollama + SearXNG + Postgres.
+# Pull-only stack (GitHub Release / https://spockify.eu/downloads/spockify-docker.zip).
+# No source tree required — set image names in .env (pack-release.sh fills them).
 #
-#   cp .env.example .env    # change secrets
-#   docker compose up -d --build
+#   cp .env.example .env
+#   docker compose -f docker-compose.yml up -d
 #
-# Prebuilt images: set SPOCKIFY_*_IMAGE in .env (see docker/README.md).
-# NVIDIA GPU: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
-# SELinux/Fedora: bind mounts use :z (shared container_file_t).
+# Rebuild from git instead: clone the repo and use the root docker-compose.yml.
 
 name: spockify
 
@@ -21,13 +19,12 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - ${STORAGE_ROOT:-./data/spockify}/postgres:/var/lib/postgresql/data:z
-      - ${POSTGRES_INIT:-./docker/postgres-init}:/docker-entrypoint-initdb.d:ro,z
+      - ${POSTGRES_INIT:-./postgres-init}:/docker-entrypoint-initdb.d:ro,z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U spockify -d spockify"]
       interval: 5s
       timeout: 5s
       retries: 20
-    # Not published on the host. Break in with: docker compose exec postgres psql -U spockify
 
   searxng:
     image: docker.io/searxng/searxng:latest
@@ -36,7 +33,7 @@ services:
       SEARXNG_BASE_URL: http://localhost:8080/
       SEARXNG_SECRET: ${SEARXNG_SECRET:-change-me-searxng-secret}
     volumes:
-      - ${SEARXNG_CONFIG:-./docker/searxng-settings.yml}:/etc/searxng/settings.yml:ro,z
+      - ${SEARXNG_CONFIG:-./searxng-settings.yml}:/etc/searxng/settings.yml:ro,z
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1"]
       interval: 15s
@@ -66,7 +63,7 @@ services:
       OLLAMA_HOST: http://ollama:11434
       OLLAMA_PULL_MODELS: ${OLLAMA_PULL_MODELS:-llama3.2:3b}
     volumes:
-      - ${OLLAMA_PULL_SCRIPT:-./docker/ollama-pull.sh}:/ollama-pull.sh:ro,z
+      - ${OLLAMA_PULL_SCRIPT:-./ollama-pull.sh}:/ollama-pull.sh:ro,z
     entrypoint: ["/bin/sh"]
     command: ["/ollama-pull.sh"]
     depends_on:
@@ -80,10 +77,9 @@ services:
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-spockify-change-me}
       DATABASE_URL: postgresql://spockify:${POSTGRES_PASSWORD:-spockify-dev}@postgres:5432/litellm
-      # Separate DB from Open WebUI; schema create is safe on first boot.
       DISABLE_SCHEMA_UPDATE: "false"
     volumes:
-      - ${LITELLM_CONFIG:-./docker/litellm.yaml}:/app/config.yaml:ro,z
+      - ${LITELLM_CONFIG:-./litellm.yaml}:/app/config.yaml:ro,z
     ports:
       - "${SPOCKIFY_API_PORT:-4000}:4000"
     depends_on:
@@ -93,18 +89,9 @@ services:
         condition: service_started
       ollama-pull:
         condition: service_completed_successfully
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness')\""]
-      interval: 15s
-      timeout: 5s
-      retries: 20
-      start_period: 40s
 
   router:
-    image: ${SPOCKIFY_ROUTER_IMAGE:-spockify-router:local}
-    build:
-      context: ./services/router
-      dockerfile: Dockerfile
+    image: ${SPOCKIFY_ROUTER_IMAGE:?Set SPOCKIFY_ROUTER_IMAGE in .env — see README}
     restart: unless-stopped
     environment:
       LITELLM_URL: http://litellm:4000/v1
@@ -121,8 +108,8 @@ services:
       ROUTING_RULES_PATH: /config/routing-rules.json
       SESSION_DIGEST_DIR: /tmp/spockify-session-memory
     volumes:
-      - ${ORCHESTRATOR_PROMPT:-./config/orchestrator-prompt.md}:/config/orchestrator-prompt.md:ro,z
-      - ${ROUTING_RULES:-./docker/routing-rules.json}:/config/routing-rules.json:ro,z
+      - ${ORCHESTRATOR_PROMPT:-./orchestrator-prompt.md}:/config/orchestrator-prompt.md:ro,z
+      - ${ROUTING_RULES:-./routing-rules.json}:/config/routing-rules.json:ro,z
     ports:
       - "${SPOCKIFY_ROUTER_PORT:-4100}:4100"
     depends_on:
@@ -134,13 +121,7 @@ services:
         condition: service_started
 
   openwebui:
-    image: ${SPOCKIFY_OPENWEBUI_IMAGE:-spockify-openwebui:local}
-    build:
-      context: ./services/openwebui
-      dockerfile: Dockerfile
-      args:
-        BUILD_HASH: ${BUILD_HASH:-spockify-oss}
-        PRELOAD_MODELS: ${PRELOAD_MODELS:-false}
+    image: ${SPOCKIFY_OPENWEBUI_IMAGE:?Set SPOCKIFY_OPENWEBUI_IMAGE in .env — see README}
     restart: unless-stopped
     environment:
       WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-change-me-to-at-least-32-characters}
@@ -160,21 +141,17 @@ services:
       DEFAULT_USER_ROLE: pending
       BYPASS_MODEL_ACCESS_CONTROL: "true"
       WEBUI_SESSION_COOKIE_SECURE: "false"
-      OFFLINE_MODE: "false"
       ENABLE_VERSION_UPDATE_CHECK: "false"
       ENABLE_COMMUNITY_SHARING: "false"
       ENABLE_FOLLOW_UP_GENERATION: "false"
       ENABLE_MEMORIES: "false"
       ENABLE_AUTOMATIONS: "true"
-      ENABLE_AUTOCOMPLETE_GENERATION: "false"
       ENABLE_IMAGE_GENERATION: "false"
       ENABLE_VIDEO_GENERATION: "false"
       ENABLE_WEB_SEARCH: "true"
       WEB_SEARCH_ENGINE: searxng
       SEARXNG_QUERY_URL: http://searxng:8080/search?q=<query>
-      RAG_WEB_SEARCH_ENGINE: searxng
       BYPASS_WEB_SEARCH_WEB_LOADER: "true"
-      BYPASS_WEB_SEARCH_EMBEDDING_AND_RETRIEVAL: "true"
       AUDIO_TTS_ENGINE: edge
       SPOCKIFY_ROUTER_URL: http://router:4100
       DATA_DIR: /app/backend/data

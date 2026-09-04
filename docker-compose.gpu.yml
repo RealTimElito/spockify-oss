@@ -1,0 +1,15 @@
+# NVIDIA GPU overlay for Ollama.
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+#
+# Ubuntu: install nvidia-container-toolkit, then reboot or restart docker.
+# Fedora: same toolkit; if devices are blocked:
+#   sudo setsebool -P container_use_devices on
+# Podman (Fedora): prefer CDI, e.g.
+#   podman compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+
+services:
+  ollama:
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility

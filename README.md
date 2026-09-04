@@ -18,38 +18,29 @@ Spockify wires together:
 
 ## Quick start (Docker Compose)
 
-Requirements: Docker with the Compose plugin. A GPU is optional (CPU works for
-small models).
+Requirements: Docker Compose v2 or Podman. Ubuntu/Debian and Fedora/SELinux
+are the tested distros. A GPU is optional (CPU works for small models).
 
 ```bash
 git clone <your-fork-url> spockify && cd spockify
 cp .env.example .env        # then edit the secrets
-docker compose up -d        # builds the router, pulls everything else
+./docker/run.sh             # builds, starts, and pulls llama3.2:3b (~2 GiB)
 ```
 
-Pull at least one model so the router has a worker:
+Or `docker compose up -d --build` — same model pull happens automatically.
+Extra tags: `OLLAMA_PULL_MODELS` in `.env` (and a matching `docker/litellm.yaml`
+entry). Full guide: [docker/README.md](docker/README.md).
 
-```bash
-docker compose exec ollama ollama pull llama3.1:8b
-docker compose exec ollama ollama pull gemma3:12b   # optional, better quality
-```
-
-Create the first admin: set `ENABLE_SIGNUP=true` in `.env`, `docker compose up -d`,
-register at http://localhost:3000, then set `ENABLE_SIGNUP=false` and bring it up
-again.
-
-Open http://localhost:3000 and chat with the `spockify-auto` model.
+Create the first admin at http://localhost:3080, then set `ENABLE_SIGNUP=false`
+and `docker compose up -d` again.
 
 ### Services and ports
 
 | Service   | Port  | Purpose                                  |
 |-----------|-------|------------------------------------------|
-| openwebui | 3000  | Chat UI                                  |
+| openwebui | 3080  | Chat UI                                  |
 | router    | 4100  | `spockify-auto` orchestrator             |
 | litellm   | 4000  | OpenAI-compatible model proxy            |
-| ollama    | 11435 | Local model runtime                      |
-| searxng   | 8888  | Private web search                       |
-| postgres  | 5433  | Chat/user/config storage                 |
 
 ## Configuration
 
@@ -63,23 +54,19 @@ Data persists under `STORAGE_ROOT` (default `./data/spockify`).
 
 ## GPU
 
-The `ollama` service is CPU-only by default. To use an NVIDIA GPU, install the
-NVIDIA Container Toolkit and uncomment the `deploy:` block under `ollama` in
-[`docker-compose.yml`](docker-compose.yml).
+CPU compose is the default. NVIDIA:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+```
 
 ## Building the images
 
-The router builds automatically from [`services/router`](services/router) on
-`docker compose up`. The default chat UI is stock Open WebUI renamed to Spockify
-at runtime. To run the full Spockify Open WebUI fork instead:
+The router and Open WebUI fork build from this tree on `docker compose up`.
+Prebuilt images: `ghcr.io/<owner>/spockify-router` (and `spockify-openwebui`
+when published). Compose kit zip: https://spockify.eu/downloads/spockify-docker.zip
 
-```bash
-docker compose -f docker-compose.yml -f docker-compose.fork.yml up -d --build
-```
-
-To publish images to your own registry, enable the CI workflow shipped under
-[`.github/workflows-disabled/`](.github/workflows-disabled/) (see its README for
-the one-step move into `.github/workflows/`).
+CI: [`.github/workflows/docker-images.yml`](.github/workflows/docker-images.yml).
 
 ## Project layout
 

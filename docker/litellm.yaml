@@ -1,0 +1,50 @@
+# LiteLLM — OSS / docker-compose. spockify-auto is the router, not a raw Ollama tag.
+# Add more ollama_chat/ models as you `ollama pull` them.
+
+model_list:
+  - model_name: llama3.2-3b
+    litellm_params:
+      model: ollama_chat/llama3.2:3b
+      api_base: http://ollama:11434
+      timeout: 120
+
+  - model_name: orchestrator
+    litellm_params:
+      model: ollama_chat/llama3.2:3b
+      api_base: http://ollama:11434
+      timeout: 120
+
+  - model_name: orchestrator-fallback
+    litellm_params:
+      model: ollama_chat/llama3.2:3b
+      api_base: http://ollama:11434
+      timeout: 120
+
+  - model_name: spockify-auto
+    litellm_params:
+      model: openai/spockify-auto
+      api_base: http://router:4100/v1
+      api_key: os.environ/LITELLM_MASTER_KEY
+      timeout: 300
+    model_info:
+      description: "Router — pattern match or orchestrator, then a worker"
+
+  - model_name: spockify-room
+    litellm_params:
+      model: openai/spockify-room
+      api_base: http://router:4100/v1
+      api_key: os.environ/LITELLM_MASTER_KEY
+      timeout: 600
+    model_info:
+      description: "Multi-agent room (researcher + coder + critic)"
+
+router_settings:
+  routing_strategy: simple-shuffle
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
