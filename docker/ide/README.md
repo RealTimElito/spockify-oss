@@ -17,10 +17,12 @@ It is **not** a guarantee that Electron+GPU+Wayland works on every box.
 
 ## Run (Fedora or Ubuntu, graphical session)
 
+From the repo root, `make ide` is the same as `./docker/ide/run.sh`.
+
 ```bash
 ./docker/ide/run.sh --build
 # later:
-./docker/ide/run.sh
+make ide
 ```
 
 `--build` downloads the published AppImage (or uses `docker/ide/payload/*.AppImage`

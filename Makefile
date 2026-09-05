@@ -1,5 +1,5 @@
 # Public Compose Makefile. Homelab k8s/release targets stay in the private tree.
-.PHONY: help up down logs status gpu kit docker-kit compose-up compose-down build-cli migrate
+.PHONY: help up down logs status gpu kit docker-kit compose-up compose-down build-cli migrate ide
 
 help:
 	@echo "make up          start chat (./docker/run.sh — pulls GHCR, no local Vite)"
@@ -7,6 +7,7 @@ help:
 	@echo "make logs        follow logs"
 	@echo "make status      compose ps"
 	@echo "make gpu         up with docker-compose.gpu.yml"
+	@echo "make ide         run desktop IDE container (./docker/ide/run.sh)"
 	@echo "make kit         pack dist/spockify-docker.zip"
 	@echo "make build-cli   build packages/spockify-cli"
 	@echo "make migrate     run sql/migrations against local Postgres (port 5433)"
@@ -30,6 +31,10 @@ status:
 gpu:
 	chmod +x docker/run.sh
 	./docker/run.sh --gpu
+
+ide:
+	chmod +x docker/ide/run.sh
+	./docker/ide/run.sh
 
 kit docker-kit:
 	chmod +x docker/pack-release.sh docker/run.sh docker-run.sh
