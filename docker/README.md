@@ -41,7 +41,7 @@ ctx); do not expect Gemma + Codestral + Devstral all resident at once.
 
 ```bash
 cp .env.example .env          # change WEBUI_SECRET_KEY and passwords
-./docker/run.sh               # detects docker compose vs podman
+make up                       # or ./docker/run.sh — docker compose or podman
 ```
 
 `up` starts the UI, then downloads these Ollama tags in the background (~42 GiB first time):
@@ -129,7 +129,7 @@ sudo firewall-cmd --add-port=3080/tcp --permanent && sudo firewall-cmd --reload
 2. Unzip, `cp .env.example .env`, fill `SPOCKIFY_ROUTER_IMAGE` and
    `SPOCKIFY_OPENWEBUI_IMAGE` (Release notes list the tags; the zip `.env.example`
    is pre-filled when packed by CI).
-3. `./run.sh` (or `docker compose up -d`; no `--build`; models download in the background)
+3. `make up` or `./run.sh` (or `docker compose up -d`; no `--build`; models download in the background)
 
 Images are published to GHCR (`ghcr.io/<github-owner>/spockify-router` and
 `spockify-openwebui`). If GHCR is blocked, build from git or load a `docker save`

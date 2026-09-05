@@ -35,6 +35,25 @@ chmod +x "${STAGE}/run.sh"
 cp "${ROOT}/docker-run.sh" "${STAGE}/docker-run.sh"
 chmod +x "${STAGE}/docker-run.sh"
 
+cat > "${STAGE}/Makefile" <<'EOF'
+# Unpacked compose kit (run.sh lives next to this file).
+.PHONY: help up down logs status
+help:
+	@echo "make up      ./run.sh"
+	@echo "make down    stop containers (keeps ./data)"
+	@echo "make logs    follow logs"
+	@echo "make status  compose ps"
+up:
+	chmod +x run.sh docker-run.sh
+	./run.sh
+down:
+	./run.sh down
+logs:
+	./run.sh logs
+status:
+	./run.sh status
+EOF
+
 cat > "${STAGE}/.env.example" <<EOF
 POSTGRES_PASSWORD=spockify-dev
 LITELLM_MASTER_KEY=sk-spockify-change-me
