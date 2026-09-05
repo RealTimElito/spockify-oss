@@ -1,0 +1,21 @@
+# Podman-only volume flags. Included by ./docker/run.sh when ENGINE is Podman.
+# :z = SELinux shared label; :U = chown the bind to the container user.
+# Docker Compose is not given this file (it ignores U anyway).
+#
+#   podman-compose -f docker-compose.yml -f docker-compose.podman.yml up -d
+#
+# Postgres still needs run.sh `podman unshare chown` (image USER is root;
+# the entrypoint then runs as UID 70 on alpine).
+
+name: spockify
+
+services:
+  postgres:
+    volumes:
+      - ${STORAGE_ROOT:-./data/spockify}/postgres:/var/lib/postgresql/data:z,U
+  ollama:
+    volumes:
+      - ${STORAGE_ROOT:-./data/spockify}/ollama:/root/.ollama:z,U
+  openwebui:
+    volumes:
+      - ${STORAGE_ROOT:-./data/spockify}/openwebui:/app/backend/data:z,U

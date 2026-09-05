@@ -93,9 +93,9 @@ Docker CE **or** Podman both work. Compose bind mounts already have `:z`.
 sudo dnf install -y podman podman-compose
 systemctl --user enable --now podman.socket
 ./docker/run.sh          # pulls GHCR; do not --build unless you change the UI
-# If you still see "failed to connect to the Docker API":
+# If you still see "failed to connect to the Docker API" or docker-compose:
 #   systemctl --user enable --now podman.socket
-#   podman compose version   # or: podman-compose
+#   podman-compose version   # run.sh uses this, not hyphenated docker-compose
 
 # or Docker CE
 sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
@@ -176,20 +176,25 @@ curl -fsS http://localhost:3080/health
 
 ## Fixing common failures
 
-**`failed to connect to the Docker API` (Fedora)**  
-`make up` prefers Podman. If a `docker` CLI / `podman-docker` shim is present but
-dockerd is not, enable the user socket and confirm compose:
+**`failed to connect to the Docker API` / `docker-compose --remove-orphans` (Fedora)**  
+`make up` prefers `podman-compose`. `podman compose` otherwise shells out to
+hyphenated `docker-compose`, which talks to dockerd. Enable the user socket:
 
 ```bash
+sudo dnf install -y podman podman-compose
 systemctl --user enable --now podman.socket
-podman compose version   # or: podman-compose
+podman-compose version
 ```
 
 Then `make up` or `./docker/run.sh` again. Do not point compose at `/var/run/docker.sock`.
 
-**`permission denied` on `./data` (Fedora)**  
-SELinux. `chcon -Rt container_file_t ./data/spockify` or re-run `./docker/run.sh`
-which tries that. Do not disable SELinux.
+**`permission denied` on `./data` / pgdata (Fedora)**  
+SELinux or rootless UID mismatch. `./docker/run.sh` applies `:z`, chowns
+Postgres to UID 70 (`postgres:17-alpine`), and uses `podman-compose` (not
+hyphenated `docker-compose`). If a prior Docker run left root-owned files:
+`sudo chown -R "$USER:$USER" ./data/spockify` (or `sudo rm -rf` that dir).
+`chcon -Rt container_file_t ./data/spockify` if SELinux still blocks. Do not
+disable SELinux.
 
 **Open WebUI: “Server Connection Error” / empty models**  
 LiteLLM or router not ready, or the first model pull is still running. Check
@@ -277,6 +282,7 @@ Ollama weights are large; include `ollama/` only if you want them in the tarball
 ```
 docker-compose.yml           # git-clone stack (build + run)
 docker-compose.gpu.yml       # NVIDIA overlay
+docker-compose.podman.yml    # rootless :z,U data binds (run.sh on Podman)
 docker/compose.pull.yml      # downloadable kit (images only)
 docker/litellm.yaml          # model catalog for compose
 docker/routing-rules.json    # router rules (compose service DNS)

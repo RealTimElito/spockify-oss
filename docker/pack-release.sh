@@ -19,6 +19,7 @@ mkdir -p "${STAGE}/postgres-init"
 
 cp "${ROOT}/docker/compose.pull.yml" "${STAGE}/docker-compose.yml"
 cp "${ROOT}/docker-compose.gpu.yml" "${STAGE}/docker-compose.gpu.yml"
+cp "${ROOT}/docker-compose.podman.yml" "${STAGE}/docker-compose.podman.yml"
 cp "${ROOT}/docker/ollama-pull.sh" "${STAGE}/"
 chmod +x "${STAGE}/ollama-pull.sh"
 cp "${ROOT}/docker/litellm.yaml" "${STAGE}/"

@@ -16,7 +16,7 @@ cp .env.example .env    # change secrets
 make up                 # GHCR pull, no local Vite; or ./docker/run.sh
 ```
 
-Uses Podman if compose works, else Docker (only if the daemon is up). Fedora “Docker API” errors: `systemctl --user enable --now podman.socket` and `podman compose version` (or `podman-compose`). Force Docker with `SPOCKIFY_CONTAINER_ENGINE=docker`.
+Uses Podman if compose works, else Docker (only if the daemon is up). Fedora: `sudo dnf install -y podman podman-compose` and `systemctl --user enable --now podman.socket`. `./docker/run.sh` uses `podman-compose` (not hyphenated `docker-compose`) and chowns Postgres data for rootless UID 70. Force Docker with `SPOCKIFY_CONTAINER_ENGINE=docker`.
 
 Open http://localhost:3080 — first account is admin.
 

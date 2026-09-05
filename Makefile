@@ -2,7 +2,7 @@
 .PHONY: help up down logs status gpu kit docker-kit compose-up compose-down build-cli migrate ide
 
 help:
-	@echo "make up          start chat (./docker/run.sh — Podman if compose works, else Docker if the API is up)"
+	@echo "make up          start chat (./docker/run.sh — podman-compose if present, else Docker if the API is up)"
 	@echo "make down        stop containers (keeps ./data)"
 	@echo "make logs        follow logs"
 	@echo "make status      compose ps"

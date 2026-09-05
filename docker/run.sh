@@ -34,7 +34,8 @@ EOF
 
 ENGINE=()
 
-# podman compose often shells out to docker-compose, which talks to DOCKER_HOST.
+# `podman compose` searches PATH for docker-compose (hyphen) first; that binary
+# talks to the Docker API and fails on rootless Fedora. Prefer podman-compose.
 podman_user_socket() {
   local sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
   if [[ ! -S "${sock}" ]]; then
@@ -66,13 +67,20 @@ podman_compose_ok() {
 }
 
 pick_podman() {
-  if podman_compose_ok; then
-    ENGINE=(podman compose)
+  command -v podman >/dev/null 2>&1 || return 1
+  # Never exec hyphenated docker-compose unless that is the chosen ENGINE.
+  if command -v podman-compose >/dev/null 2>&1; then
+    ENGINE=(podman-compose)
+    export PODMAN_COMPOSE_PROVIDER=podman-compose
     use_podman_docker_host
     return 0
   fi
-  if command -v podman-compose >/dev/null 2>&1; then
-    ENGINE=(podman-compose)
+  # Without podman-compose, `podman compose` will pick docker-compose if present.
+  if command -v docker-compose >/dev/null 2>&1; then
+    return 1
+  fi
+  if podman_compose_ok; then
+    ENGINE=(podman compose)
     use_podman_docker_host
     return 0
   fi
@@ -101,7 +109,7 @@ detect_engine() {
       if pick_podman; then
         return
       fi
-      echo "SPOCKIFY_CONTAINER_ENGINE=podman but neither podman compose nor podman-compose is available." >&2
+      echo "SPOCKIFY_CONTAINER_ENGINE=podman but podman-compose is not available (and podman compose would call docker-compose)." >&2
       exit 1
       ;;
     "")
@@ -120,9 +128,10 @@ detect_engine() {
     return
   fi
   echo "Need Podman Compose (Fedora: podman + podman-compose) or Docker Compose v2 (Ubuntu: docker.io + docker-compose-v2)." >&2
-  echo "If you saw 'failed to connect to the docker API', dockerd is not running. Prefer Podman:" >&2
+  echo "If you saw 'failed to connect to the docker API' or 'docker-compose --remove-orphans', dockerd is not running. Prefer Podman:" >&2
+  echo "  sudo dnf install -y podman podman-compose" >&2
   echo "  systemctl --user enable --now podman.socket" >&2
-  echo "  podman compose version   # or: podman-compose" >&2
+  echo "  podman-compose version" >&2
   exit 1
 }
 
@@ -170,18 +179,47 @@ pull_ghcr_images() {
   return 1
 }
 
+storage_root() {
+  printf '%s\n' "${STORAGE_ROOT:-${ROOT}/data/spockify}"
+}
+
+using_podman() {
+  case "${ENGINE[0]}" in
+    podman|podman-compose) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# postgres:17-alpine drops to UID 70. Debian postgres images use 999.
+# Image USER is root, so :U chowns to 0; the entrypoint then needs 70.
+prepare_data_dirs() {
+  local root pg pg_uid
+  root="$(storage_root)"
+  mkdir -p "${root}"/{postgres,ollama,openwebui}
+  using_podman || return 0
+  pg="${root}/postgres"
+  pg_uid="${SPOCKIFY_POSTGRES_UID:-70}"
+  if ! podman unshare chown -R "${pg_uid}:${pg_uid}" "${pg}" 2>/dev/null; then
+    echo "Could not chown ${pg} for rootless Postgres (UID ${pg_uid})." >&2
+    if find "${pg}" -user root -print -quit 2>/dev/null | grep -q .; then
+      echo "Leftover root-owned files (prior Docker). On the host:" >&2
+      echo "  sudo chown -R $(id -u):$(id -g) ${pg}" >&2
+      echo "  # or start empty: sudo rm -rf ${pg} && mkdir -p ${pg}" >&2
+    fi
+  fi
+}
+
 selinux_hint() {
   if command -v getenforce >/dev/null 2>&1; then
-    local mode
+    local mode root
     mode="$(getenforce 2>/dev/null || true)"
+    root="$(storage_root)"
     if [[ "${mode}" == "Enforcing" ]]; then
       echo "SELinux is Enforcing — compose bind mounts already use :z."
-      if [[ ! -d data/spockify ]]; then
-        mkdir -p data/spockify/{postgres,ollama,openwebui}
-      fi
+      mkdir -p "${root}"
       if command -v chcon >/dev/null 2>&1; then
-        chcon -Rt container_file_t data/spockify 2>/dev/null || true
-        echo "If a volume is Permission denied: sudo chcon -Rt container_file_t ${ROOT}/data/spockify"
+        chcon -Rt container_file_t "${root}" 2>/dev/null || true
+        echo "If a volume is Permission denied: sudo chcon -Rt container_file_t ${root}"
       fi
     fi
   fi
@@ -242,6 +280,9 @@ if [[ "${GPU}" -eq 1 ]]; then
     FILES+=(-f compose.gpu.yml)
   fi
 fi
+if using_podman && [[ -f "${ROOT}/docker-compose.podman.yml" ]]; then
+  FILES+=(-f docker-compose.podman.yml)
+fi
 
 if [[ ! -f "${ROOT}/.env" && -f "${ROOT}/.env.example" ]]; then
   cp "${ROOT}/.env.example" "${ROOT}/.env"
@@ -253,10 +294,28 @@ compose() {
   "${ENGINE[@]}" "${FILES[@]}" "$@"
 }
 
+# docker compose / `podman compose` (v2) support --remove-orphans.
+# podman-compose often rejects it and aborts `up`.
+compose_supports_remove_orphans() {
+  [[ "${ENGINE[0]}" != "podman-compose" ]] || return 1
+  compose up --help 2>&1 | grep -q -- '--remove-orphans'
+}
+
+compose_up() {
+  local args=(-d)
+  if [[ "${1:-}" == "--build" ]]; then
+    args+=(--build)
+  fi
+  if compose_supports_remove_orphans; then
+    args+=(--remove-orphans)
+  fi
+  compose up "${args[@]}"
+}
+
 case "${CMD}" in
   up)
     selinux_hint
-    mkdir -p "${ROOT}/data/spockify"/{postgres,ollama,openwebui}
+    prepare_data_dirs
     echo "Starting Spockify..."
     if [[ -d "${ROOT}/services/router" ]]; then
       router_img="${SPOCKIFY_ROUTER_IMAGE:-spockify-router:local}"
@@ -277,12 +336,12 @@ case "${CMD}" in
       fi
       if [[ "${need_build}" -eq 1 ]]; then
         echo "Building images (first run can take several minutes)..."
-        compose up -d --build --remove-orphans
+        compose_up --build
       else
-        compose up -d --remove-orphans
+        compose_up
       fi
     else
-      compose up -d --remove-orphans
+      compose_up
     fi
     if command -v curl >/dev/null 2>&1; then
       wait_http "http://127.0.0.1:${SPOCKIFY_ROUTER_PORT:-4100}/health" router 90
