@@ -75,6 +75,10 @@ from open_webui.socket.main import (
     get_event_emitter,
 )
 from open_webui.utils.session_pool import get_session
+from open_webui.utils.spockify_models import (
+    is_spockify_router_model,
+    spockify_model_suffix,
+)
 from open_webui.utils.access_control import has_connection_access, has_permission
 from open_webui.utils.access_control.files import get_accessible_folder_files
 from open_webui.utils.chat import generate_chat_completion
@@ -3030,16 +3034,12 @@ async def process_chat_payload(request, form_data, user, metadata, model):
     except Exception as e:
         raise Exception(f'{e}')
 
-    features = form_data.pop('features', None) or {}
+    features_raw = form_data.pop('features', None)
+    features = features_raw if isinstance(features_raw, dict) else {}
     model_id = str(form_data.get('model') or '')
-    spockify_routed = model_id in (
-        'spockify-auto',
-        'spockify-light',
-        'spockify-medium',
-        'spockify-heavy',
-        'spockify-agents',
-    )
-    if spockify_routed and isinstance(features, dict):
+    routed_id = spockify_model_suffix(model_id)
+    spockify_routed = is_spockify_router_model(model_id)
+    if spockify_routed:
         # OWUI RAG web_search stays off — Spockify router owns SearXNG.
         features['web_search'] = False
         mode = str(features.get('spockify_search') or 'auto').strip().lower()
@@ -3110,19 +3110,21 @@ async def process_chat_payload(request, form_data, user, metadata, model):
             extra_headers['X-Spockify-Voice'] = '1'
             form_data['extra_headers'] = extra_headers
 
+    # Thinking chip is always-on chrome; apply when the client sent features.
+    if isinstance(features_raw, dict):
         # Thinking chip (Off / Low / Medium / High / Heavy) → router.
         thinking = str(features.get('spockify_thinking') or 'medium').strip().lower()
         if thinking == 'light':
             thinking = 'low'
-        if model_id == 'spockify-light':
+        if routed_id == 'spockify-light':
             thinking = 'low'
-        elif model_id in ('spockify-off', 'spockify-low'):
-            thinking = model_id.split('-', 1)[1]
-        elif model_id == 'spockify-medium':
+        elif routed_id in ('spockify-off', 'spockify-low'):
+            thinking = routed_id.split('-', 1)[1]
+        elif routed_id == 'spockify-medium':
             thinking = 'medium'
-        elif model_id == 'spockify-high':
+        elif routed_id == 'spockify-high':
             thinking = 'high'
-        elif model_id == 'spockify-heavy':
+        elif routed_id == 'spockify-heavy':
             thinking = 'heavy'
         think_on = features.get('spockify_think_enabled')
         if think_on is not None and str(think_on).strip().lower() in (
@@ -4412,7 +4414,7 @@ async def streaming_chat_response_handler(response, ctx):
         task_id = str(uuid4())  # Create a unique task ID.
         model_id = form_data.get('model', '')
 
-        if model_id == 'spockify-auto':
+        if is_spockify_router_model(model_id):
             hdrs = {k.lower(): v for k, v in dict(response.headers).items()}
             worker = hdrs.get('llm_provider-x-spockify-worker') or hdrs.get(
                 'x-spockify-worker'

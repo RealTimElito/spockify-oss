@@ -8,8 +8,10 @@ import {
 	nextThinkingMode,
 	normalizeThinkingMode,
 	pickHeavyRunForPoll,
+	isSpockifyRouterModel,
 	planHeavyEnsemble,
-	plannedHeavyWorkers
+	plannedHeavyWorkers,
+	spockifyModelSuffix
 } from './thinkingModes';
 
 describe('buildEnsembleRows', () => {
@@ -91,6 +93,19 @@ describe('plannedHeavyWorkers / pickHeavyRunForPoll', () => {
 		expect(short[3].model).toBe('qwen3.5-9b');
 		const long = '请详细比较'.repeat(80);
 		expect(planHeavyEnsemble(long)[2].model).toBe('qwen3.6-35b');
+	});
+});
+
+describe('isSpockifyRouterModel', () => {
+	it('matches bare ids and LiteLLM/OWUI prefixes', () => {
+		expect(isSpockifyRouterModel('spockify-auto')).toBe(true);
+		expect(isSpockifyRouterModel('openai.spockify-auto')).toBe(true);
+		expect(isSpockifyRouterModel('litellm/spockify-auto')).toBe(true);
+		expect(isSpockifyRouterModel('openai.spockify-agents')).toBe(true);
+		expect(isSpockifyRouterModel('spockify-heavy')).toBe(true);
+		expect(spockifyModelSuffix('openai.spockify-auto')).toBe('spockify-auto');
+		expect(isSpockifyRouterModel('gpt-oss-20b')).toBe(false);
+		expect(isSpockifyRouterModel('llama3.2-3b')).toBe(false);
 	});
 });
 

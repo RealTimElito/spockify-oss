@@ -61,7 +61,11 @@
 	import { getTools } from '$lib/apis/tools';
 	import { getSkills } from '$lib/apis/skills';
 
-	import { metaForThinkingMode, nextThinkingMode } from '$lib/utils/thinkingModes';
+	import {
+		isSpockifyRouterModel,
+		metaForThinkingMode,
+		nextThinkingMode
+	} from '$lib/utils/thinkingModes';
 	import { WEBUI_BASE_URL, WEBUI_API_BASE_URL, PASTED_TEXT_CHARACTER_LIMIT } from '$lib/constants';
 	import { getOAuthClientAuthorizationUrl } from '$lib/apis/configs';
 
@@ -588,7 +592,7 @@
 
 	let showSpockifySearchControl = false;
 	$: showSpockifySearchControl = (atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).some(
-		(id) => id === 'spockify-auto' || id === 'spockify-agents'
+		(id) => isSpockifyRouterModel(id)
 	);
 
 	const cycleSpockifySearchMode = () => {
@@ -606,10 +610,8 @@
 	const spockifySearchLabel = (mode: 'auto' | 'on' | 'off') =>
 		mode === 'auto' ? 'Search auto' : mode === 'on' ? 'Search on' : 'Search off';
 
-	let showSpockifyThinkingControl = false;
-	$: showSpockifyThinkingControl = (
-		atSelectedModel?.id ? [atSelectedModel.id] : selectedModels
-	).some((id) => id === 'spockify-auto' || id === 'spockify-agents');
+	// Thinking cycle is core chrome on this fork — always visible.
+	const showSpockifyThinkingControl = true;
 
 	const selectSpockifyThinking = (
 		mode: import('$lib/utils/thinkingModes').ThinkingMode
@@ -1891,9 +1893,9 @@
 											const chatInput = document.getElementById('chat-input');
 											chatInput?.focus();
 										}}
-										showComposerModes={showSpockifySearchControl}
-										showThinkingModes={showSpockifyThinkingControl}
-										showPrivacyMode={showSpockifySearchControl}
+										showComposerModes={true}
+										showThinkingModes={true}
+										showPrivacyMode={true}
 										bind:spockifyThinking
 										onSpockifyThinkingChange={onSpockifyThinkingChange}
 										bind:spockifyPrivacyMode
@@ -1912,12 +1914,12 @@
 										</button>
 									</InputMenu>
 
-									{#if showSpockifySearchControl}
-										<div
-											class="hidden sm:flex self-center w-[1px] h-4 mx-1 bg-gray-200/50 dark:bg-gray-800/50 shrink-0"
-										/>
-										<!-- Desktop: search + thinking cycle pills -->
-										<div class="hidden sm:flex items-center gap-0.5 shrink-0">
+									<div
+										class="hidden sm:flex self-center w-[1px] h-4 mx-1 bg-gray-200/50 dark:bg-gray-800/50 shrink-0"
+									/>
+									<!-- Desktop: search (router models) + always-on thinking cycle -->
+									<div class="hidden sm:flex items-center gap-0.5 shrink-0">
+										{#if showSpockifySearchControl}
 											<Tooltip
 												content={spockifyPrivacyMode
 													? 'Privacy mode locks search off'
@@ -1946,24 +1948,26 @@
 													>
 												</button>
 											</Tooltip>
-											{#if showSpockifyThinkingControl}
-												{@const thinkingMeta = metaForThinkingMode(spockifyThinking)}
-												<Tooltip content={`${thinkingMeta.hint} (click to cycle)`} placement="top">
-													<button
-														type="button"
-														aria-label={`Thinking ${thinkingMeta.label}. Click to cycle.`}
-														on:click|preventDefault={cycleSpockifyThinking}
-														class="px-2 py-[5px] flex gap-1 items-center text-xs rounded-full transition-colors duration-300 focus:outline-hidden {thinkingChipClass(
-															spockifyThinking
-														)}"
-													>
-														<span class="whitespace-nowrap">{thinkingMeta.label}</span>
-													</button>
-												</Tooltip>
-											{/if}
-										</div>
-										<!-- Mobile: icon-only search + thinking cycle -->
-										<div class="flex sm:hidden items-center shrink-0">
+										{/if}
+										{#if showSpockifyThinkingControl}
+											{@const thinkingMeta = metaForThinkingMode(spockifyThinking)}
+											<Tooltip content={`${thinkingMeta.hint} (click to cycle)`} placement="top">
+												<button
+													type="button"
+													aria-label={`Thinking ${thinkingMeta.label}. Click to cycle.`}
+													on:click|preventDefault={cycleSpockifyThinking}
+													class="px-2 py-[5px] flex gap-1 items-center text-xs rounded-full transition-colors duration-300 focus:outline-hidden {thinkingChipClass(
+														spockifyThinking
+													)}"
+												>
+													<span class="whitespace-nowrap">{thinkingMeta.label}</span>
+												</button>
+											</Tooltip>
+										{/if}
+									</div>
+									<!-- Mobile: icon-only search + thinking cycle -->
+									<div class="flex sm:hidden items-center shrink-0">
+										{#if showSpockifySearchControl}
 											<Tooltip
 												content={spockifyPrivacyMode
 													? 'Privacy mode locks search off'
@@ -1989,23 +1993,23 @@
 													<GlobeAlt className="size-5" strokeWidth="1.75" />
 												</button>
 											</Tooltip>
-											{#if showSpockifyThinkingControl}
-												{@const thinkingMeta = metaForThinkingMode(spockifyThinking)}
-												<Tooltip content={`${thinkingMeta.hint} (tap to cycle)`} placement="top">
-													<button
-														type="button"
-														aria-label={`Thinking ${thinkingMeta.label}. Tap to cycle.`}
-														on:click|preventDefault={cycleSpockifyThinking}
-														class="px-2 py-[5px] flex gap-1 items-center text-xs rounded-full transition-colors duration-300 focus:outline-hidden {thinkingChipClass(
-															spockifyThinking
-														)}"
-													>
-														<span class="whitespace-nowrap">{thinkingMeta.label}</span>
-													</button>
-												</Tooltip>
-											{/if}
-										</div>
-									{/if}
+										{/if}
+										{#if showSpockifyThinkingControl}
+											{@const thinkingMeta = metaForThinkingMode(spockifyThinking)}
+											<Tooltip content={`${thinkingMeta.hint} (tap to cycle)`} placement="top">
+												<button
+													type="button"
+													aria-label={`Thinking ${thinkingMeta.label}. Tap to cycle.`}
+													on:click|preventDefault={cycleSpockifyThinking}
+													class="px-2 py-[5px] flex gap-1 items-center text-xs rounded-full transition-colors duration-300 focus:outline-hidden {thinkingChipClass(
+														spockifyThinking
+													)}"
+												>
+													<span class="whitespace-nowrap">{thinkingMeta.label}</span>
+												</button>
+											</Tooltip>
+										{/if}
+									</div>
 
 									<div
 										class="hidden sm:flex self-center w-[1px] h-4 mx-1 bg-gray-200/50 dark:bg-gray-800/50 shrink-0"

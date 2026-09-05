@@ -121,7 +121,10 @@ apps/spockify-ide/build/
 !**/package-lock.json
 !**/yarn.lock
 !**/pnpm-lock.yaml
-models/
+# Only repo-root weight blobs. Do NOT ignore **/models/ — that hid
+# Open WebUI SQLAlchemy/API/workspace packages from git (same lesson as
+# checkpoints/ below).
+/models/
 # Do NOT ignore directories named checkpoints/ — that hid
 # extensions/spockify/src/checkpoints/ from git and broke CI compile.
 # Durable IDE snapshots live under .spockify/checkpoints/ (covered below).

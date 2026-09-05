@@ -45,6 +45,7 @@
 		resolveEdgeVoice
 	} from '$lib/utils/detectSpeechLanguage';
 	import { WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
+	import { isSpockifyRouterModel } from '$lib/utils/thinkingModes';
 	import equal from 'fast-deep-equal';
 
 	import Name from './Name.svelte';
@@ -874,7 +875,7 @@
 					</span>
 				</Tooltip>
 
-				{#if message.model === 'spockify-auto' && message.spockifyWorker}
+				{#if isSpockifyRouterModel(message.model) && message.spockifyWorker}
 					{@const whyBits = [
 						message.spockifyRoutingPath
 							? `path: ${message.spockifyRoutingPath}`

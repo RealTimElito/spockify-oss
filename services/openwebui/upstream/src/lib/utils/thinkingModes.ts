@@ -6,6 +6,32 @@
 
 export type ThinkingMode = 'off' | 'low' | 'medium' | 'high' | 'heavy';
 
+/** Router aliases. LiteLLM/OWUI often prefix (`openai.spockify-auto`). */
+const SPOCKIFY_ROUTER_MODELS = new Set([
+	'spockify-auto',
+	'spockify-agents',
+	'spockify-light',
+	'spockify-medium',
+	'spockify-high',
+	'spockify-heavy',
+	'spockify-off',
+	'spockify-low'
+]);
+
+/** Last path/dot segment so `litellm/spockify-auto` and `openai.spockify-auto` match. */
+export function spockifyModelSuffix(id: unknown): string {
+	const raw = String(id || '')
+		.trim()
+		.toLowerCase();
+	if (!raw) return '';
+	const sep = Math.max(raw.lastIndexOf('/'), raw.lastIndexOf('.'));
+	return sep >= 0 ? raw.slice(sep + 1) : raw;
+}
+
+export function isSpockifyRouterModel(id: unknown): boolean {
+	return SPOCKIFY_ROUTER_MODELS.has(spockifyModelSuffix(id));
+}
+
 export const THINKING_MODES: readonly ThinkingMode[] = [
 	'off',
 	'low',
