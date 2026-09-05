@@ -26,15 +26,44 @@ Usage: ./docker/run.sh [up|down|logs|pull-model|status] [--gpu] [--build]
   status      docker compose ps
   --gpu       Also apply docker-compose.gpu.yml
   --build     Rebuild router and Open WebUI even if local images exist
+
+Env:
+  SPOCKIFY_CONTAINER_ENGINE  docker|podman (default: Podman if compose works)
 EOF
 }
 
 ENGINE=()
 detect_engine() {
-  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-    ENGINE=(docker compose)
-    return
-  fi
+  local want="${SPOCKIFY_CONTAINER_ENGINE:-}"
+  case "${want}" in
+    docker)
+      if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+        ENGINE=(docker compose)
+        return
+      fi
+      echo "SPOCKIFY_CONTAINER_ENGINE=docker but docker compose is not available." >&2
+      exit 1
+      ;;
+    podman)
+      if command -v podman >/dev/null 2>&1 && podman compose version >/dev/null 2>&1; then
+        ENGINE=(podman compose)
+        return
+      fi
+      if command -v podman-compose >/dev/null 2>&1; then
+        ENGINE=(podman-compose)
+        return
+      fi
+      echo "SPOCKIFY_CONTAINER_ENGINE=podman but neither podman compose nor podman-compose is available." >&2
+      exit 1
+      ;;
+    "")
+      ;;
+    *)
+      echo "SPOCKIFY_CONTAINER_ENGINE must be docker or podman (got: ${want})." >&2
+      exit 1
+      ;;
+  esac
+  # Prefer Podman when compose actually works; Ubuntu without Podman falls through.
   if command -v podman >/dev/null 2>&1 && podman compose version >/dev/null 2>&1; then
     ENGINE=(podman compose)
     return
@@ -43,7 +72,11 @@ detect_engine() {
     ENGINE=(podman-compose)
     return
   fi
-  echo "Need Docker Compose v2 (Ubuntu: docker.io + docker-compose-v2) or Podman Compose (Fedora: podman + podman-compose)." >&2
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    ENGINE=(docker compose)
+    return
+  fi
+  echo "Need Podman Compose (Fedora: podman + podman-compose) or Docker Compose v2 (Ubuntu: docker.io + docker-compose-v2)." >&2
   exit 1
 }
 

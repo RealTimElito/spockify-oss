@@ -34,15 +34,17 @@ use the `:z` SELinux label so Fedora/RHEL can write them.
 
 ## Quick start (git clone — build)
 
-Needs Docker Engine **or** Podman, Compose v2, and ~45 GiB disk for the first
+Needs Podman (preferred) **or** Docker Engine, Compose v2, and ~45 GiB disk for the first
 model pull (plus ~20 GiB if you **build** Open WebUI). RAM: 32 GiB comfortable
 for Gemma 12B + Codestral. A **16 GiB GPU** can run Devstral Small 2 (Q4, 8k
 ctx); do not expect Gemma + Codestral + Devstral all resident at once.
 
 ```bash
 cp .env.example .env          # change WEBUI_SECRET_KEY and passwords
-make up                       # or ./docker/run.sh — docker compose or podman
+make up                       # or ./docker/run.sh — Podman if present, else Docker
 ```
+
+`./docker/run.sh` uses Podman if `podman compose` or `podman-compose` works, otherwise Docker Compose v2. Force one with `SPOCKIFY_CONTAINER_ENGINE=docker` or `=podman`.
 
 `up` starts the UI, then downloads these Ollama tags in the background (~42 GiB first time):
 
@@ -264,7 +266,7 @@ docker-compose.gpu.yml       # NVIDIA overlay
 docker/compose.pull.yml      # downloadable kit (images only)
 docker/litellm.yaml          # model catalog for compose
 docker/routing-rules.json    # router rules (compose service DNS)
-docker/run.sh                # docker vs podman, SELinux hint
+docker/run.sh                # podman preferred, else docker; SELinux hint
 services/router/             # FastAPI router
 services/openwebui/          # Dockerfile + vendored Open WebUI
 ```

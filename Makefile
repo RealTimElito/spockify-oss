@@ -2,12 +2,12 @@
 .PHONY: help up down logs status gpu kit docker-kit compose-up compose-down build-cli migrate ide
 
 help:
-	@echo "make up          start chat (./docker/run.sh — pulls GHCR, no local Vite)"
+	@echo "make up          start chat (./docker/run.sh — Podman if present, else Docker)"
 	@echo "make down        stop containers (keeps ./data)"
 	@echo "make logs        follow logs"
 	@echo "make status      compose ps"
 	@echo "make gpu         up with docker-compose.gpu.yml"
-	@echo "make ide         run desktop IDE container (./docker/ide/run.sh)"
+	@echo "make ide         run desktop IDE container (Podman if present, else Docker)"
 	@echo "make kit         pack dist/spockify-docker.zip"
 	@echo "make build-cli   build packages/spockify-cli"
 	@echo "make migrate     run sql/migrations against local Postgres (port 5433)"

@@ -26,8 +26,9 @@ make ide
 ```
 
 `--build` downloads the published AppImage (or uses `docker/ide/payload/*.AppImage`
-if you drop one in). `run.sh` picks Docker vs Podman, X11 vs Wayland, and
-`--userns=keep-id` on Podman.
+if you drop one in). `run.sh` picks Podman if present, else Docker, plus X11 vs
+Wayland and `--userns=keep-id` on Podman. Force Docker with
+`SPOCKIFY_CONTAINER_ENGINE=docker`.
 
 Open a repo: `SPOCKIFY_WORKSPACE=~/src/myapp ./docker/ide/run.sh`
 

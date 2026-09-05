@@ -15,8 +15,9 @@ Usage: ./docker/ide/run.sh [--build] [-- extra electron args]
              docker/ide/payload/*.AppImage exists)
 
 Env:
-  SPOCKIFY_IDE_IMAGE   Image tag (default spockify-ide:local)
-  SPOCKIFY_WORKSPACE   Folder to open (default: current directory)
+  SPOCKIFY_IDE_IMAGE           Image tag (default spockify-ide:local)
+  SPOCKIFY_WORKSPACE           Folder to open (default: current directory)
+  SPOCKIFY_CONTAINER_ENGINE    docker|podman (default: Podman if present)
 EOF
 }
 
@@ -32,14 +33,44 @@ while [[ $# -gt 0 ]]; do
 done
 
 ENGINE=()
-if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  ENGINE=(docker)
-elif command -v podman >/dev/null 2>&1; then
-  ENGINE=(podman)
-else
-  echo "Need docker or podman." >&2
+detect_engine() {
+  local want="${SPOCKIFY_CONTAINER_ENGINE:-}"
+  case "${want}" in
+    docker)
+      if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+        ENGINE=(docker)
+        return
+      fi
+      echo "SPOCKIFY_CONTAINER_ENGINE=docker but docker is not available." >&2
+      exit 1
+      ;;
+    podman)
+      if command -v podman >/dev/null 2>&1; then
+        ENGINE=(podman)
+        return
+      fi
+      echo "SPOCKIFY_CONTAINER_ENGINE=podman but podman is not available." >&2
+      exit 1
+      ;;
+    "")
+      ;;
+    *)
+      echo "SPOCKIFY_CONTAINER_ENGINE must be docker or podman (got: ${want})." >&2
+      exit 1
+      ;;
+  esac
+  if command -v podman >/dev/null 2>&1; then
+    ENGINE=(podman)
+    return
+  fi
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    ENGINE=(docker)
+    return
+  fi
+  echo "Need podman or docker." >&2
   exit 1
-fi
+}
+detect_engine
 
 if [[ "${BUILD}" -eq 1 ]]; then
   # Prefer a local AppImage so the build does not need Docker→internet.

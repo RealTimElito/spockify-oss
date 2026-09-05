@@ -16,6 +16,8 @@ cp .env.example .env    # change secrets
 make up                 # GHCR pull, no local Vite; or ./docker/run.sh
 ```
 
+Uses Podman if present, else Docker. Force Docker with `SPOCKIFY_CONTAINER_ENGINE=docker`.
+
 Open http://localhost:3080 — first account is admin.
 
 GPU: `make gpu` or `./docker/run.sh --gpu`.
@@ -52,7 +54,7 @@ Chat UI, router (`spockify-auto`), LiteLLM, Ollama, SearXNG, Postgres.
 
 ```bash
 cp .env.example .env    # change secrets
-make up                 # or ./docker/run.sh / ./docker-run.sh
+make up                 # or ./docker/run.sh / ./docker-run.sh — Podman if present, else Docker
 ```
 
 Open http://localhost:3080 and create the first account (admin).
