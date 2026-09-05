@@ -47,6 +47,8 @@ cp .env.example .env          # change WEBUI_SECRET_KEY and passwords
 make up                       # or ./docker/run.sh — Podman if present, else Docker
 ```
 
+`make clean` stops compose leftovers (ports 3080/4000/4100); `make clean CLEAN_DATA=1` or `./docker/clean.sh --data` also wipes `./data` and `spockify_pgdata`.
+
 `./docker/run.sh` uses Podman if `podman compose` or `podman-compose` works. Docker is used only when `docker compose` works **and** `docker info` can reach the daemon (a docker CLI with dockerd down is ignored). Force one with `SPOCKIFY_CONTAINER_ENGINE=docker` or `=podman`.
 
 `up` starts the UI, then downloads these Ollama tags in the background (~42 GiB first time):

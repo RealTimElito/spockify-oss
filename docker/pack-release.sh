@@ -33,15 +33,19 @@ cp "${ROOT}/config/orchestrator-prompt.md" "${STAGE}/"
 cp "${ROOT}/docker/README.md" "${STAGE}/README.md"
 cp "${ROOT}/docker/run.sh" "${STAGE}/run.sh"
 chmod +x "${STAGE}/run.sh"
+cp "${ROOT}/docker/engine.sh" "${STAGE}/engine.sh"
+cp "${ROOT}/docker/clean.sh" "${STAGE}/clean.sh"
+chmod +x "${STAGE}/clean.sh"
 cp "${ROOT}/docker-run.sh" "${STAGE}/docker-run.sh"
 chmod +x "${STAGE}/docker-run.sh"
 
 cat > "${STAGE}/Makefile" <<'EOF'
 # Unpacked compose kit (run.sh lives next to this file).
-.PHONY: help up down logs status
+.PHONY: help up down clean logs status
 help:
 	@echo "make up      ./run.sh"
 	@echo "make down    stop containers (keeps ./data)"
+	@echo "make clean   stop leftovers / free ports (keeps ./data; CLEAN_DATA=1 to wipe)"
 	@echo "make logs    follow logs"
 	@echo "make status  compose ps"
 up:
@@ -49,6 +53,9 @@ up:
 	./run.sh
 down:
 	./run.sh down
+clean:
+	chmod +x clean.sh
+	./clean.sh $(if $(filter 1,$(CLEAN_DATA)),--data,)
 logs:
 	./run.sh logs
 status:

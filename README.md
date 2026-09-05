@@ -22,6 +22,8 @@ Open http://localhost:3080 — first account is admin.
 
 GPU: `make gpu` or `./docker/run.sh --gpu`.
 
+`make clean` stops compose leftovers (frees ports 3080/4000/4100); `make clean CLEAN_DATA=1` or `./docker/clean.sh --data` also wipes local data.
+
 Details: [docker/README.md](docker/README.md). Fedora: do not `--build` Open WebUI; `make up` pulls GHCR.
 
 ### 2. Spockify IDE

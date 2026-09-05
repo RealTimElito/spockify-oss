@@ -1,9 +1,10 @@
 # Public Compose Makefile. Homelab k8s/release targets stay in the private tree.
-.PHONY: help up down logs status gpu kit docker-kit compose-up compose-down build-cli migrate ide
+.PHONY: help up down clean logs status gpu kit docker-kit compose-up compose-down build-cli migrate ide
 
 help:
 	@echo "make up          start chat (./docker/run.sh — podman-compose if present, else Docker if the API is up)"
 	@echo "make down        stop containers (keeps ./data)"
+	@echo "make clean       stop compose leftovers / free ports (keeps ./data; CLEAN_DATA=1 to wipe)"
 	@echo "make logs        follow logs"
 	@echo "make status      compose ps"
 	@echo "make gpu         up with docker-compose.gpu.yml"
@@ -19,6 +20,10 @@ up compose-up:
 down compose-down:
 	chmod +x docker/run.sh
 	./docker/run.sh down
+
+clean:
+	chmod +x docker/clean.sh
+	./docker/clean.sh $(if $(filter 1,$(CLEAN_DATA)),--data,)
 
 logs:
 	chmod +x docker/run.sh
@@ -37,7 +42,7 @@ ide:
 	./docker/ide/run.sh
 
 kit docker-kit:
-	chmod +x docker/pack-release.sh docker/run.sh docker-run.sh
+	chmod +x docker/pack-release.sh docker/run.sh docker/clean.sh docker/engine.sh docker-run.sh
 	./docker/pack-release.sh
 
 build-cli:
