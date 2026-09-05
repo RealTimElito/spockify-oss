@@ -16,18 +16,23 @@ COPY branding/ ./prebuilt/
 RUN python3 generate_branding.py --prebuilt /work/prebuilt --out /out
 
 ######## Frontend build ########
-FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS frontend-build
+# Debian, not Alpine: sass-embedded / rollup native bindings fail on musl
+# (common Fedora/Podman "npm run build did not complete successfully").
+FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS frontend-build
 ARG BUILD_HASH
-ARG NODE_MAX_OLD_SPACE=8192
+ARG NODE_MAX_OLD_SPACE=4096
 
 WORKDIR /src
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git ca-certificates python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
 COPY upstream/ upstream/
 
 WORKDIR /src/upstream
 RUN npm ci --force
 ENV APP_BUILD_HASH=${BUILD_HASH}
-ENV NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE}"
-RUN npm run build
+# ARG must be on this RUN: ENV+ARG heap size is ignored by some Podman builds.
+RUN NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE}" npm run build
 
 COPY --from=branding /out/ /branding/
 RUN cp -a /branding/. /src/upstream/build/static/ && \

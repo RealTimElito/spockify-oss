@@ -17,7 +17,7 @@ usage() {
   cat <<'EOF'
 Usage: ./docker/run.sh [up|down|logs|pull-model|status] [--gpu] [--build]
 
-  up          Start the stack (default). Builds images if they are missing.
+  up          Start the stack (default). Pulls GHCR images when possible.
               Starts model download in the background
               (default: llama3.2:3b llama3.1:8b gemma4:12b codestral devstral-small-2).
   down        Stop containers (keeps ./data)
@@ -45,6 +45,50 @@ detect_engine() {
   fi
   echo "Need Docker Compose v2 (Ubuntu: docker.io + docker-compose-v2) or Podman Compose (Fedora: podman + podman-compose)." >&2
   exit 1
+}
+
+# docker vs podman-compose: inspect/pull must use the runtime, not "podman-compose".
+runtime_bin() {
+  case "${ENGINE[0]}" in
+    podman|podman-compose) printf '%s\n' podman ;;
+    *) printf '%s\n' docker ;;
+  esac
+}
+
+image_exists() {
+  local img="$1"
+  [[ -n "${img}" ]] || return 1
+  "$(runtime_bin)" image inspect "${img}" >/dev/null 2>&1
+}
+
+ghcr_prefix_from_git() {
+  local url owner
+  url="$(git -C "${ROOT}" remote get-url origin 2>/dev/null || true)"
+  [[ -n "${url}" ]] || return 1
+  owner="$(printf '%s\n' "${url}" | sed -nE 's#.*github.com[:/]([^/]+)/.*#\1#p')"
+  [[ -n "${owner}" ]] || return 1
+  printf 'ghcr.io/%s\n' "${owner,,}"
+}
+
+# Pull published images so Fedora/Podman does not have to run Vite in-container.
+pull_ghcr_images() {
+  local prefix tag router owui rt
+  prefix="${SPOCKIFY_IMAGE_PREFIX:-}"
+  tag="${SPOCKIFY_IMAGE_TAG:-latest}"
+  if [[ -z "${prefix}" ]]; then
+    prefix="$(ghcr_prefix_from_git || true)"
+  fi
+  [[ -n "${prefix}" ]] || return 1
+  router="${SPOCKIFY_ROUTER_IMAGE:-${prefix}/spockify-router:${tag}}"
+  owui="${SPOCKIFY_OPENWEBUI_IMAGE:-${prefix}/spockify-openwebui:${tag}}"
+  rt="$(runtime_bin)"
+  echo "Pulling ${router} and ${owui} (skips a local Open WebUI npm build)..."
+  if "${rt}" pull "${router}" && "${rt}" pull "${owui}"; then
+    export SPOCKIFY_ROUTER_IMAGE="${router}"
+    export SPOCKIFY_OPENWEBUI_IMAGE="${owui}"
+    return 0
+  fi
+  return 1
 }
 
 selinux_hint() {
@@ -140,8 +184,15 @@ case "${CMD}" in
       owui_img="${SPOCKIFY_OPENWEBUI_IMAGE:-spockify-openwebui:local}"
       need_build="${FORCE_BUILD}"
       if [[ "${need_build}" -eq 0 ]]; then
-        if ! "${ENGINE[0]}" image inspect "${router_img}" >/dev/null 2>&1 \
-          || ! "${ENGINE[0]}" image inspect "${owui_img}" >/dev/null 2>&1; then
+        if image_exists "${router_img}" && image_exists "${owui_img}"; then
+          need_build=0
+        elif pull_ghcr_images && image_exists "${SPOCKIFY_ROUTER_IMAGE}" \
+          && image_exists "${SPOCKIFY_OPENWEBUI_IMAGE}"; then
+          need_build=0
+        else
+          echo "No prebuilt images — building Open WebUI locally (needs several GiB RAM)." >&2
+          echo "If npm run build fails on Fedora, pull GHCR instead of building:" >&2
+          echo "  $(runtime_bin) pull ghcr.io/<owner>/spockify-openwebui:latest" >&2
           need_build=1
         fi
       fi

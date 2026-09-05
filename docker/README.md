@@ -90,13 +90,18 @@ Docker CE **or** Podman both work. Compose bind mounts already have `:z`.
 # Podman (default on Fedora)
 sudo dnf install -y podman podman-compose
 systemctl --user enable --now podman.socket
-./docker/run.sh
+./docker/run.sh          # pulls GHCR; do not --build unless you change the UI
 
 # or Docker CE
 sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 sudo systemctl enable --now docker
 sudo usermod -aG docker "$USER"
 ```
+
+`npm run build` inside the Open WebUI image is a heavy Vite compile. Fedora/Podman
+often kills it (OOM or Alpine native bindings). `./docker/run.sh` without `--build`
+pulls `ghcr.io/<github-owner>/spockify-openwebui` instead. Use `--build` only when
+you edited `services/openwebui`.
 
 If a volume is `Permission denied`:
 
@@ -203,9 +208,10 @@ Use a high port (`SPOCKIFY_CHAT_PORT=3080` is already high). Linger:
 Call `docker-compose.yml` directly (`./docker/run.sh` does). The
 `docker-compose.spockify.yml` name is only a Compose v2 include alias.
 
-**Image build OOM (Open WebUI)**  
-The Node stage wants several GiB. Set `NODE_OPTIONS` is already 8 GiB inside
-the Dockerfile; on a small machine pull GHCR instead of `--build`.
+**Image build OOM / `npm run build` failed (Fedora)**  
+Do not rebuild Open WebUI on the laptop. `./docker/run.sh` pulls GHCR. If a
+previous `up --build` failed, run without `--build`. The Node stage uses a 4 GiB
+heap on Debian, not Alpine; a local build still wants several GiB free RAM.
 
 **Wrong architecture**  
 Published CI images are **linux/amd64**. On aarch64 (Raspberry Pi, many

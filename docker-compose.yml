@@ -154,6 +154,7 @@ services:
       args:
         BUILD_HASH: ${BUILD_HASH:-spockify-oss}
         PRELOAD_MODELS: ${PRELOAD_MODELS:-false}
+        NODE_MAX_OLD_SPACE: ${NODE_MAX_OLD_SPACE:-4096}
     restart: unless-stopped
     environment:
       WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-change-me-to-at-least-32-characters}
