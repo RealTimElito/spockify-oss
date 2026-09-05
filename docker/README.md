@@ -29,8 +29,11 @@ Chat UI: **http://localhost:3080**
 API: **http://localhost:4000/v1**  
 Router: **http://localhost:4100/health**
 
-Data lives under `./data/spockify/` (override with `STORAGE_ROOT`). Bind mounts
-use the `:z` SELinux label so Fedora/RHEL can write them.
+Ollama and Open WebUI data live under `./data/spockify/` (override with
+`STORAGE_ROOT`). Those binds use the `:z` SELinux label so Fedora/RHEL can
+write them. On Docker, Postgres is also `./data/spockify/postgres`. On Podman,
+Postgres is the named volume `spockify_pgdata` — an existing
+`./data/spockify/postgres` is unused and is **not** migrated.
 
 ## Quick start (git clone — build)
 
@@ -86,7 +89,8 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
 
 ### Fedora / RHEL (SELinux)
 
-Docker CE **or** Podman both work. Compose bind mounts already have `:z`.
+Docker CE **or** Podman both work. Ollama/Open WebUI binds already have `:z`.
+On Podman, Postgres is the named volume `spockify_pgdata` (not a host bind).
 
 ```bash
 # Podman (default on Fedora)
@@ -189,17 +193,18 @@ podman-compose version
 Then `make up` or `./docker/run.sh` again. Do not point compose at `/var/run/docker.sock`.
 
 **`permission denied` on `./data` / pgdata (Fedora)**  
-SELinux or rootless UID mismatch. `./docker/run.sh` applies `:z`, chowns
-Postgres to UID 70 (`postgres:17-alpine`), and uses `podman-compose` (not
-hyphenated `docker-compose`). If a prior Docker run left root-owned files:
-`sudo chown -R "$USER:$USER" ./data/spockify` (or `sudo rm -rf` that dir).
+SELinux or a leftover root-owned bind. `./docker/run.sh` uses `:z` on
+ollama/openwebui and a named volume for Postgres — it does **not** `chown`.
 `chcon -Rt container_file_t ./data/spockify` if SELinux still blocks. Do not
 disable SELinux.
 
-**`failed to chown recursively host path .../ollama` (Podman)**  
-That was `:U` walking the model store. This tree no longer uses `:U` (`:z` only).
-`git pull` and `make up` again. Leftover root-owned blobs still need
-`sudo chown -R "$USER:$USER" ./data/spockify/ollama` (or the whole `./data/spockify`).
+**`failed to chown recursively host path .../pgdata` (or ollama / openwebui)**  
+That was `:U` or `podman unshare chown` walking a host bind. This tree uses
+neither (`:z` only; Postgres is `spockify_pgdata` on Podman). `git pull` and
+`make up` again. Old `./data/spockify/postgres` is unused (no auto-migrate).
+If a prior `:U` left ollama/openwebui unreadable as your user, once after
+pull: `sudo chown -R "$USER:$USER" ./data/spockify/ollama ./data/spockify/openwebui`.
+Do not `sudo chown` the Postgres host dir to make `up` work — it is not mounted.
 
 **Open WebUI: “Server Connection Error” / empty models**  
 LiteLLM or router not ready, or the first model pull is still running. Check
@@ -280,6 +285,15 @@ tar -C "${STORAGE_ROOT:-./data/spockify}" -czf spockify-data.tgz postgres openwe
 docker compose start openwebui litellm
 ```
 
+On Podman, Postgres is the named volume `spockify_pgdata`, not
+`./data/spockify/postgres`. Export that volume instead of the host dir:
+
+```bash
+podman volume export spockify_spockify_pgdata -o pgdata.tar
+```
+
+(`podman volume ls | grep pgdata` if the name differs.)
+
 Ollama weights are large; include `ollama/` only if you want them in the tarball.
 
 ## Layout (where to look)
@@ -287,7 +301,7 @@ Ollama weights are large; include `ollama/` only if you want them in the tarball
 ```
 docker-compose.yml           # git-clone stack (build + run)
 docker-compose.gpu.yml       # NVIDIA overlay
-docker-compose.podman.yml    # Podman :z binds (run.sh; no :U)
+docker-compose.podman.yml    # Podman: named pgdata + :z binds (no :U)
 docker/compose.pull.yml      # downloadable kit (images only)
 docker/litellm.yaml          # model catalog for compose
 docker/routing-rules.json    # router rules (compose service DNS)

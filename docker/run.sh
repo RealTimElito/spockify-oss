@@ -190,21 +190,15 @@ using_podman() {
   esac
 }
 
-# postgres:17-alpine drops to UID 70. Debian postgres images use 999.
-# Never use Podman :U: image USER is root (chown to 0), then alpine needs 70,
-# and :U walks every bind (ollama models → EPERM). Only unshare-chown postgres.
+# Host binds for Ollama / Open WebUI only. Never chown — rootless Podman
+# cannot recursively chown those paths (EPERM). Do not add :U in compose.
+# Postgres on Podman is a named volume (see docker-compose.podman.yml).
 prepare_data_dirs() {
-  local root pg pg_uid
+  local root
   root="$(storage_root)"
-  mkdir -p "${root}"/{postgres,ollama,openwebui}
-  using_podman || return 0
-  pg="${root}/postgres"
-  pg_uid="${SPOCKIFY_POSTGRES_UID:-70}"
-  if ! podman unshare chown -R "${pg_uid}:${pg_uid}" "${pg}" 2>/dev/null; then
-    echo "Could not chown ${pg} for rootless Postgres (UID ${pg_uid}). Continuing." >&2
-    echo "If postgres then fails to start, on the host:" >&2
-    echo "  sudo chown -R $(id -u):$(id -g) ${pg}" >&2
-    echo "  # or start empty: sudo rm -rf ${pg} && mkdir -p ${pg}" >&2
+  mkdir -p "${root}/ollama" "${root}/openwebui"
+  if ! using_podman; then
+    mkdir -p "${root}/postgres"
   fi
 }
 
@@ -281,6 +275,9 @@ if [[ "${GPU}" -eq 1 ]]; then
 fi
 if using_podman && [[ -f "${ROOT}/docker-compose.podman.yml" ]]; then
   FILES+=(-f docker-compose.podman.yml)
+  # Named volume so the host postgres bind is not in the merged spec
+  # (podman-compose appends volumes and would still chown the bind).
+  export SPOCKIFY_PGDATA="${SPOCKIFY_PGDATA:-spockify_pgdata}"
 fi
 
 if [[ ! -f "${ROOT}/.env" && -f "${ROOT}/.env.example" ]]; then

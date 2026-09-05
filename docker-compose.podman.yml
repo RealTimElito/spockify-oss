@@ -5,18 +5,22 @@
 #
 #   podman-compose -f docker-compose.yml -f docker-compose.podman.yml up -d
 #
-# Postgres UID 70 is set in run.sh (`podman unshare chown` on the postgres
-# dir only). Image USER is root; alpine then drops to 70.
+# Postgres is a named volume (not ${STORAGE_ROOT}/postgres). Rootless Podman
+# cannot chown a host bind for alpine UID 70; a podman-managed volume can.
+# Existing ./data/spockify/postgres is unused and is not migrated.
 
 name: spockify
 
 services:
   postgres:
     volumes:
-      - ${STORAGE_ROOT:-./data/spockify}/postgres:/var/lib/postgresql/data:z
+      - spockify_pgdata:/var/lib/postgresql/data
   ollama:
     volumes:
       - ${STORAGE_ROOT:-./data/spockify}/ollama:/root/.ollama:z
   openwebui:
     volumes:
       - ${STORAGE_ROOT:-./data/spockify}/openwebui:/app/backend/data:z
+
+volumes:
+  spockify_pgdata:

@@ -7,7 +7,8 @@
 # Prebuilt images: set SPOCKIFY_*_IMAGE in .env (see docker/README.md).
 # NVIDIA GPU: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
 # SELinux/Fedora: bind mounts use :z (shared container_file_t).
-# Rootless Podman: ./docker/run.sh also applies docker-compose.podman.yml (:z only; no :U).
+# Rootless Podman: ./docker/run.sh applies docker-compose.podman.yml
+# (postgres named volume; ollama/openwebui :z binds; no :U).
 
 name: spockify
 
@@ -21,7 +22,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spockify-dev}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - ${STORAGE_ROOT:-./data/spockify}/postgres:/var/lib/postgresql/data:z
+      # Docker default: host bind. Podman/run.sh sets SPOCKIFY_PGDATA=spockify_pgdata
+      # so the host path is never mounted (podman-compose appends volumes).
+      - ${SPOCKIFY_PGDATA:-${STORAGE_ROOT:-./data/spockify}/postgres}:/var/lib/postgresql/data:z
       - ${POSTGRES_INIT:-./docker/postgres-init}:/docker-entrypoint-initdb.d:ro,z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U spockify -d spockify"]
@@ -211,3 +214,7 @@ services:
         condition: service_started
       router:
         condition: service_started
+
+volumes:
+  # Declared for Podman (SPOCKIFY_PGDATA=spockify_pgdata). Unused on Docker bind.
+  spockify_pgdata:
