@@ -33,6 +33,17 @@ while [[ $# -gt 0 ]]; do
 done
 
 ENGINE=()
+
+use_podman_docker_host() {
+  local sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
+  if [[ ! -S "${sock}" ]]; then
+    sock="/run/user/$(id -u)/podman/podman.sock"
+  fi
+  if [[ -S "${sock}" ]]; then
+    export DOCKER_HOST="unix://${sock}"
+  fi
+}
+
 detect_engine() {
   local want="${SPOCKIFY_CONTAINER_ENGINE:-}"
   case "${want}" in
@@ -41,12 +52,13 @@ detect_engine() {
         ENGINE=(docker)
         return
       fi
-      echo "SPOCKIFY_CONTAINER_ENGINE=docker but docker is not available." >&2
+      echo "SPOCKIFY_CONTAINER_ENGINE=docker but docker is not available or the Docker API is unreachable." >&2
       exit 1
       ;;
     podman)
       if command -v podman >/dev/null 2>&1; then
         ENGINE=(podman)
+        use_podman_docker_host
         return
       fi
       echo "SPOCKIFY_CONTAINER_ENGINE=podman but podman is not available." >&2
@@ -61,6 +73,7 @@ detect_engine() {
   esac
   if command -v podman >/dev/null 2>&1; then
     ENGINE=(podman)
+    use_podman_docker_host
     return
   fi
   if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then

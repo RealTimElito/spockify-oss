@@ -23,7 +23,7 @@ Usage: ./docker/run.sh [up|down|logs|pull-model|status] [--gpu] [--build]
   down        Stop containers (keeps ./data)
   logs        Follow all service logs
   pull-model  Re-run the model pull (same tags as up)
-  status      docker compose ps
+  status      compose ps
   --gpu       Also apply docker-compose.gpu.yml
   --build     Rebuild router and Open WebUI even if local images exist
 
@@ -33,24 +33,72 @@ EOF
 }
 
 ENGINE=()
+
+# podman compose often shells out to docker-compose, which talks to DOCKER_HOST.
+podman_user_socket() {
+  local sock="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
+  if [[ ! -S "${sock}" ]]; then
+    sock="/run/user/$(id -u)/podman/podman.sock"
+  fi
+  if [[ -S "${sock}" ]]; then
+    printf 'unix://%s\n' "${sock}"
+    return 0
+  fi
+  return 1
+}
+
+use_podman_docker_host() {
+  local host
+  if host="$(podman_user_socket)"; then
+    export DOCKER_HOST="${host}"
+  fi
+}
+
+podman_compose_ok() {
+  command -v podman >/dev/null 2>&1 || return 1
+  local host
+  host="$(podman_user_socket || true)"
+  if [[ -n "${host}" ]]; then
+    DOCKER_HOST="${host}" podman compose version >/dev/null 2>&1
+  else
+    podman compose version >/dev/null 2>&1
+  fi
+}
+
+pick_podman() {
+  if podman_compose_ok; then
+    ENGINE=(podman compose)
+    use_podman_docker_host
+    return 0
+  fi
+  if command -v podman-compose >/dev/null 2>&1; then
+    ENGINE=(podman-compose)
+    use_podman_docker_host
+    return 0
+  fi
+  return 1
+}
+
+# docker compose version can succeed while dockerd is down (Fedora / podman-docker).
+docker_engine_ok() {
+  command -v docker >/dev/null 2>&1 \
+    && docker compose version >/dev/null 2>&1 \
+    && docker info >/dev/null 2>&1
+}
+
 detect_engine() {
   local want="${SPOCKIFY_CONTAINER_ENGINE:-}"
   case "${want}" in
     docker)
-      if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+      if docker_engine_ok; then
         ENGINE=(docker compose)
         return
       fi
-      echo "SPOCKIFY_CONTAINER_ENGINE=docker but docker compose is not available." >&2
+      echo "SPOCKIFY_CONTAINER_ENGINE=docker but docker compose is not available or the Docker API is unreachable (is dockerd running?)." >&2
       exit 1
       ;;
     podman)
-      if command -v podman >/dev/null 2>&1 && podman compose version >/dev/null 2>&1; then
-        ENGINE=(podman compose)
-        return
-      fi
-      if command -v podman-compose >/dev/null 2>&1; then
-        ENGINE=(podman-compose)
+      if pick_podman; then
         return
       fi
       echo "SPOCKIFY_CONTAINER_ENGINE=podman but neither podman compose nor podman-compose is available." >&2
@@ -64,19 +112,17 @@ detect_engine() {
       ;;
   esac
   # Prefer Podman when compose actually works; Ubuntu without Podman falls through.
-  if command -v podman >/dev/null 2>&1 && podman compose version >/dev/null 2>&1; then
-    ENGINE=(podman compose)
+  if pick_podman; then
     return
   fi
-  if command -v podman-compose >/dev/null 2>&1; then
-    ENGINE=(podman-compose)
-    return
-  fi
-  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  if docker_engine_ok; then
     ENGINE=(docker compose)
     return
   fi
   echo "Need Podman Compose (Fedora: podman + podman-compose) or Docker Compose v2 (Ubuntu: docker.io + docker-compose-v2)." >&2
+  echo "If you saw 'failed to connect to the docker API', dockerd is not running. Prefer Podman:" >&2
+  echo "  systemctl --user enable --now podman.socket" >&2
+  echo "  podman compose version   # or: podman-compose" >&2
   exit 1
 }
 

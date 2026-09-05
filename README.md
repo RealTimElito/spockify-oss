@@ -16,7 +16,7 @@ cp .env.example .env    # change secrets
 make up                 # GHCR pull, no local Vite; or ./docker/run.sh
 ```
 
-Uses Podman if present, else Docker. Force Docker with `SPOCKIFY_CONTAINER_ENGINE=docker`.
+Uses Podman if compose works, else Docker (only if the daemon is up). Fedora “Docker API” errors: `systemctl --user enable --now podman.socket` and `podman compose version` (or `podman-compose`). Force Docker with `SPOCKIFY_CONTAINER_ENGINE=docker`.
 
 Open http://localhost:3080 — first account is admin.
 
@@ -54,7 +54,7 @@ Chat UI, router (`spockify-auto`), LiteLLM, Ollama, SearXNG, Postgres.
 
 ```bash
 cp .env.example .env    # change secrets
-make up                 # or ./docker/run.sh / ./docker-run.sh — Podman if present, else Docker
+make up                 # or ./docker/run.sh / ./docker-run.sh — Podman if compose works, else Docker if the API is up
 ```
 
 Open http://localhost:3080 and create the first account (admin).

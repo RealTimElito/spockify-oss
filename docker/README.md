@@ -44,7 +44,7 @@ cp .env.example .env          # change WEBUI_SECRET_KEY and passwords
 make up                       # or ./docker/run.sh — Podman if present, else Docker
 ```
 
-`./docker/run.sh` uses Podman if `podman compose` or `podman-compose` works, otherwise Docker Compose v2. Force one with `SPOCKIFY_CONTAINER_ENGINE=docker` or `=podman`.
+`./docker/run.sh` uses Podman if `podman compose` or `podman-compose` works. Docker is used only when `docker compose` works **and** `docker info` can reach the daemon (a docker CLI with dockerd down is ignored). Force one with `SPOCKIFY_CONTAINER_ENGINE=docker` or `=podman`.
 
 `up` starts the UI, then downloads these Ollama tags in the background (~42 GiB first time):
 
@@ -93,6 +93,9 @@ Docker CE **or** Podman both work. Compose bind mounts already have `:z`.
 sudo dnf install -y podman podman-compose
 systemctl --user enable --now podman.socket
 ./docker/run.sh          # pulls GHCR; do not --build unless you change the UI
+# If you still see "failed to connect to the Docker API":
+#   systemctl --user enable --now podman.socket
+#   podman compose version   # or: podman-compose
 
 # or Docker CE
 sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
@@ -172,6 +175,17 @@ curl -fsS http://localhost:3080/health
 ```
 
 ## Fixing common failures
+
+**`failed to connect to the Docker API` (Fedora)**  
+`make up` prefers Podman. If a `docker` CLI / `podman-docker` shim is present but
+dockerd is not, enable the user socket and confirm compose:
+
+```bash
+systemctl --user enable --now podman.socket
+podman compose version   # or: podman-compose
+```
+
+Then `make up` or `./docker/run.sh` again. Do not point compose at `/var/run/docker.sock`.
 
 **`permission denied` on `./data` (Fedora)**  
 SELinux. `chcon -Rt container_file_t ./data/spockify` or re-run `./docker/run.sh`
