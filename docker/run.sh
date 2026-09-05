@@ -191,7 +191,8 @@ using_podman() {
 }
 
 # postgres:17-alpine drops to UID 70. Debian postgres images use 999.
-# Image USER is root, so :U chowns to 0; the entrypoint then needs 70.
+# Never use Podman :U: image USER is root (chown to 0), then alpine needs 70,
+# and :U walks every bind (ollama models → EPERM). Only unshare-chown postgres.
 prepare_data_dirs() {
   local root pg pg_uid
   root="$(storage_root)"
@@ -200,12 +201,10 @@ prepare_data_dirs() {
   pg="${root}/postgres"
   pg_uid="${SPOCKIFY_POSTGRES_UID:-70}"
   if ! podman unshare chown -R "${pg_uid}:${pg_uid}" "${pg}" 2>/dev/null; then
-    echo "Could not chown ${pg} for rootless Postgres (UID ${pg_uid})." >&2
-    if find "${pg}" -user root -print -quit 2>/dev/null | grep -q .; then
-      echo "Leftover root-owned files (prior Docker). On the host:" >&2
-      echo "  sudo chown -R $(id -u):$(id -g) ${pg}" >&2
-      echo "  # or start empty: sudo rm -rf ${pg} && mkdir -p ${pg}" >&2
-    fi
+    echo "Could not chown ${pg} for rootless Postgres (UID ${pg_uid}). Continuing." >&2
+    echo "If postgres then fails to start, on the host:" >&2
+    echo "  sudo chown -R $(id -u):$(id -g) ${pg}" >&2
+    echo "  # or start empty: sudo rm -rf ${pg} && mkdir -p ${pg}" >&2
   fi
 }
 

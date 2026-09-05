@@ -196,6 +196,11 @@ hyphenated `docker-compose`). If a prior Docker run left root-owned files:
 `chcon -Rt container_file_t ./data/spockify` if SELinux still blocks. Do not
 disable SELinux.
 
+**`failed to chown recursively host path .../ollama` (Podman)**  
+That was `:U` walking the model store. This tree no longer uses `:U` (`:z` only).
+`git pull` and `make up` again. Leftover root-owned blobs still need
+`sudo chown -R "$USER:$USER" ./data/spockify/ollama` (or the whole `./data/spockify`).
+
 **Open WebUI: “Server Connection Error” / empty models**  
 LiteLLM or router not ready, or the first model pull is still running. Check
 `docker compose ps` and `docker compose logs ollama-pull`. `spockify-auto` is
@@ -282,7 +287,7 @@ Ollama weights are large; include `ollama/` only if you want them in the tarball
 ```
 docker-compose.yml           # git-clone stack (build + run)
 docker-compose.gpu.yml       # NVIDIA overlay
-docker-compose.podman.yml    # rootless :z,U data binds (run.sh on Podman)
+docker-compose.podman.yml    # Podman :z binds (run.sh; no :U)
 docker/compose.pull.yml      # downloadable kit (images only)
 docker/litellm.yaml          # model catalog for compose
 docker/routing-rules.json    # router rules (compose service DNS)

@@ -7,7 +7,7 @@
 # Prebuilt images: set SPOCKIFY_*_IMAGE in .env (see docker/README.md).
 # NVIDIA GPU: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
 # SELinux/Fedora: bind mounts use :z (shared container_file_t).
-# Rootless Podman: ./docker/run.sh also applies docker-compose.podman.yml (:z,U).
+# Rootless Podman: ./docker/run.sh also applies docker-compose.podman.yml (:z only; no :U).
 
 name: spockify
 
