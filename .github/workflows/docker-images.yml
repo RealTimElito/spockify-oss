@@ -1,4 +1,4 @@
-name: docker-images
+name: Docker images
 
 # Build and publish Spockify router + Open WebUI images, plus a compose kit zip.
 # Images: ghcr.io/<github-owner>/spockify-router and spockify-openwebui
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Image / kit tag (default: run id)"
+        description: Image or kit tag. Leave empty to use the run id.
         required: false
         type: string
       push_images:
@@ -29,6 +29,8 @@ env:
 
 jobs:
   kit-and-images:
+    # Skip GitHub's bogus push-to-branch evaluations of workflow_dispatch files.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/docker-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -36,32 +38,36 @@ jobs:
 
       - name: Version
         id: ver
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          if [[ -n "${{ inputs.version }}" ]]; then
-            V="${{ inputs.version }}"
+          if [[ -n "${INPUT_VERSION}" ]]; then
+            V="${INPUT_VERSION}"
           elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             V="${GITHUB_REF_NAME#docker-v}"
           else
-            V="0.0.${GITHUB_RUN_NUMBER}"
+            V="0.1.${GITHUB_RUN_NUMBER}"
           fi
+          OWNER="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           echo "version=${V}" >> "$GITHUB_OUTPUT"
-          echo "prefix=${{ env.REGISTRY }}/${{ github.repository_owner }}" >> "$GITHUB_OUTPUT"
+          echo "prefix=${{ env.REGISTRY }}/${OWNER}" >> "$GITHUB_OUTPUT"
+          echo "Using ${{ env.REGISTRY }}/${OWNER} tag ${V}"
 
       - name: Pack compose kit
         env:
           VERSION: ${{ steps.ver.outputs.version }}
           SPOCKIFY_IMAGE_PREFIX: ${{ steps.ver.outputs.prefix }}
         run: |
-          chmod +x docker/pack-release.sh docker/run.sh
+          chmod +x docker/pack-release.sh docker/run.sh docker-run.sh
           sudo apt-get update -y && sudo apt-get install -y zip
           ./docker/pack-release.sh
 
       - name: Set up Docker Buildx
-        if: ${{ github.event_name == 'push' || inputs.push_images }}
+        if: github.event_name == 'push' || github.event.inputs.push_images != 'false'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
-        if: ${{ github.event_name == 'push' || inputs.push_images }}
+        if: github.event_name == 'push' || github.event.inputs.push_images != 'false'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -69,7 +75,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push router
-        if: ${{ github.event_name == 'push' || inputs.push_images }}
+        if: github.event_name == 'push' || github.event.inputs.push_images != 'false'
         uses: docker/build-push-action@v6
         with:
           context: services/router
@@ -78,11 +84,14 @@ jobs:
           tags: |
             ${{ steps.ver.outputs.prefix }}/spockify-router:${{ steps.ver.outputs.version }}
             ${{ steps.ver.outputs.prefix }}/spockify-router:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.title=spockify-router
           cache-from: type=gha,scope=router
           cache-to: type=gha,mode=max,scope=router
 
       - name: Build and push Open WebUI
-        if: ${{ github.event_name == 'push' || inputs.push_images }}
+        if: github.event_name == 'push' || github.event.inputs.push_images != 'false'
         uses: docker/build-push-action@v6
         with:
           context: services/openwebui
@@ -95,6 +104,9 @@ jobs:
           tags: |
             ${{ steps.ver.outputs.prefix }}/spockify-openwebui:${{ steps.ver.outputs.version }}
             ${{ steps.ver.outputs.prefix }}/spockify-openwebui:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.title=spockify-openwebui
           cache-from: type=gha,scope=openwebui
           cache-to: type=gha,mode=max,scope=openwebui
 
@@ -113,7 +125,7 @@ jobs:
 
             1. Download `spockify-docker.zip`
             2. `cp .env.example .env` (image names are pre-filled)
-            3. `docker compose up -d` (pulls gemma4, llamas, Codestral, Devstral Small 2)
+            3. `./run.sh` or `docker compose up -d`
             4. Open http://localhost:3080 and create the first admin account
 
             Images:

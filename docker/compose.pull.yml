@@ -87,9 +87,7 @@ services:
       postgres:
         condition: service_healthy
       ollama:
-        condition: service_started
-      ollama-pull:
-        condition: service_completed_successfully
+        condition: service_healthy
 
   router:
     image: ${SPOCKIFY_ROUTER_IMAGE:?Set SPOCKIFY_ROUTER_IMAGE in .env — see README}
@@ -175,6 +173,12 @@ services:
       - ${STORAGE_ROOT:-./data/spockify}/openwebui:/app/backend/data:z
     ports:
       - "${SPOCKIFY_CHAT_PORT:-3080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
     depends_on:
       postgres:
         condition: service_healthy

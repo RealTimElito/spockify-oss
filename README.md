@@ -1,99 +1,60 @@
-# Spockify
+# agentHub (Spockify)
 
-Self-hosted, OSS-model AI stack: a chat UI, a smart model router, web search, and
-an editor/CLI toolchain — all running on open models via [Ollama](https://ollama.com)
-and [LiteLLM](https://github.com/BerriAI/litellm). No proprietary model APIs required.
+Homelab stack plus a **Docker Compose** path that runs on Ubuntu, Fedora (SELinux),
+and other Linux distros.
 
-Spockify wires together:
+## Self-host with Docker
 
-- **Chat UI** — an [Open WebUI](https://github.com/open-webui/open-webui) fork with
-  Spockify UX (Canvas side panel, hybrid TTS, router attribution).
-- **Router** (`services/router`) — the `spockify-auto` orchestrator: picks a worker
-  model per request, decides when to search, and streams the answer back.
-- **LiteLLM** — OpenAI-compatible proxy in front of Ollama (and optionally vLLM).
-- **SearXNG** — private metasearch the router uses for grounded answers.
-- **Editor + CLI** — a VS Code-style extension (`extensions/spockify`), shared
-  client packages (`packages/spockify-*`), and a terminal agent
-  (`packages/spockify-cli`).
-
-## Quick start (Docker Compose)
-
-Requirements: Docker Compose v2 or Podman. Ubuntu/Debian and Fedora/SELinux
-are the tested distros. A GPU is optional (CPU works for small models).
+Chat UI, router (`spockify-auto`), LiteLLM, Ollama, SearXNG, Postgres.
 
 ```bash
-git clone <your-fork-url> spockify && cd spockify
-cp .env.example .env        # then edit the secrets
-./docker/run.sh             # builds, starts, pulls chat + Tab + Devstral Small 2
+cp .env.example .env    # change secrets
+./docker/run.sh         # or ./docker-run.sh — docker compose or podman
 ```
 
-Or `docker compose up -d --build` — same model pull happens automatically
-(~42 GiB first time: llama3.2:3b, llama3.1:8b, gemma4:12b, codestral,
-devstral-small-2 with 8k ctx for 16 GiB GPUs). Extra tags: `OLLAMA_PULL_MODELS`
-in `.env`. Full guide: [docker/README.md](docker/README.md).
+Open http://localhost:3080 and create the first account (admin).
 
-Create the first admin at http://localhost:3080, then set `ENABLE_SIGNUP=false`
-and `docker compose up -d` again.
+- Guide (rebuild one service, SELinux, GPU, failures): [docker/README.md](docker/README.md)
+- Downloadable kit: GitHub Release `docker-v*` or https://spockify.eu/downloads/spockify-docker.zip
+- Pack locally: `make docker-kit` then `./scripts/publish-docker-kit.sh` (downloads host)
 
-### Services and ports
+NVIDIA GPU: `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d`
 
-| Service   | Port  | Purpose                                  |
-|-----------|-------|------------------------------------------|
-| openwebui | 3080  | Chat UI                                  |
-| router    | 4100  | `spockify-auto` orchestrator             |
-| litellm   | 4000  | OpenAI-compatible model proxy            |
+## Open WebUI
 
-## Configuration
+Vendored at `services/openwebui/upstream/` — **v0.9.6** + Spockify edits.
 
-- Model list and routing targets: [`config/litellm-dev.yaml`](config/litellm-dev.yaml)
-- Router prompt and rules: [`config/orchestrator-prompt.md`](config/orchestrator-prompt.md),
-  [`config/routing-rules.json`](config/routing-rules.json)
-- Search settings: [`config/searxng-settings-dev.yml`](config/searxng-settings-dev.yml)
-- All secrets and paths come from `.env` — see [`.env.example`](.env.example).
+- Build/deploy: [services/openwebui/README.md](services/openwebui/README.md)
+- **Upgrade / touch-list (stock vs Spockify-only):** [docs/SPOCKIFY_OPENWEBUI_TOUCHLIST.md](docs/SPOCKIFY_OPENWEBUI_TOUCHLIST.md)
+- **Desktop IDE (plan):** [docs/SPOCKIFY_DESKTOP_IDE_PLAN.md](docs/SPOCKIFY_DESKTOP_IDE_PLAN.md) — Cursor-like code-oss app; Ghost Monaco stays web-only for now
+- **Cursor clone build plan:** [docs/SPOCKIFY_CURSOR_CLONE_BUILD_PLAN.md](docs/SPOCKIFY_CURSOR_CLONE_BUILD_PLAN.md) — parallel agents closing MVP → clone v1
 
-Data persists under `STORAGE_ROOT` (default `./data/spockify`).
+**New features:** prefer `routers/spockify.py`, `/spockify/*` routes, `Spockify*.svelte`, and the router service — not deep stock file edits when avoidable. Do not refactor existing stock patches into modules unless explicitly asked.
 
-## GPU
+## Spockify Desktop IDE
 
-CPU compose is the default. NVIDIA:
+Catalog under [`apps/spockify-ide/`](apps/spockify-ide/) (WS-A shell + Remote SSH). AI extension: `extensions/spockify/` (WS-B/C/D). Shared packages: `packages/spockify-*`.
+
+## Spockify CLI
+
+Claude Code–style terminal agent: [`packages/spockify-cli/`](packages/spockify-cli/) — device link+code login, tool loop (read/edit/grep/shell).
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+make build-cli
+spockify login          # browser approve → virtual key
+spockify "fix the bug"
 ```
 
-## Building the images
+See [packages/spockify-cli/README.md](packages/spockify-cli/README.md). Device routes live in OpenWebUI (`/api/v1/spockify/cli/...`); redeploy OWUI to enable login.
 
-The router and Open WebUI fork build from this tree on `docker compose up`.
-Prebuilt images: `ghcr.io/<owner>/spockify-router` (and `spockify-openwebui`
-when published). Compose kit zip: https://spockify.eu/downloads/spockify-docker.zip
+MVP (~9k+ LOC) on code-oss — Cursor-like surfaces thickening overnight; see phase scorecard.
 
-CI: [`.github/workflows/docker-images.yml`](.github/workflows/docker-images.yml).
-
-## Project layout
-
-```
-services/router/        spockify-auto orchestrator (FastAPI)
-services/openwebui/     Open WebUI fork (vendored upstream + Spockify edits)
-services/tab-train/     optional: tab-completion model training utilities
-services/spockify-mcp/  optional: MCP server for cluster ops
-extensions/spockify/    VS Code-style AI extension
-packages/spockify-*/    shared client, CLI, codebase-index, model helpers
-config/                 model, routing, and search configuration
-sql/migrations/         Spockify database migrations
-```
-
-## Architecture
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## License
-
-Spockify-authored code is released under the [MIT License](LICENSE).
-
-The vendored Open WebUI under `services/openwebui/upstream/` retains its own
-upstream license — see
-[`services/openwebui/upstream/LICENSE`](services/openwebui/upstream/LICENSE).
-
-## Security
-
-Please report vulnerabilities privately — see [SECURITY.md](SECURITY.md).
+- App README (remote-first AI, P0 SSH, OSS models): [apps/spockify-ide/README.md](apps/spockify-ide/README.md)
+- **Cursor clone build plan (parallel agents):** [docs/SPOCKIFY_CURSOR_CLONE_BUILD_PLAN.md](docs/SPOCKIFY_CURSOR_CLONE_BUILD_PLAN.md)
+- **Post–clone-v1 roadmap:** [docs/SPOCKIFY_CURSOR_CLONE_ROADMAP.md](docs/SPOCKIFY_CURSOR_CLONE_ROADMAP.md)
+- **Phase status (honest scorecard):** [docs/SPOCKIFY_IDE_PHASE_STATUS.md](docs/SPOCKIFY_IDE_PHASE_STATUS.md) — overnight continued (ext **0.5.5**): Apply/checkpoints UX + Agents/Ctrl+K polish retained. Still not full Cursor/Claude Code parity.
+- **Phase plans:** [1 Runtime](docs/SPOCKIFY_IDE_PHASE1_RUNTIME_PLAN.md) · [2 UI](docs/SPOCKIFY_IDE_PHASE2_UI_PLAN.md) · [3 Indexing](docs/SPOCKIFY_IDE_PHASE3_INDEXING_PLAN.md) · [4 Composer](docs/SPOCKIFY_IDE_PHASE4_COMPOSER_PLAN.md) · [5 Terminal](docs/SPOCKIFY_IDE_PHASE5_TERMINAL_PLAN.md) · [6 Cloud](docs/SPOCKIFY_IDE_PHASE6_CLOUD_PLAN.md) · [7 Packaging](docs/SPOCKIFY_IDE_PHASE7_PACKAGING_PLAN.md)
+- MVP checklist snapshot: [docs/SPOCKIFY_CURSOR_CLONE_CHECKLIST.md](docs/SPOCKIFY_CURSOR_CLONE_CHECKLIST.md)
+- AppImage: [apps/spockify-ide/docs/APPIMAGE.md](apps/spockify-ide/docs/APPIMAGE.md)
+- Fetch code-oss: [`./scripts/fetch-code-oss.sh`](scripts/fetch-code-oss.sh)
+- Remote SSH spike: [apps/spockify-ide/docs/REMOTE_SSH.md](apps/spockify-ide/docs/REMOTE_SSH.md)

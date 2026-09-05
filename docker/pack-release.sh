@@ -32,6 +32,8 @@ cp "${ROOT}/config/orchestrator-prompt.md" "${STAGE}/"
 cp "${ROOT}/docker/README.md" "${STAGE}/README.md"
 cp "${ROOT}/docker/run.sh" "${STAGE}/run.sh"
 chmod +x "${STAGE}/run.sh"
+cp "${ROOT}/docker-run.sh" "${STAGE}/docker-run.sh"
+chmod +x "${STAGE}/docker-run.sh"
 
 cat > "${STAGE}/.env.example" <<EOF
 POSTGRES_PASSWORD=spockify-dev

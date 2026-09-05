@@ -44,7 +44,7 @@ cp .env.example .env          # change WEBUI_SECRET_KEY and passwords
 ./docker/run.sh               # detects docker compose vs podman
 ```
 
-`up` waits until these Ollama tags are present (~42 GiB first time):
+`up` starts the UI, then downloads these Ollama tags in the background (~42 GiB first time):
 
 | Tag | Role |
 |-----|------|
@@ -60,7 +60,7 @@ Extra tags: `OLLAMA_PULL_MODELS` in `.env` (space-separated) and matching
 Or by hand:
 
 ```bash
-docker compose up -d --build   # also pulls OLLAMA_PULL_MODELS
+docker compose up -d --build   # UI first; ollama-pull continues in the background
 ```
 
 Open http://localhost:3080 and **create the first account** (it becomes admin).
@@ -124,7 +124,7 @@ sudo firewall-cmd --add-port=3080/tcp --permanent && sudo firewall-cmd --reload
 2. Unzip, `cp .env.example .env`, fill `SPOCKIFY_ROUTER_IMAGE` and
    `SPOCKIFY_OPENWEBUI_IMAGE` (Release notes list the tags; the zip `.env.example`
    is pre-filled when packed by CI).
-3. `docker compose up -d` (no `--build`; pulls chat + Tab models automatically)
+3. `./run.sh` (or `docker compose up -d`; no `--build`; models download in the background)
 
 Images are published to GHCR (`ghcr.io/<github-owner>/spockify-router` and
 `spockify-openwebui`). If GHCR is blocked, build from git or load a `docker save`
