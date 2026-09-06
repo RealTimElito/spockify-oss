@@ -405,6 +405,18 @@ laptops) build locally: `docker compose up -d --build`.
 
 ## Adding models
 
+One-shot helper (pull + LiteLLM row + restart litellm, keeps data):
+
+```bash
+make add-model TAG=llama3.2:3b
+make add-model TAG=gemma4:12b DEFAULT=1   # also set DEFAULT_MODELS / DEFAULT_CHAT_WORKER
+# MODEL= is an alias for TAG=
+```
+
+`model_name` is the tag with `:` → `-` (e.g. `llama3.2:3b` → `llama3.2-3b`).
+Duplicates are skipped. Without `DEFAULT=1`, defaults are left alone; the script
+prints the `.env` lines to set manually.
+
 The default pull is `llama3.2:3b`, `llama3.1:8b`, and `codestral`. To pull more
 on every `up`:
 

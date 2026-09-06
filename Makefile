@@ -1,5 +1,5 @@
 # Public Compose Makefile. Homelab k8s/release targets stay in the private tree.
-.PHONY: help up down clean logs status gpu gpou demo demo-gpu kit docker-kit compose-up compose-down build-cli migrate ide
+.PHONY: help up down clean logs status gpu gpou demo demo-gpu kit docker-kit compose-up compose-down build-cli migrate ide add-model
 
 help:
 	@echo "make up          start chat (./docker/run.sh — podman-compose if present, else Docker if the API is up)"
@@ -15,6 +15,7 @@ help:
 	@echo "make kit         pack dist/spockify-docker.zip"
 	@echo "make build-cli   build packages/spockify-cli"
 	@echo "make migrate     run sql/migrations against local Postgres (port 5433)"
+	@echo "make add-model   TAG=<ollama-tag> [DEFAULT=1] — pull + wire LiteLLM"
 
 up compose-up:
 	chmod +x docker/run.sh docker-run.sh
@@ -68,3 +69,7 @@ build-cli:
 migrate:
 	PGHOST=localhost PGPORT=5433 PGPASSWORD=$${POSTGRES_PASSWORD:-spockify-dev} \
 		MIGRATIONS_DIR=./sql/migrations ./scripts/run-migrations.sh
+
+add-model:
+	chmod +x docker/add-model.sh docker/engine.sh
+	./docker/add-model.sh
