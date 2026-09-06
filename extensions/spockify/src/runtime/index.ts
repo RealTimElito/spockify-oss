@@ -20,8 +20,14 @@ export {
   filterToolsForMode,
   isToolAllowed,
   loadAgentModeFromConfig,
+  loadAgentMaxTurns,
   loadStrictAllowlist,
   modeSystemAddon,
+  resolveRunMaxTurns,
+  DEFAULT_AGENT_MAX_TURNS,
+  DEFAULT_ASK_MAX_TURNS,
+  AGENT_MAX_TURNS_HARD_CAP,
+  TEST_UNTIL_GREEN_PROMPT,
 } from './modes';
 
 export {

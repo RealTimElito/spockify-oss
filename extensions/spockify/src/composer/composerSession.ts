@@ -27,6 +27,7 @@ import { getComposerReviewMode } from './reviewMode';
 import type { FilePatch } from './types';
 import {
   getRuntimeHandle,
+  resolveRunMaxTurns,
   shouldAutoApplyFilePatches,
   stripToolFences,
   DisplayStreamFilter,
@@ -216,7 +217,10 @@ async function generateComposerTurn(
       mode: 'agent',
       systemPrompt: system,
       messages: history,
-      maxTurns: 10,
+      maxTurns: resolveRunMaxTurns('agent', (key, def) =>
+        vscode.workspace.getConfiguration('spockify').get<number>(key, def) ??
+        def,
+      ),
       requestExtras: thinkingRequestExtras(),
       sessionId: managed.id,
       signal: managed.abort.signal,

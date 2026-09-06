@@ -100,6 +100,12 @@ model_list:
     model_info:
       description: "Multi-agent room (researcher + coder + critic)"
 
+
+  - model_name: gpt-oss-120b-Fable-5-Distilled-GGUF-Q5_0
+    litellm_params:
+      model: ollama_chat/hf.co/autotrust/gpt-oss-120b-Fable-5-Distilled-GGUF:Q5_0
+      api_base: http://ollama:11434
+      timeout: 300
 router_settings:
   routing_strategy: simple-shuffle
 

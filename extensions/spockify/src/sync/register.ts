@@ -34,12 +34,15 @@ export async function buildLocalSyncPayload(
   const cfg = vscode.workspace.getConfiguration('spockify');
   const settings: Record<string, unknown> = {
     'spockify.agent.mode': cfg.get('agent.mode'),
+    'spockify.agent.maxTurns': cfg.get('agent.maxTurns'),
     'spockify.agentPermissionMode': cfg.get('agentPermissionMode'),
     'spockify.runAllUnsandboxed': cfg.get('runAllUnsandboxed'),
     'spockify.defaultModel': cfg.get('defaultModel'),
     'spockify.composer.shadowWorkspace': cfg.get('composer.shadowWorkspace'),
+    'spockify.composer.verifyAfterTurn': cfg.get('composer.verifyAfterTurn'),
     'spockify.terminalAgent.policy': cfg.get('terminalAgent.policy'),
     'spockify.terminalAgent.maxTurns': cfg.get('terminalAgent.maxTurns'),
+    'spockify.terminalAgent.timeoutMs': cfg.get('terminalAgent.timeoutMs'),
     'spockify.codebase.hybrid': cfg.get('codebase.hybrid'),
     'spockify.sync.enabled': cfg.get('sync.enabled'),
   };

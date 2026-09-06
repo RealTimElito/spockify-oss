@@ -31,7 +31,8 @@ Options:
   --tui            Fullscreen TUI mode (btop-style)
   --model <id>     Model (default: ${DEFAULT_MODEL})
   --ask            Read-only tools
-  --yolo           Auto-approve mutating tools
+  --yolo           Auto-approve mutating tools (80-turn horizon)
+  --max-turns <n>  Agent loop budget (default 48; yolo 80; max 80; or SPOCKIFY_MAX_TURNS)
   --cwd <path>     Workspace root (default: .)
   --base-url <url> Spockify host (default: ${DEFAULT_BASE_URL})
   --api-key <key>  LiteLLM key (else device login / SPOCKIFY_API_KEY)
@@ -164,6 +165,14 @@ async function main(): Promise<void> {
     typeof flags.cwd === 'string'
       ? path.resolve(flags.cwd)
       : process.cwd();
+  const maxTurnsRaw =
+    typeof flags['max-turns'] === 'string'
+      ? Number(flags['max-turns'])
+      : undefined;
+  const maxTurns =
+    typeof maxTurnsRaw === 'number' && Number.isFinite(maxTurnsRaw) && maxTurnsRaw > 0
+      ? Math.floor(maxTurnsRaw)
+      : undefined;
 
   const creds = loadCredentials();
   const email = creds?.user?.email || creds?.user?.name;
@@ -175,6 +184,7 @@ async function main(): Promise<void> {
     mode,
     cwd,
     yolo: Boolean(flags.yolo),
+    maxTurns,
     email,
   };
 

@@ -28,8 +28,12 @@ export {
   SHELL_AGENT_INTENT_RE,
 } from './shellAgentIntent';
 
-/** Default shell timeout for chat/composer terminal_run when args omit timeoutMs. */
-const AGENT_TERMINAL_TIMEOUT_CAP_MS = 60_000;
+/**
+ * Default shell timeout for chat/composer terminal_run when args omit timeoutMs.
+ * Raised for SWE-style test suites (was 60s). Explicit timeoutMs in args still wins.
+ * Also respects spockify.terminalAgent.timeoutMs when higher.
+ */
+const AGENT_TERMINAL_TIMEOUT_DEFAULT_MS = 300_000;
 export interface BuiltinToolDeps {
   getApplyService: () => ApplyService;
   getTransport?: () => Promise<ModelTransport | undefined>;
@@ -40,6 +44,20 @@ export interface BuiltinToolDeps {
 
 function asString(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
+}
+
+function defaultAgentTerminalTimeoutMs(): number {
+  try {
+    const fromCfg = vscode.workspace
+      .getConfiguration('spockify.terminalAgent')
+      .get<number>('timeoutMs');
+    if (typeof fromCfg === 'number' && fromCfg > 0) {
+      return Math.max(AGENT_TERMINAL_TIMEOUT_DEFAULT_MS, Math.floor(fromCfg));
+    }
+  } catch {
+    /* vscode unavailable in unit tests */
+  }
+  return AGENT_TERMINAL_TIMEOUT_DEFAULT_MS;
 }
 
 export function registerBuiltinTools(
@@ -841,13 +859,12 @@ async function executeTerminalRun(
     };
   }
   const cwd = asString(args.cwd) || undefined;
-  // Default agent shell timeout is short (see spockify.terminalAgent.timeoutMs)
-  // so Remote SSH shellIntegration cannot hang for minutes on trivial/misrouted cmds.
-  // Explicit timeoutMs in args still wins (Terminal Agent / long builds).
+  // Explicit timeoutMs in args wins. Else prefer terminalAgent.timeoutMs, else 5m default
+  // (long enough for typical unit/integration suites without hanging forever).
   const timeoutMs =
     typeof args.timeoutMs === 'number' && args.timeoutMs > 0
       ? Math.floor(args.timeoutMs)
-      : AGENT_TERMINAL_TIMEOUT_CAP_MS;
+      : defaultAgentTerminalTimeoutMs();
   const result = await runTerminalTool(
     { command, cwd, sessionId: ctx.sessionId, timeoutMs },
     { output: deps.output, signal: ctx.signal },

@@ -22,6 +22,7 @@ export interface TuiOptions {
   mode: AgentMode;
   cwd: string;
   yolo: boolean;
+  maxTurns?: number;
   email?: string;
 }
 
@@ -365,6 +366,7 @@ export async function runTui(opts: TuiOptions): Promise<void> {
         messages: prior,
         cwd: opts.cwd,
         yolo,
+        maxTurns: opts.maxTurns,
         signal: turnAbort.signal,
         confirm: async (name, args) => {
           if (mode === 'ask') return false;

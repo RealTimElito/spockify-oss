@@ -11,7 +11,7 @@ Uses Phase 1 `AgentRuntime` + `terminal_run`.
   - **build** — dev + npm ci / make / docker build
   - **custom** — only `spockify.terminalAgent.allowlist`
 - Custom allowlist patterns are **unioned** with the tier (unless `custom`)
-- Defaults for long-horizon: `maxTurns` **32** (cap 80), `timeoutMs` **60000** (60s; raise for long builds; pass `timeoutMs` in `terminal_run` args when needed)
+- Defaults for long-horizon: `maxTurns` **48** (cap 80), `timeoutMs` **300000** (5m; raise for long builds; pass `timeoutMs` in `terminal_run` args when needed)
 - Dangerous patterns always denied; audit → `.spockify/terminal-audit.jsonl`
 - Approval UX: policy/tier/cwd badge + **Allow for session** (session-scoped pattern)
 - Optional **OS sandbox** (`spockify.terminalAgent.osSandbox`): `off` (default) | `network` | `workspace`
@@ -27,15 +27,15 @@ Uses Phase 1 `AgentRuntime` + `terminal_run`.
 Opt into autonomy: set policy to `allowlist` + choose a tier. Default remains **ask**.
 Opt into OS jail: set `osSandbox` to **`workspace`** (or `network`). Install `bubblewrap` on the host **or** use an AppImage that ships the helper. Enable `osSandboxFailClosed` if you want missing bwrap to block rather than soft-fallback.
 
-**Permissions** (`spockify.agentPermissionMode`, default **askEveryTime**):
+**Permissions** (`spockify.agentPermissionMode`, default **autoRunReviewFiles**):
 
 | Mode | Shell | OS sandbox | File edits |
 |------|-------|------------|------------|
-| `allowAll` | auto-approve (non-catastrophic) | forced off | auto-apply |
+| `allowAll` | auto-approve (non-catastrophic) | forced off | auto-apply (YOLO) |
 | `askEveryTime` | always confirm | settings | inline / Composer review |
 | `autoRunReviewFiles` | auto-approve | settings | inline Accept / Reject |
 
-Ask mode stays read-only regardless. Legacy `spockify.runAllUnsandboxed` maps to `allowAll` when true.
+Ask mode stays read-only regardless. Plan still gates mutators until approved. Legacy `spockify.runAllUnsandboxed` maps to `allowAll` when true.
 
 ## Plan UI
 

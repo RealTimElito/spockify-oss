@@ -60,7 +60,10 @@ export function getAgentPermissionMode(): AgentPermissionMode {
   if (cfg.get<boolean>('runAllUnsandboxed') === true) {
     return 'allowAll';
   }
-  return 'askEveryTime';
+  // Default: auto-run shell, review file edits (SWE-style fewer mid-loop asks).
+  // Ask agent mode stays read-only; Plan still gates mutators until approved.
+  // YOLO / full auto-apply: set allowAll (see runtime README).
+  return 'autoRunReviewFiles';
 }
 
 export function getAgentPermissionModeMeta(
@@ -68,7 +71,8 @@ export function getAgentPermissionModeMeta(
 ): AgentPermissionModeMeta {
   return (
     AGENT_PERMISSION_MODE_META.find((m) => m.id === mode) ??
-    AGENT_PERMISSION_MODE_META[1]
+    AGENT_PERMISSION_MODE_META.find((m) => m.id === 'autoRunReviewFiles') ??
+    AGENT_PERMISSION_MODE_META[0]
   );
 }
 

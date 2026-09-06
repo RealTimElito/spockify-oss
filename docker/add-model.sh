@@ -30,7 +30,8 @@ Usage: make add-model TAG=<ollama-tag> [AUTO=1|DEFAULT=1]
   Pulls TAG into the Ollama container, appends a LiteLLM model_list row
   (docker/litellm.yaml), and restarts litellm without wiping data.
 
-  TAG / MODEL   Exact Ollama tag (required), e.g. llama3.2:3b or gemma4:12b
+  TAG / MODEL   Exact Ollama tag (required), e.g. llama3.2:3b, gemma4:12b,
+                or hf.co/org/name:quant (keep the full tag for ollama pull).
   AUTO=1        Keep UI on spockify-auto; set DEFAULT_CHAT_WORKER (via
                 set-chat-worker). Prefer this for Auto routing.
   DEFAULT=1     Use this model as the Open WebUI picker default
@@ -38,7 +39,8 @@ Usage: make add-model TAG=<ollama-tag> [AUTO=1|DEFAULT=1]
                 Leaves Auto as a selectable model, not the UI default.
 
   Do not pass AUTO=1 and DEFAULT=1 together.
-  model_name is derived by replacing ':' with '-' (llama3.2:3b → llama3.2-3b).
+  model_name is the last path segment with ':' → '-' (llama3.2:3b →
+  llama3.2-3b; hf.co/org/Foo:Q4 → Foo-Q4). That name is what OWUI lists.
 
 Env:
   SPOCKIFY_CONTAINER_ENGINE  docker|podman (same as run.sh)
@@ -219,7 +221,11 @@ EOF
     cat "${entry_file}" >> "${tmp}"
   fi
   rm -f "${entry_file}"
-  mv "${tmp}" "${file}"
+  # In-place write: `mv` replaces the inode. Podman/Docker file bind-mounts
+  # pin the old inode until recreate, so the running litellm container would
+  # keep serving a stale catalog while the host path looks updated.
+  cat "${tmp}" > "${file}"
+  rm -f "${tmp}"
   echo "LiteLLM: appended ${MODEL_NAME} → ollama_chat/${TAG} in ${file#"${ROOT}/"}"
   return 0
 }
@@ -300,8 +306,13 @@ if [[ "${DEFAULT_ON}" -eq 1 ]]; then
 fi
 
 # --- 4) Restart litellm (and dependents when defaults changed) ---
-echo "Restarting litellm (compose up -d, keeps data)..."
-compose up -d litellm
+# LiteLLM loads model_list at process start; `up -d` alone does not reload.
+# Prefer restart (same project/containers). Fall back to force-recreate.
+echo "Restarting litellm to reload model_list (keeps data)..."
+if ! compose restart litellm 2>/dev/null; then
+  compose up -d --force-recreate litellm 2>/dev/null \
+    || compose up -d litellm
+fi
 if [[ "${DEFAULT_ON}" -eq 1 ]]; then
   # DEFAULT_* are injected at container create time.
   echo "Recreating router + openwebui to pick up .env defaults..."

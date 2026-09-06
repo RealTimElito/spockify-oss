@@ -32,6 +32,7 @@ import { getComposerReviewMode, verifyAfterTurnEnabled } from './reviewMode';
 import type { ComposerSession, FilePatch } from './types';
 import {
   getRuntimeHandle,
+  resolveRunMaxTurns,
   shouldAutoApplyFilePatches,
   stripToolFences,
   type AgentMessage,
@@ -55,6 +56,7 @@ function composerSystemPrompt(rules: string): string {
     '// full new file content',
     '```',
     'Full file contents, not diffs. Use codebase_search / grep / read_file when unsure where to edit.',
+    'After edits: run project tests/lint via terminal_run when available; do not claim done without a green run.',
     'If verify/test output is provided, fix failures before proposing new unrelated edits.',
     rules ? `Project rules:\n${rules}` : '',
   ]
@@ -192,7 +194,12 @@ async function generateComposerTurn(
       mode: 'agent',
       systemPrompt: system,
       messages: history,
-      maxTurns: opts?.maxTurns ?? 10,
+      maxTurns:
+        opts?.maxTurns ??
+        resolveRunMaxTurns('agent', (key, def) =>
+          vscode.workspace.getConfiguration('spockify').get<number>(key, def) ??
+          def,
+        ),
       requestExtras: thinkingRequestExtras(),
       sessionId: managed.id,
       signal: managed.abort.signal,

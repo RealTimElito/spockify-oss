@@ -162,7 +162,7 @@ export async function buildSettingsSnapshot(
       cfg.get<string>('agentPermissionMode') ||
       (cfg.get<boolean>('runAllUnsandboxed', false)
         ? 'allowAll'
-        : 'askEveryTime'),
+        : 'autoRunReviewFiles'),
     chatMaxMode: cfg.get<boolean>('chat.maxMode', false),
     chatThinking: readIdeThinkingMode(),
     chatAttachTerminal: cfg.get<boolean>('chat.attachTerminal', true),

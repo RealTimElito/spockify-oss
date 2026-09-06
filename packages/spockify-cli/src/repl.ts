@@ -39,6 +39,7 @@ export interface ReplOptions {
   mode: AgentMode;
   cwd: string;
   yolo: boolean;
+  maxTurns?: number;
   email?: string;
   prompt?: string;
 }
@@ -222,6 +223,7 @@ export async function runRepl(opts: ReplOptions): Promise<void> {
         messages: prior,
         cwd: opts.cwd,
         yolo,
+        maxTurns: opts.maxTurns,
         signal,
         confirm: yolo ? undefined : confirm,
         onEvent: (ev) => {

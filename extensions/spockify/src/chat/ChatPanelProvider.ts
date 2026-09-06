@@ -471,7 +471,9 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
         const { setAgentPermissionMode } = await import(
           '../runtime/agentPermissionMode'
         );
-        await setAgentPermissionMode(enabled ? 'allowAll' : 'askEveryTime');
+        await setAgentPermissionMode(
+          enabled ? 'allowAll' : 'autoRunReviewFiles',
+        );
         this.postModelPrefs();
         break;
       }
@@ -780,7 +782,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     if (cfg.get<boolean>('runAllUnsandboxed') === true) {
       return 'allowAll';
     }
-    return 'askEveryTime';
+    return 'autoRunReviewFiles';
   }
 
   private isRunAllUnsandboxed(): boolean {

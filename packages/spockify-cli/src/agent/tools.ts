@@ -215,7 +215,11 @@ export function registerCliTools(registry: ToolRegistry): void {
             type: 'string',
             description: 'Command to run, e.g. microk8s kubectl get pods -A',
           },
-          timeout_ms: { type: 'integer' },
+          timeout_ms: {
+            type: 'integer',
+            description:
+              'Optional timeout in ms (default 300000 / 5m for test suites)',
+          },
         },
         required: ['command'],
       },
@@ -226,7 +230,7 @@ export function registerCliTools(registry: ToolRegistry): void {
       const timeout =
         typeof args.timeout_ms === 'number' && args.timeout_ms > 0
           ? args.timeout_ms
-          : 120_000;
+          : 300_000;
       return runShell(command, ctx.cwd, timeout, ctx.signal);
     },
   );

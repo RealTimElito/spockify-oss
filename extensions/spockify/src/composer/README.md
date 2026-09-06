@@ -4,7 +4,7 @@
 
 - `spockify.composer.shadowWorkspace` **default true**
 - `spockify.composer.reviewMode` **default `panel`** — open Diff Review + stage Composer tree (no modal picker)
-- `spockify.composer.verifyAfterTurn` **default false** — verify via tree action, not a post-turn QuickPick
+- `spockify.composer.verifyAfterTurn` **default true** — post-turn verify QuickPick (Skip first); set false to use tree **Run verify** only
 - Durable path: `<workspace>/.spockify/shadow/<sessionId>/`
 - Temp fallback only when no workspace folder is open
 

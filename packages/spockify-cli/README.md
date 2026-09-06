@@ -38,13 +38,16 @@ spockify                          # REPL
 spockify --tui / spockify tui     # fullscreen TUI (mouse + settings)
 spockify "add tests for auth.ts"  # one-shot
 spockify --ask "how does X work?" # read-only
-spockify --yolo "refactor foo"    # auto-approve writes/shell
+spockify --yolo "refactor foo"    # auto-approve writes/shell (80-turn horizon)
+spockify --max-turns 64 "…"       # override loop budget (or SPOCKIFY_MAX_TURNS)
 spockify --model codestral
 spockify whoami
 spockify logout
 ```
 
 REPL slash commands: `/ask` `/agent` `/yolo` `/model` `/mode` `/status` `/clear` `/exit`
+
+**Horizon:** Agent default **48** turns; `--yolo` **80**; Ask **12**. Cap **80**.
 
 **TUI mode** (`--tui`): alternate-screen layout with chat + session sidebar. Click model/mode/perm or **Settings** (`s`). Keys: `enter` send · scroll · `q` quit · `esc` close modal.
 

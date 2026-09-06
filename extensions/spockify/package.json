@@ -1037,20 +1037,27 @@
           ],
           "markdownDescription": "Runtime tool policy (`ask` / `agent` / `strict`). Chat UI also offers Cursor-like **Plan** / **Debug** / **Multitask**, which map to `agent` plus system hints (see composerModes)."
         },
+        "spockify.agent.maxTurns": {
+          "type": "number",
+          "default": 48,
+          "minimum": 2,
+          "maximum": 80,
+          "markdownDescription": "Max model↔tool iterations for **Agent** / Composer / Chat Agent (SWE-style long horizon). Ask mode stays short (~12). Raise toward 80 for hard multi-file fixes. CLI: `--max-turns` / `SPOCKIFY_MAX_TURNS`; `--yolo` defaults higher."
+        },
         "spockify.agentPermissionMode": {
           "type": "string",
-          "default": "askEveryTime",
+          "default": "autoRunReviewFiles",
           "enum": [
             "allowAll",
             "askEveryTime",
             "autoRunReviewFiles"
           ],
           "enumDescriptions": [
-            "Allow all (unsandboxed) — auto-approve shell and file edits",
+            "Allow all (unsandboxed) — auto-approve shell and file edits (YOLO)",
             "Ask every time — confirm shell commands and review file edits",
-            "Auto-run tools, review file edits — shell auto-runs; Accept / Reject patches in the editor"
+            "Auto-run tools, review file edits — shell auto-runs; Accept / Reject patches in the editor (default)"
           ],
-          "markdownDescription": "Composer tool/file permission mode (Cursor-like). **Ask** agent mode stays read-only regardless. Legacy `spockify.runAllUnsandboxed` maps to `allowAll` when true."
+          "markdownDescription": "Composer tool/file permission mode (Cursor-like). Default **autoRunReviewFiles** (fewer mid-loop Approves). **Ask** agent mode stays read-only. **Plan** still gates mutators until approved. **YOLO:** set `allowAll` (+ optionally raise `spockify.agent.maxTurns`). Legacy `spockify.runAllUnsandboxed` maps to `allowAll` when true."
         },
         "spockify.composer.queueMessageDefaultBehavior": {
           "type": "string",
@@ -1279,8 +1286,8 @@
         },
         "spockify.composer.verifyAfterTurn": {
           "type": "boolean",
-          "default": false,
-          "markdownDescription": "After each Composer turn with patches, prompt for verify (npm test / tsc). Default **off** — use **Run verify** in the Composer tree instead."
+          "default": true,
+          "markdownDescription": "After each Composer turn with patches, prompt for verify (npm test / tsc). Default **on** (SWE-style). Skip is still the first QuickPick option. Set false to rely only on **Run verify** in the Composer tree."
         },
         "spockify.codebase.hybrid": {
           "type": "boolean",
@@ -1386,13 +1393,13 @@
         },
         "spockify.terminalAgent.timeoutMs": {
           "type": "number",
-          "default": 60000,
+          "default": 300000,
           "minimum": 1000,
-          "description": "Timeout for captured shell commands (milliseconds). Default 60s — raise for long builds. Chat terminal_run also defaults to 60s unless timeoutMs is passed in the tool call."
+          "description": "Timeout for captured shell commands (milliseconds). Default 300s — raise for long builds. Chat terminal_run uses the same default unless timeoutMs is passed in the tool call."
         },
         "spockify.terminalAgent.maxTurns": {
           "type": "number",
-          "default": 32,
+          "default": 48,
           "minimum": 2,
           "maximum": 80,
           "description": "Max agent loop turns for Terminal Agent (plan → execute → adapt). Higher for Claude Code–class long-horizon runs."

@@ -3,6 +3,7 @@
  */
 
 import type { ModelTransport } from '@spockify/ide-client';
+import * as vscode from 'vscode';
 import type { HostToWebview } from '../chat/protocol';
 import type { ChatMessage } from '../chat/types';
 import { textFromContent } from '../chat/chatContent';
@@ -16,6 +17,10 @@ import {
   recordTurnRouting,
 } from '../util/routingHud';
 import { DisplayStreamFilter } from './displayStreamFilter';
+import {
+  resolveRunMaxTurns,
+  TEST_UNTIL_GREEN_PROMPT,
+} from './modes';
 import type { AgentMessage, AgentMode } from './types';
 import type { RuntimeHandle } from './register';
 import { getSessionManager } from './sessionManager';
@@ -675,12 +680,16 @@ export class ChatTabAgentHost {
         'Prefer native tool_calls; if text-only, emit ```tool JSON only.',
         'Cite workspace-relative paths only (never HTML like path">path).',
         'Remote SSH: commands run on the remote host with that workspace cwd.',
+        input.mode === 'ask' ? '' : TEST_UNTIL_GREEN_PROMPT,
         input.uiModeAddon?.trim() || '',
       ]
         .filter(Boolean)
         .join(' '),
       messages: history,
-      maxTurns: input.mode === 'ask' ? 10 : 20,
+      maxTurns: resolveRunMaxTurns(input.mode, (key, def) =>
+        vscode.workspace.getConfiguration('spockify').get<number>(key, def) ??
+        def,
+      ),
       requestExtras: input.requestExtras,
       sessionId: session.id,
       signal: session.abort.signal,

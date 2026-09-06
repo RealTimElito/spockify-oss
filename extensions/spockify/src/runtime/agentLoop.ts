@@ -151,7 +151,7 @@ export class AgentRuntime {
   constructor(private readonly deps: AgentRuntimeDeps) {}
 
   async run(opts: AgentRunOptions): Promise<AgentRunResult> {
-    const maxTurns = opts.maxTurns ?? 8;
+    const maxTurns = opts.maxTurns ?? 48;
     const sessions = getSessionManager();
     const sessionId =
       opts.sessionId ?? `sess_${Date.now().toString(36)}`;

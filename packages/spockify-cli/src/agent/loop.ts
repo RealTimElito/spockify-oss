@@ -7,11 +7,37 @@ import type {
   ToolCallRequest,
 } from './types';
 
+/** Agent default horizon (matches IDE spockify.agent.maxTurns). */
+export const DEFAULT_AGENT_MAX_TURNS = 48;
+/** YOLO / long-horizon eval-style budget. */
+export const DEFAULT_YOLO_MAX_TURNS = 80;
+export const AGENT_MAX_TURNS_HARD_CAP = 80;
+export const DEFAULT_ASK_MAX_TURNS = 12;
+
+export function resolveCliMaxTurns(opts: {
+  mode: AgentMode;
+  yolo: boolean;
+  maxTurns?: number;
+}): number {
+  if (typeof opts.maxTurns === 'number' && Number.isFinite(opts.maxTurns) && opts.maxTurns > 0) {
+    return Math.min(AGENT_MAX_TURNS_HARD_CAP, Math.max(1, Math.floor(opts.maxTurns)));
+  }
+  const fromEnv = Number(process.env.SPOCKIFY_MAX_TURNS);
+  if (Number.isFinite(fromEnv) && fromEnv > 0) {
+    return Math.min(AGENT_MAX_TURNS_HARD_CAP, Math.max(1, Math.floor(fromEnv)));
+  }
+  if (opts.mode === 'ask') return DEFAULT_ASK_MAX_TURNS;
+  if (opts.yolo) return DEFAULT_YOLO_MAX_TURNS;
+  return DEFAULT_AGENT_MAX_TURNS;
+}
+
 function systemPrompt(mode: AgentMode, cwd: string): string {
   const modeBlock =
     mode === 'ask'
       ? `Mode: ASK (read-only). You may use read_file, grep, glob_file_search only. Do not mutate files or run shell.`
-      : `Mode: AGENT. You can run shell, edit files, and change the workspace.`;
+      : `Mode: AGENT. You can run shell, edit files, and change the workspace.
+After editing project files: run the project's tests/lint via shell (npm test, pytest, make test, cargo test, etc.).
+Do not claim done without evidence from a green run. If checks fail, iterate: fix → re-run until green or you are blocked.`;
 
   return `You are Spockify CLI — a Claude Code–style coding agent running in the user's terminal.
 
@@ -139,7 +165,11 @@ export async function runAgentTurn(options: {
     confirm,
     onEvent,
   } = options;
-  const maxTurns = options.maxTurns ?? 12;
+  const maxTurns = resolveCliMaxTurns({
+    mode,
+    yolo,
+    maxTurns: options.maxTurns,
+  });
   const messages: AgentMessage[] = [
     { role: 'system', content: systemPrompt(mode, cwd) },
     ...options.messages.filter((m) => m.role !== 'system'),

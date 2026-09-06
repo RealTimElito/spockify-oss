@@ -34,7 +34,7 @@
 - Apply / checkpoints: `spockify.applyUndo` (Ctrl+Alt+Z) · `spockify.checkpoints.list` / `.restore` / `.create` · status bar undo chip · Chat apply_patch cards expose Undo / Restore / List
 - Agent lifecycle: `spockify.agent.cancel` — Stop square in chat (replaces Send while running); Escape also stops. Pause removed.
 - Composer pending: Accept / Diff / Discard inline on tree items; view title Accept all / Diff Review / Discard all when `spockify.composer.hasPending`
-- Composer default `reviewMode=panel` (no modal after turn); `verifyAfterTurn` off by default
+- Composer default `reviewMode=panel` (no modal after turn); `verifyAfterTurn` on by default (Skip first)
 - Ctrl+K: **streaming** preview (cancellable) + non-blocking message + **Ctrl+Enter / Esc** (no modal QuickPick)
 - Terminal agent: sessions tree Continue / Open / Rewind; `spockify.terminalAgent.rewind` (transcript + cwd restore); audit: `spockify.terminalAgent.auditLog`
 - Agents: live cards + synthesis teasers; **Stop** / Stop all; history; Chat ⚡ spawns parallel agents from draft/last prompt

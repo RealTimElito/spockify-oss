@@ -11,6 +11,23 @@ import type {
   UnifiedToolDefinition,
 } from './types';
 
+/** Default model↔tool iterations for Agent / Composer (spockify.agent.maxTurns). */
+export const DEFAULT_AGENT_MAX_TURNS = 48;
+/** Ask stays short — explore + answer, no long edit loops. */
+export const DEFAULT_ASK_MAX_TURNS = 12;
+/** Hard cap for spockify.agent.maxTurns (package.json maximum). */
+export const AGENT_MAX_TURNS_HARD_CAP = 80;
+
+/**
+ * SWE-style coding habit shared by Agent mode prompts (IDE + CLI).
+ * Keep concise — appended to modeSystemAddon / chat host / CLI system.
+ */
+export const TEST_UNTIL_GREEN_PROMPT =
+  'After editing project files: run the project tests/lint via terminal_run ' +
+  '(npm test, pytest, make test, cargo test, etc.). ' +
+  'Do not claim done without evidence from a green run. ' +
+  'If checks fail, iterate: fix → re-run until green or you are blocked.';
+
 export function loadAgentModeFromConfig(
   get: (key: string, defaultValue: AgentMode) => AgentMode,
 ): AgentMode {
@@ -19,6 +36,38 @@ export function loadAgentModeFromConfig(
     return mode;
   }
   return 'agent';
+}
+
+/** Clamp `spockify.agent.maxTurns` (default 48, max 80). */
+export function loadAgentMaxTurns(
+  get: (key: string, defaultValue: number) => number,
+): number {
+  const raw = get('agent.maxTurns', DEFAULT_AGENT_MAX_TURNS);
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+    return DEFAULT_AGENT_MAX_TURNS;
+  }
+  return Math.min(
+    AGENT_MAX_TURNS_HARD_CAP,
+    Math.max(2, Math.floor(raw)),
+  );
+}
+
+/** Resolve maxTurns for a run: Ask → short; Agent → configured horizon. */
+export function resolveRunMaxTurns(
+  mode: AgentMode,
+  get: (key: string, defaultValue: number) => number,
+  override?: number,
+): number {
+  if (typeof override === 'number' && Number.isFinite(override) && override > 0) {
+    return Math.min(
+      AGENT_MAX_TURNS_HARD_CAP,
+      Math.max(1, Math.floor(override)),
+    );
+  }
+  if (mode === 'ask') {
+    return DEFAULT_ASK_MAX_TURNS;
+  }
+  return loadAgentMaxTurns(get);
 }
 
 export function loadStrictAllowlist(
@@ -128,6 +177,7 @@ export function modeSystemAddon(mode: AgentMode): string {
         'terminal_run is real and runs on the workspace host (including Remote SSH) — use it only when a command must execute (tests, builds, git, installs).',
         'Always invoke tools via native tool_calls or ```tool JSON — never paste terminal_run bash "…" or markdown Apply fences as a substitute.',
         'For new scripts or edits: write_file or apply_patch, then terminal_run only if execution is needed.',
+        TEST_UNTIL_GREEN_PROMPT,
         'Cite workspace-relative paths cleanly (no HTML attribute residue).',
         'After tools finish, summarize in plain language — no duplicate tool invocations in text.',
       ].join(' ');
