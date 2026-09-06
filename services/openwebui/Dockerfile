@@ -24,7 +24,7 @@ RUN python3 generate_branding.py --prebuilt /work/prebuilt --out /out && \
 # (common Fedora/Podman "npm run build did not complete successfully").
 FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS frontend-build
 ARG BUILD_HASH
-ARG NODE_MAX_OLD_SPACE=4096
+ARG NODE_MAX_OLD_SPACE=12288
 
 WORKDIR /src
 RUN apt-get update && \

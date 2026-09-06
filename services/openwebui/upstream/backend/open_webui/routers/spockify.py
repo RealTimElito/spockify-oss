@@ -2162,17 +2162,17 @@ async def generate_briefing_video(form_data: BriefingVideoForm, user=Depends(get
 # - Additive `deb*` / `darwin` / `win32` fields are for marketing + multi-OS clients;
 #   Linux AppImage clients ignore unknown keys.
 #
-_IDE_APPIMAGE_SPOCKIFY_VERSION = '0.9.15'
+_IDE_APPIMAGE_SPOCKIFY_VERSION = '0.9.16'
 _IDE_APPIMAGE_PRODUCT_VERSION = '1.129.1'
 # 2026-07-23: extension 0.8.7 — map router worker status→state so Agents UI
 # leaves queued; kick poll from tool create; completion toast + chat summary;
 # shell/ping prompts run local terminal_run workers; hide raw create_agent_run JSON.
 _IDE_APPIMAGE_LATEST_SHA256_X86_64 = (
-    'b7bc783beb0378864d8eb5ba17cc1f6fa48bd6f5617e27c8ecfdf5d79f799434'
+    '78d5f0e3534960a92bc0ae772f5adee31d96e9be26f3ac93b5b8ead1fdf60427'
 )
 # Debian package (amd64) — same product tree as the x86_64 AppImage.
 _IDE_DEB_LATEST_SHA256_AMD64 = (
-    'ea6dc8b47bc238a19018caa61843341078c8201e0545cb04f367774e430d87f4'
+    'f6b8292f8dcfe58c3d4ff2aa7caf97ddad138fb749d544e626db8d5539fdec9d'
 )
 # Published arches only — aarch64 returns 404 until an artifact is hosted.
 _IDE_APPIMAGE_PUBLISHED = {

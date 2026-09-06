@@ -2,7 +2,7 @@
   "name": "spockify",
   "displayName": "Spockify",
   "description": "Open-source Cursor alternative — chat, tab complete, Ctrl+K, composer, agents, terminal agent via spockify.eu",
-  "version": "0.9.15",
+  "version": "0.9.16",
   "publisher": "spockify",
   "license": "MIT",
   "icon": "media/spockify-icon.png",
