@@ -1,5 +1,5 @@
 # Public Compose Makefile. Homelab k8s/release targets stay in the private tree.
-.PHONY: help up down clean logs status gpu gpou demo demo-gpu kit docker-kit compose-up compose-down build-cli migrate ide add-model set-chat-worker
+.PHONY: help up down clean logs status gpu gpou demo demo-gpu kit docker-kit compose-up compose-down build-cli migrate ide add-model set-chat-worker set-code-worker
 
 help:
 	@echo "make up          start chat (./docker/run.sh — podman-compose if present, else Docker if the API is up)"
@@ -17,6 +17,7 @@ help:
 	@echo "make migrate     run sql/migrations against local Postgres (port 5433)"
 	@echo "make add-model   TAG=<ollama-tag> [AUTO=1|DEFAULT=1] — pull + wire LiteLLM"
 	@echo "make set-chat-worker MODEL=<name>|TAG=<tag> — keep UI on Auto; set DEFAULT_CHAT_WORKER"
+	@echo "make set-code-worker MODEL=<name>|TAG=<tag> — keep UI on Auto; set ROOM_CODER_WORKER"
 
 up compose-up:
 	chmod +x docker/run.sh docker-run.sh
@@ -57,7 +58,7 @@ ide:
 	./docker/ide/run.sh
 
 kit docker-kit:
-	chmod +x docker/pack-release.sh docker/run.sh docker/clean.sh docker/engine.sh docker/add-model.sh docker/set-chat-worker.sh docker-run.sh
+	chmod +x docker/pack-release.sh docker/run.sh docker/clean.sh docker/engine.sh docker/add-model.sh docker/set-chat-worker.sh docker/set-code-worker.sh docker-run.sh
 	./docker/pack-release.sh
 
 build-cli:
@@ -72,9 +73,13 @@ migrate:
 		MIGRATIONS_DIR=./sql/migrations ./scripts/run-migrations.sh
 
 add-model:
-	chmod +x docker/add-model.sh docker/set-chat-worker.sh docker/engine.sh
+	chmod +x docker/add-model.sh docker/set-chat-worker.sh docker/set-code-worker.sh docker/engine.sh
 	./docker/add-model.sh
 
 set-chat-worker:
 	chmod +x docker/set-chat-worker.sh docker/engine.sh
 	./docker/set-chat-worker.sh
+
+set-code-worker:
+	chmod +x docker/set-code-worker.sh docker/engine.sh
+	./docker/set-code-worker.sh

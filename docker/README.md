@@ -434,6 +434,18 @@ compose light/quality workers) and recreates **router + openwebui** only — no
 data wipe. Leaves `FAST_CHAT_WORKER` / orchestrator on the CPU-hot 3b path
 unless `MODEL` is explicitly `llama3.2-3b-cpu` or `llama3.2-3b`.
 
+Swap only the Auto **code** worker (`ROOM_CODER_WORKER`, plus
+`COMMIT_MESSAGE_WORKER`):
+
+```bash
+make set-code-worker MODEL=codestral
+# or TAG=devstral-small-2  → sanitized model_name
+```
+
+Keeps `DEFAULT_MODELS=spockify-auto` and recreates **router** only. Does not
+change chat workers or Tab FIM (`GHOST_OLLAMA_FIM_MODEL`, still codestral by
+default).
+
 ### Use as UI default
 
 Point the picker at the model itself (Auto remains selectable, but is no longer
@@ -509,6 +521,7 @@ DEFAULT_CHAT_WORKER=my-custom             # spockify-auto English worker
 
 ```bash
 make set-chat-worker MODEL=my-custom   # preferred: recreate router + openwebui
+make set-code-worker MODEL=my-custom   # Auto code routes → ROOM_CODER_WORKER
 # or: make down && make gpu            # full restart
 ```
 

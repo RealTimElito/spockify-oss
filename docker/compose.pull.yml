@@ -109,13 +109,14 @@ services:
       DEFAULT_VISION_WORKER: ${DEFAULT_VISION_WORKER:-gemma4-12b}
       DEFAULT_WEB_WORKER: ${DEFAULT_WEB_WORKER:-web-llama}
       WEB_WORKER_FALLBACK: ${WEB_WORKER_FALLBACK:-web-llama}
-      ROOM_CODER_WORKER: codestral
-      COMMIT_MESSAGE_WORKER: codestral
+      # Auto code routes (spockify-auto). Override: make set-code-worker MODEL=…
+      ROOM_CODER_WORKER: ${ROOM_CODER_WORKER:-codestral}
+      COMMIT_MESSAGE_WORKER: ${COMMIT_MESSAGE_WORKER:-codestral}
       HEAVY_WORKER_MODELS: ${HEAVY_WORKER_MODELS:-llama3.1-8b,llama3.2-3b-cpu,codestral,llama3.1-8b}
       HEAVY_SYNTH_MODEL: ${HEAVY_SYNTH_MODEL:-llama3.1-8b}
       GHOST_FIM_BACKEND: ollama
-      GHOST_OLLAMA_FIM_MODEL: codestral
-      GHOST_COMPLETE_MODEL: codestral
+      GHOST_OLLAMA_FIM_MODEL: ${GHOST_OLLAMA_FIM_MODEL:-codestral}
+      GHOST_COMPLETE_MODEL: ${GHOST_COMPLETE_MODEL:-codestral}
       USE_COMPACT_ORCHESTRATOR_PROMPT: "true"
       PREWARM_ON_STARTUP: "false"
       PLAYWRIGHT_LOCAL: "0"
