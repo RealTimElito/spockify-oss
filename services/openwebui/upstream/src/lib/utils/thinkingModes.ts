@@ -159,13 +159,79 @@ function unescapeReasoningText(text: string): string {
 		.trim();
 }
 
+const PLACEHOLDER_REASONING_RE =
+	/^(?:thinking(?:\s+process)?|thought(?:\s+process)?|chain[-\s]?of[-\s]?thought|reasoning|思考过程|思考過程)[.。:：…]*$/i;
+
+/** True when text is empty, a CoT label echo, or a short phrase repeated twice. */
+export function isGarbageReasoning(text: string): boolean {
+	const raw = String(text || '').trim();
+	if (!raw) return true;
+	const normalized = raw
+		.toLowerCase()
+		.replace(/[.。:：…!,?]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+	if (!normalized) return true;
+	if (PLACEHOLDER_REASONING_RE.test(normalized)) return true;
+	// "thinking process thinking process" (and similar doubled labels)
+	const words = normalized.split(' ');
+	if (words.length >= 2 && words.length <= 8 && words.length % 2 === 0) {
+		const half = words.length / 2;
+		const a = words.slice(0, half).join(' ');
+		const b = words.slice(half).join(' ');
+		if (a === b && PLACEHOLDER_REASONING_RE.test(a)) return true;
+		if (a === b && a.length <= 40) return true;
+	}
+	return false;
+}
+
+/** Strip CoT heading labels and drop placeholder / duplicated junk. */
+export function sanitizeReasoningText(text: string): string {
+	let t = String(text || '').trim();
+	if (!t) return '';
+	t = t.replace(
+		/^(?:thinking\s+process|thought\s+process|chain[-\s]?of[-\s]?thought|reasoning)\s*:\s*/i,
+		''
+	);
+	// Collapse an exact doubled body ("foo\n\nfoo" or "foo foo" when short).
+	const doubled = t.match(/^([\s\S]+?)\s*\n\s*\n\s*\1$/);
+	if (doubled) t = doubled[1].trim();
+	const words = t.trim().split(/\s+/);
+	if (words.length >= 2 && words.length <= 8 && words.length % 2 === 0) {
+		const half = words.length / 2;
+		const a = words.slice(0, half).join(' ');
+		const b = words.slice(half).join(' ');
+		if (a.toLowerCase() === b.toLowerCase() && a.length <= 40) t = a;
+	}
+	t = t.trim();
+	return isGarbageReasoning(t) ? '' : t;
+}
+
+function pushUniqueReasoning(parts: string[], text: string): void {
+	const clean = sanitizeReasoningText(text);
+	if (!clean) return;
+	if (parts.some((p) => p === clean || p.includes(clean) || clean.includes(p))) {
+		// Prefer the longer real body when one source is a prefix of another.
+		const idx = parts.findIndex((p) => p === clean || p.includes(clean) || clean.includes(p));
+		if (idx >= 0 && clean.length > parts[idx].length) parts[idx] = clean;
+		return;
+	}
+	parts.push(clean);
+}
+
 /** Pull model chain-of-thought from dedicated field, <think> tags, or reasoning details. */
 export function extractReasoningText(message: Record<string, unknown> | null | undefined): string {
 	if (!message) return '';
-	const dedicated = String(message.spockifyModelReasoning || '').trim();
-	if (dedicated) return dedicated;
+	// Off chip: never surface CoT in the thought panel (even if a model leaked it).
+	const mode = String(message.spockifyThinking || '')
+		.trim()
+		.toLowerCase();
+	if (mode === 'off') return '';
 
 	const parts: string[] = [];
+	pushUniqueReasoning(parts, String(message.spockifyModelReasoning || ''));
+	if (parts.length) return parts[0];
+
 	const content = String(message.content || '');
 	const detailsRe = /<details\s+[^>]*type="reasoning"[^>]*>[\s\S]*?<\/details>/gi;
 	const thinkRe = /<think>([\s\S]*?)<\/think>/gi;
@@ -176,12 +242,10 @@ export function extractReasoningText(message: Record<string, unknown> | null | u
 			.replace(/<details[^>]*>/i, '')
 			.replace(/<\/details>/i, '')
 			.replace(summaryRe, '');
-		const text = unescapeReasoningText(inner);
-		if (text) parts.push(text);
+		pushUniqueReasoning(parts, unescapeReasoningText(inner));
 	}
 	for (const match of content.matchAll(thinkRe)) {
-		const text = unescapeReasoningText(match[1] || '');
-		if (text) parts.push(text);
+		pushUniqueReasoning(parts, unescapeReasoningText(match[1] || ''));
 	}
 
 	const output = message.output;
@@ -190,8 +254,10 @@ export function extractReasoningText(message: Record<string, unknown> | null | u
 			if (item?.type !== 'reasoning') continue;
 			const chunks = (item.content || item.summary || []) as { text?: string }[];
 			if (!Array.isArray(chunks)) continue;
-			const text = chunks.map((c) => c.text || '').join('');
-			if (text.trim()) parts.push(text.trim());
+			pushUniqueReasoning(
+				parts,
+				chunks.map((c) => c.text || '').join('')
+			);
 		}
 	}
 

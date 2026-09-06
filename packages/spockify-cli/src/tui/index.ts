@@ -3,7 +3,8 @@ import { runAgentTurn } from '../agent/loop';
 import { ToolRegistry } from '../agent/registry';
 import { registerCliTools } from '../agent/tools';
 import type { AgentMessage, AgentMode } from '../agent/types';
-import { MODEL_PRESETS } from '../models';
+import { fetchStackModels, resolveStackApiBackend } from '../discover';
+import type { ModelPreset } from '../models';
 import { modelLabel, shortPath, ansi } from '../ui';
 import { Frame, truncate, visLen } from './draw';
 import {
@@ -41,9 +42,11 @@ type Modal =
   | { kind: 'confirm'; title: string; body: string };
 
 export async function runTui(opts: TuiOptions): Promise<void> {
+  const apiBackend = await resolveStackApiBackend(opts.baseUrl);
   const transport = createModelTransport({
     apiKey: opts.apiKey,
     baseUrl: opts.baseUrl,
+    apiBackend,
   });
   const registry = new ToolRegistry();
   registerCliTools(registry);
@@ -63,11 +66,29 @@ export async function runTui(opts: TuiOptions): Promise<void> {
   let turnAbort: AbortController | undefined;
   let confirmResolve: ((ok: boolean) => void) | null = null;
   const history: AgentMessage[] = [];
+  let stackModels: ModelPreset[] = [];
 
   const size = () => termSize();
 
   const markDirty = () => {
     dirty = true;
+  };
+
+  const ensureStackModels = async (): Promise<ModelPreset[]> => {
+    if (stackModels.length) return stackModels;
+    try {
+      stackModels = await fetchStackModels({
+        apiKey: opts.apiKey,
+        baseUrl: opts.baseUrl,
+      });
+    } catch (err) {
+      pushLog({
+        kind: 'error',
+        text: err instanceof Error ? err.message : String(err),
+      });
+      stackModels = [];
+    }
+    return stackModels;
   };
 
   const pushLog = (line: LogLine) => {
@@ -278,7 +299,7 @@ export async function runTui(opts: TuiOptions): Promise<void> {
     );
 
     if (modal) {
-      drawModal(frame, cols, rows, modal, model, mode, yolo);
+      drawModal(frame, cols, rows, modal, model, mode, yolo, stackModels);
       hideCursor();
     } else {
       hideCursor();
@@ -293,12 +314,19 @@ export async function runTui(opts: TuiOptions): Promise<void> {
   };
 
   const openModel = () => {
-    const idx = Math.max(
-      0,
-      MODEL_PRESETS.findIndex((p) => p.id === model),
-    );
-    modal = { kind: 'model', idx };
-    markDirty();
+    void (async () => {
+      const models = await ensureStackModels();
+      if (!models.length) {
+        markDirty();
+        return;
+      }
+      const idx = Math.max(
+        0,
+        models.findIndex((p) => p.id === model),
+      );
+      modal = { kind: 'model', idx };
+      markDirty();
+    })();
   };
 
   const openMode = () => {
@@ -617,10 +645,11 @@ export async function runTui(opts: TuiOptions): Promise<void> {
     ) {
       const items =
         modal.kind === 'model'
-          ? MODEL_PRESETS.map((p) => p.id)
+          ? stackModels.map((p) => p.id)
           : modal.kind === 'mode'
             ? ['agent', 'ask']
             : ['ask', 'run-all'];
+      if (!items.length) return;
       if (key === 'up') {
         modal.idx = (modal.idx - 1 + items.length) % items.length;
         markDirty();
@@ -681,15 +710,17 @@ function drawModal(
   model: string,
   mode: AgentMode,
   yolo: boolean,
+  stackModels: ModelPreset[] = [],
 ): void {
   const w = Math.min(56, cols - 4);
+  const modelCount = Math.max(1, stackModels.length);
   const h =
     modal.kind === 'settings'
       ? 12
       : modal.kind === 'confirm'
         ? 11
         : modal.kind === 'model'
-          ? Math.min(16, MODEL_PRESETS.length + 6)
+          ? Math.min(Math.max(10, Math.min(rows - 4, modelCount + 6)), rows - 2)
           : 10;
   const x = Math.floor((cols - w) / 2);
   const y = Math.floor((rows - h) / 2);
@@ -750,7 +781,7 @@ function drawModal(
 
   const items =
     modal.kind === 'model'
-      ? MODEL_PRESETS.map((p) => ({
+      ? stackModels.map((p) => ({
           value: p.id,
           label: `${modelLabel(p.id).padEnd(8)} ${p.blurb}`,
         }))
@@ -765,9 +796,12 @@ function drawModal(
           ];
 
   const idx = modal.idx;
-  for (let i = 0; i < items.length && i < h - 4; i++) {
+  const maxRows = Math.max(1, h - 4);
+  const start = Math.max(0, Math.min(idx - Math.floor(maxRows / 2), items.length - maxRows));
+  for (let row = 0; row < maxRows && start + row < items.length; row++) {
+    const i = start + row;
     const it = items[i]!;
-    const yy = y + 2 + i;
+    const yy = y + 2 + row;
     const mark = i === idx ? ansi.accent('❯ ') : '  ';
     const lab =
       i === idx ? ansi.bold(truncate(it.label, w - 6)) : truncate(it.label, w - 6);

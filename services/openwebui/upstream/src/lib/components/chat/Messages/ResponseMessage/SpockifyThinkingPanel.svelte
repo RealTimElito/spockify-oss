@@ -41,10 +41,12 @@
 		Boolean(modelReasoning) ||
 		statusHistory.length > 1;
 
-	// Off: do not show an empty thinking animation as if CoT is expected.
-	$: expectingThink = Boolean(thinking) && thinking !== 'off' && thinking !== 'light';
+	// Off: never show a Thought panel (no fake CoT / leftover reasoning chrome).
+	$: thinkingOff = thinking === 'off' || thinking === 'light';
+	$: expectingThink = Boolean(thinking) && !thinkingOff;
 	$: hasPanel =
-		(!messageDone &&
+		!thinkingOff &&
+		((!messageDone &&
 			(expectingThink ||
 				thinking === 'heavy' ||
 				Boolean(modelReasoning) ||
@@ -52,7 +54,7 @@
 				workers.length > 0 ||
 				Boolean(critique?.level || critique?.notes) ||
 				Boolean(routingPath || routingReason || worker))) ||
-		(messageDone && hasInterestingDetails);
+			(messageDone && hasInterestingDetails));
 
 	$: ensembleRows = buildEnsembleRows(thinking, workers);
 

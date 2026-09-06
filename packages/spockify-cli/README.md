@@ -29,6 +29,17 @@ spockify login
 
 Requires OpenWebUI with the CLI device routes deployed (`/api/v1/spockify/cli/...`).
 
+**Local OSS / air-gapped compose** (auto-detects `WEBUI_URL`, then `http://127.0.0.1:3080` / `:4000` when `SPOCKIFY_BASE_URL` is unset — cloud `https://spockify.eu` is only the last resort):
+
+```bash
+# optional explicit override:
+export SPOCKIFY_BASE_URL=http://127.0.0.1:3080   # or WEBUI_URL from compose .env
+# from another machine on the LAN:
+# export SPOCKIFY_BASE_URL=http://10.0.0.10x.x:3080
+spockify login --base-url "$SPOCKIFY_BASE_URL"
+spockify models                                  # live LiteLLM/OWUI catalog
+```
+
 Fallback: `export SPOCKIFY_API_KEY=sk-…` or `spockify --api-key sk-…`
 
 ## Usage
@@ -41,6 +52,7 @@ spockify --ask "how does X work?" # read-only
 spockify --yolo "refactor foo"    # auto-approve writes/shell (80-turn horizon)
 spockify --max-turns 64 "…"       # override loop budget (or SPOCKIFY_MAX_TURNS)
 spockify --model codestral
+spockify models                   # list models from the live stack
 spockify whoami
 spockify logout
 ```

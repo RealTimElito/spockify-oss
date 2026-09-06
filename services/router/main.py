@@ -3448,19 +3448,21 @@ def _think_payload_for_turn(
     user_msg: str,
     decision: Optional[RoutingDecision] = None,
 ) -> Any:
-    """Think payload for this turn. Trivial Qwen/Gemma/gpt-oss: off or low."""
+    """Think payload for this turn.
+
+    Explicit Off → catalog Off (omit for gpt-oss; False for Gemma/Qwen).
+    Trivial auto-clamp to Off on gpt-oss uses low (omit defaults to medium).
+    """
+    user_mode = _normalize_thinking_mode(thinking_mode) or DEFAULT_THINKING_MODE
     mode = _effective_thinking_mode(thinking_mode, user_msg, decision=decision)
-    if not _is_trivial_worker_turn(user_msg, decision):
-        return _think_payload_for_worker(model, mode)
-    lowered = (model or "").strip().lower()
-    api = model_catalog.thinking_api_kind(model)
-    if api == model_catalog.THINKING_API_NONE:
-        return None
-    # gpt-oss ignores boolean and defaults to medium if omitted.
-    if "gpt-oss" in lowered:
-        return "low"
-    # Gemma/Qwen/Nemotron default-on unless think=false.
-    return False
+    if mode == "off":
+        if user_mode == "off":
+            return _think_payload_for_worker(model, "off")
+        lowered = (model or "").strip().lower()
+        if "gpt-oss" in lowered:
+            return "low"
+        return _think_payload_for_worker(model, "off")
+    return _think_payload_for_worker(model, mode)
 
 
 def _thinking_mode_from_messages(
@@ -4924,9 +4926,29 @@ async def _ollama_chat_text(
     timeout: float,
     **kwargs: Any,
 ) -> str:
+    """Chat via Ollama; on missing-tag 404, once retry DEFAULT_CHAT_WORKER.
+
+    OSS laptops often lack gemma4-26b/31b while the orchestrator still
+    nominates them — better a working smaller Gemma than a hard 502.
+    """
     kwargs = _vision_chat_kwargs(model, **kwargs)
     body = _ollama_chat_body(model, messages, stream=False, **kwargs)
     resp = await client.post(f"{OLLAMA_URL}/api/chat", json=body, timeout=timeout)
+    if (
+        resp.status_code == 404
+        and model != DEFAULT_CHAT_WORKER
+        and "not found" in (resp.text or "").lower()
+    ):
+        LOG.warning(
+            "ollama model missing for %s (%s); retrying %s",
+            model,
+            _ollama_model_name(model),
+            DEFAULT_CHAT_WORKER,
+        )
+        model = DEFAULT_CHAT_WORKER
+        kwargs = _vision_chat_kwargs(model, **kwargs)
+        body = _ollama_chat_body(model, messages, stream=False, **kwargs)
+        resp = await client.post(f"{OLLAMA_URL}/api/chat", json=body, timeout=timeout)
     await _raise_ollama_status(resp, model)
     return _ollama_message_text(resp.json()["message"])
 

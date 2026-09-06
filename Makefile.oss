@@ -54,8 +54,8 @@ demo-gpu:
 	./docker/run.sh --gpu --demo security
 
 ide:
-	chmod +x docker/ide/run.sh
-	./docker/ide/run.sh
+	chmod +x docker/ide/run.sh docker/ide/start-spockify-ide.sh
+	./docker/ide/start-spockify-ide.sh
 
 kit docker-kit:
 	chmod +x docker/pack-release.sh docker/run.sh docker/clean.sh docker/engine.sh docker/add-model.sh docker/set-chat-worker.sh docker/set-code-worker.sh docker-run.sh

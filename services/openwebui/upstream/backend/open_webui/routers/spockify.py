@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from collections.abc import AsyncIterator
@@ -2483,6 +2484,12 @@ async def ide_index_put(
 
 
 def _public_base(request: Request) -> str:
+    # OSS compose sets WEBUI_URL (e.g. http://10.0.0.10x.x:3080). Prefer it so
+    # device-login verification links are reachable from other LAN clients
+    # even when the CLI hit the API via 127.0.0.1.
+    configured = (os.environ.get('WEBUI_URL') or '').strip().rstrip('/')
+    if configured.startswith('http://') or configured.startswith('https://'):
+        return configured
     proto = (
         request.headers.get('x-forwarded-proto')
         or request.url.scheme

@@ -2183,8 +2183,22 @@
 		const delta = choices?.[0]?.delta ?? {};
 		const reasoningDelta =
 			delta.reasoning_content || delta.reasoning || delta.thinking || '';
-		if (reasoningDelta) {
-			patch.spockifyModelReasoning = `${current.spockifyModelReasoning ?? ''}${reasoningDelta}`;
+		const thinkingMode = String(
+			current.spockifyThinking || message.spockifyThinking || ''
+		).toLowerCase();
+		// Off: never accumulate CoT into the message (panel stays hidden).
+		if (reasoningDelta && thinkingMode !== 'off' && thinkingMode !== 'light') {
+			const prev = String(current.spockifyModelReasoning ?? '');
+			if (!prev) {
+				patch.spockifyModelReasoning = reasoningDelta;
+			} else if (reasoningDelta.startsWith(prev)) {
+				// Cumulative full thinking (some gateways re-send the prefix).
+				patch.spockifyModelReasoning = reasoningDelta;
+			} else if (prev.endsWith(reasoningDelta) || prev.includes(reasoningDelta)) {
+				// Duplicate chunk — ignore.
+			} else {
+				patch.spockifyModelReasoning = `${prev}${reasoningDelta}`;
+			}
 		}
 
 		const finishReason = choices?.[0]?.finish_reason;

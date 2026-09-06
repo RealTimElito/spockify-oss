@@ -1,5 +1,10 @@
 import { spawn } from 'node:child_process';
-import { DEFAULT_BASE_URL, saveCredentials, type SpockifyCredentials } from './config';
+import {
+  DEFAULT_BASE_URL,
+  formatUnreachableHint,
+  saveCredentials,
+  type SpockifyCredentials,
+} from './config';
 
 export interface DeviceCodeResponse {
   device_code: string;
@@ -20,15 +25,39 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function baseUrlFrom(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return DEFAULT_BASE_URL;
+  }
+}
+
 async function postJson<T>(
   url: string,
   body: unknown,
 ): Promise<{ status: number; data: T }> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    const cause =
+      err && typeof err === 'object' && 'cause' in err
+        ? (err as { cause?: { code?: string; message?: string } }).cause
+        : undefined;
+    const detail =
+      cause?.code ||
+      cause?.message ||
+      (err instanceof Error ? err.message : String(err));
+    throw new Error(
+      `Cannot reach ${url} (${detail}). ${formatUnreachableHint(baseUrlFrom(url))}`,
+    );
+  }
   const text = await res.text();
   let data: T;
   try {

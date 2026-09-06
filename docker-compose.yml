@@ -134,8 +134,8 @@ services:
       # Auto code routes (spockify-auto). Override: make set-code-worker MODEL=…
       ROOM_CODER_WORKER: ${ROOM_CODER_WORKER:-codestral}
       COMMIT_MESSAGE_WORKER: ${COMMIT_MESSAGE_WORKER:-codestral}
-      HEAVY_WORKER_MODELS: ${HEAVY_WORKER_MODELS:-llama3.1-8b,llama3.2-3b-cpu,codestral,llama3.1-8b}
-      HEAVY_SYNTH_MODEL: ${HEAVY_SYNTH_MODEL:-llama3.1-8b}
+      HEAVY_WORKER_MODELS: ${HEAVY_WORKER_MODELS:-gemma4-12b,gemma4-12b,codestral,gemma4-12b}
+      HEAVY_SYNTH_MODEL: ${HEAVY_SYNTH_MODEL:-gemma4-12b}
       GHOST_FIM_BACKEND: ollama
       GHOST_OLLAMA_FIM_MODEL: ${GHOST_OLLAMA_FIM_MODEL:-codestral}
       GHOST_COMPLETE_MODEL: ${GHOST_COMPLETE_MODEL:-codestral}

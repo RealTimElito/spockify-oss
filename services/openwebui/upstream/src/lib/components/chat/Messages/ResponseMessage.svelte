@@ -263,6 +263,10 @@
 			.replace(/^###\s*Synthesis(?:\s*\([^)]*\))?\s*\n+/im, '')
 			.trim();
 
+	$: thinkingMode = String(message?.spockifyThinking || '');
+	$: thinkingOff = thinkingMode === 'off' || thinkingMode === 'light';
+	$: expectingThink = Boolean(thinkingMode) && !thinkingOff;
+
 	$: displayContent = (() => {
 		let text = message?.content ?? '';
 		if (messageImages.length > 0) text = stripMarkdownImages(text);
@@ -273,28 +277,26 @@
 		) {
 			text = stripSpockifyAgentMarkdown(text);
 		}
-		if (hasSpockifyThinkingPanel) {
+		// Off: always strip leaked <think>/reasoning details from the answer.
+		// On: strip when the Spockify panel owns that chrome.
+		if (thinkingOff || hasSpockifyThinkingPanel) {
 			text = stripReasoningDetails(text);
 		}
 		return text;
 	})();
 
 	$: hasInterestingThinking =
-		message?.spockifyThinking === 'heavy' ||
-		(message?.spockifyAgents?.workers?.length ?? 0) > 0 ||
-		Boolean(message?.spockifyCritique?.level || message?.spockifyCritique?.notes) ||
-		Boolean(message?.spockifyReason) ||
-		Boolean(extractReasoningText(message as Record<string, unknown>)) ||
-		(message?.statusHistory?.length ?? 0) > 1;
-
-	$: thinkingMode = String(message?.spockifyThinking || '');
-	$: expectingThink =
-		Boolean(thinkingMode) &&
-		thinkingMode !== 'off' &&
-		thinkingMode !== 'light';
+		!thinkingOff &&
+		(message?.spockifyThinking === 'heavy' ||
+			(message?.spockifyAgents?.workers?.length ?? 0) > 0 ||
+			Boolean(message?.spockifyCritique?.level || message?.spockifyCritique?.notes) ||
+			Boolean(message?.spockifyReason) ||
+			Boolean(extractReasoningText(message as Record<string, unknown>)) ||
+			(message?.statusHistory?.length ?? 0) > 1);
 
 	$: hasSpockifyThinkingPanel =
-		(!(message?.done ?? false) &&
+		!thinkingOff &&
+		((!(message?.done ?? false) &&
 			(expectingThink ||
 				message?.spockifyThinking === 'heavy' ||
 				Boolean(extractReasoningText(message as Record<string, unknown>)) ||
@@ -304,7 +306,7 @@
 				Boolean(
 					message?.spockifyRoutingPath || message?.spockifyReason || message?.spockifyWorker
 				))) ||
-		((message?.done ?? false) && hasInterestingThinking);
+			((message?.done ?? false) && hasInterestingThinking));
 
 	$: canRequestImageVariation =
 		!readOnly &&

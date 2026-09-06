@@ -2345,6 +2345,16 @@ class ExplicitModelRoutingTests(unittest.IsolatedAsyncioTestCase):
             _think_payload_for_turn("gpt-oss-120b", "heavy", "use gpt-oss", gpt),
             "low",
         )
+        # Explicit Off never sends think= (gpt-oss omits; Gemma/Qwen get False).
+        self.assertIsNone(_think_payload_for_turn("gpt-oss-120b", "off", "hello", None))
+        self.assertIs(
+            _think_payload_for_turn("gemma4-12b", "off", "hello", None),
+            False,
+        )
+        self.assertIs(
+            _think_payload_for_turn("qwen3.5-9b", "off", "hello", None),
+            False,
+        )
 
     def test_language_probe_is_trivial(self) -> None:
         from main import _is_language_probe, _is_trivial_worker_turn

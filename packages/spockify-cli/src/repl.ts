@@ -8,9 +8,10 @@ import { DoublePressExit, type ExitKey } from './exitGuard';
 import { readBoxedLine, readLineRaw } from './inputRaw';
 import {
   isModelMetaCommand,
-  MODEL_PRESETS,
   resolveModelId,
+  type ModelPreset,
 } from './models';
+import { fetchStackModels, resolveStackApiBackend } from './discover';
 import { pickFromList } from './picker';
 import {
   MarkdownStreamRenderer,
@@ -51,9 +52,11 @@ function write(s: string): void {
 export async function runRepl(opts: ReplOptions): Promise<void> {
   disableMouseTracking();
 
+  const apiBackend = await resolveStackApiBackend(opts.baseUrl);
   const transport = createModelTransport({
     apiKey: opts.apiKey,
     baseUrl: opts.baseUrl,
+    apiBackend,
   });
   const registry = new ToolRegistry();
   registerCliTools(registry);
@@ -66,6 +69,16 @@ export async function runRepl(opts: ReplOptions): Promise<void> {
   let turns = 0;
   let shouldExit = false;
   let turnAbort: AbortController | undefined;
+  let stackModels: ModelPreset[] | null = null;
+
+  const loadStackModels = async (): Promise<ModelPreset[]> => {
+    if (stackModels) return stackModels;
+    stackModels = await fetchStackModels({
+      apiKey: opts.apiKey,
+      baseUrl: opts.baseUrl,
+    });
+    return stackModels;
+  };
 
   const exitGuard = new DoublePressExit(write);
 
@@ -163,10 +176,21 @@ export async function runRepl(opts: ReplOptions): Promise<void> {
   };
 
   const pickModel = async (): Promise<void> => {
+    let items: ModelPreset[];
+    try {
+      items = await loadStackModels();
+    } catch (err) {
+      write(renderError(err instanceof Error ? err.message : String(err)));
+      return;
+    }
+    if (!items.length) {
+      write(renderHint('No models returned from this stack.'));
+      return;
+    }
     const next = await pickFromList({
-      title: 'Model',
+      title: `Model  ${ansi.dim(opts.baseUrl)}`,
       current: model,
-      items: MODEL_PRESETS.map((p) => ({
+      items: items.map((p) => ({
         value: p.id,
         label:
           modelLabel(p.id) === p.id
@@ -365,9 +389,27 @@ export async function runRepl(opts: ReplOptions): Promise<void> {
         await pickModel();
         continue;
       }
-      const resolved = resolveModelId(arg);
+      let available: ModelPreset[] | undefined;
+      try {
+        available = await loadStackModels();
+      } catch (err) {
+        write(renderError(err instanceof Error ? err.message : String(err)));
+        continue;
+      }
+      const resolved = resolveModelId(arg, available);
       if (!resolved) {
         write(renderHint(`Unknown model “${arg}”. Try /model`));
+        continue;
+      }
+      const onStack = available.some(
+        (m) => m.id.toLowerCase() === resolved.toLowerCase(),
+      );
+      if (!onStack) {
+        write(
+          renderHint(
+            `“${resolved}” is not on this stack (${opts.baseUrl}). Try /model`,
+          ),
+        );
         continue;
       }
       model = resolved;

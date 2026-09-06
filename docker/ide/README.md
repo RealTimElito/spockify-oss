@@ -25,6 +25,13 @@ From the repo root, `make ide` is the same as `./docker/ide/run.sh`.
 make ide
 ```
 
+One-liner from a GUI terminal (Fedora / SELinux):
+
+```bash
+./docker/ide/start-spockify-ide.sh
+# or after install: ~/bin/spockify-ide
+```
+
 `--build` downloads the published AppImage (or uses `docker/ide/payload/*.AppImage`
 if you drop one in). `run.sh` picks Podman if present, else Docker, plus X11 vs
 Wayland and `--userns=keep-id` on Podman. Force Docker with
@@ -46,8 +53,8 @@ sudo dnf install distrobox podman
 distrobox create --name spockify-ide --image ubuntu:24.04
 distrobox enter spockify-ide
 # inside:
-curl -fLO https://spockify.eu/downloads/Spockify-IDE_0.9.15_amd64.deb
-sudo apt update && sudo apt install -y ./Spockify-IDE_0.9.15_amd64.deb
+curl -fLO https://spockify.eu/downloads/Spockify-IDE_0.9.16_amd64.deb
+sudo apt update && sudo apt install -y ./Spockify-IDE_0.9.16_amd64.deb
 spockify-ide
 ```
 
@@ -72,5 +79,5 @@ Export a host menu entry with `distrobox-export --app spockify-ide` if you want.
 
 | Arg | Meaning |
 |-----|---------|
-| `APPIMAGE_URL` | Override download (default: 0.9.15 AppImage for `TARGETARCH`) |
+| `APPIMAGE_URL` | Override download (default: 0.9.16 AppImage for `TARGETARCH`) |
 | local file | `cp Spockify-IDE-*.AppImage docker/ide/payload/` then `--build` |

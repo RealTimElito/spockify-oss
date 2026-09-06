@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
 	HEAVY_ENSEMBLE_PLAN,
 	buildEnsembleRows,
+	extractReasoningText,
 	formatEnsembleHeader,
+	isGarbageReasoning,
 	migratePersistedThinking,
 	modelSupportsThinking,
 	nextThinkingMode,
@@ -11,8 +13,51 @@ import {
 	isSpockifyRouterModel,
 	planHeavyEnsemble,
 	plannedHeavyWorkers,
+	sanitizeReasoningText,
 	spockifyModelSuffix
 } from './thinkingModes';
+
+describe('extractReasoningText / sanitizeReasoningText', () => {
+	it('hides all reasoning when thinking chip is Off', () => {
+		expect(
+			extractReasoningText({
+				spockifyThinking: 'off',
+				spockifyModelReasoning: 'real chain of thought about the bug'
+			})
+		).toBe('');
+	});
+
+	it('returns real dedicated reasoning for Medium', () => {
+		expect(
+			extractReasoningText({
+				spockifyThinking: 'medium',
+				spockifyModelReasoning: 'Check the Off path first.'
+			})
+		).toBe('Check the Off path first.');
+	});
+
+	it('drops thinking-process placeholder junk', () => {
+		expect(isGarbageReasoning('thinking process')).toBe(true);
+		expect(isGarbageReasoning('thinking process thinking process')).toBe(true);
+		expect(sanitizeReasoningText('Thinking Process:')).toBe('');
+		expect(sanitizeReasoningText('thinking process thinking process')).toBe('');
+		expect(sanitizeReasoningText('Thinking Process: actually weigh options')).toBe(
+			'actually weigh options'
+		);
+	});
+
+	it('dedupes the same body from details and output', () => {
+		const body = 'Compare the Off path to Medium.';
+		const content = `<details type="reasoning" done="true"><summary>Thought</summary>\n> ${body}\n</details>`;
+		expect(
+			extractReasoningText({
+				spockifyThinking: 'high',
+				content,
+				output: [{ type: 'reasoning', content: [{ text: body }] }]
+			})
+		).toBe(body);
+	});
+});
 
 describe('buildEnsembleRows', () => {
 	it('shows all four Heavy roles before any live workers', () => {

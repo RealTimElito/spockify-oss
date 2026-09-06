@@ -236,7 +236,7 @@ export function renderHelp(): string {
     ['/agent', 'Agent mode — can edit and run tools'],
     ['/mode', 'Interactive mode / permissions picker'],
     ['/yolo', 'Toggle run all (skip tool confirms)'],
-    ['/model', 'Interactive model picker (or /model auto)'],
+    ['/model', 'Pick from live stack models (or /model <id>)'],
     ['/status', 'Full session details'],
     ['/clear', 'Clear conversation'],
     ['/help', 'Show this help'],

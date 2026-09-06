@@ -47,9 +47,9 @@ RUN set -euo pipefail; \
       URL="${APPIMAGE_URL}"; \
       if [[ -z "${URL}" ]]; then \
         if [[ "${TARGETARCH}" == "arm64" ]]; then \
-          URL="https://spockify.eu/downloads/Spockify-IDE-0.9.15-aarch64.AppImage"; \
+          URL="https://spockify.eu/downloads/Spockify-IDE-0.9.16-aarch64.AppImage"; \
         else \
-          URL="https://spockify.eu/downloads/Spockify-IDE-0.9.15-x86_64.AppImage"; \
+          URL="https://spockify.eu/downloads/Spockify-IDE-0.9.16-x86_64.AppImage"; \
         fi; \
       fi; \
       echo "Fetching ${URL}"; \
