@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxdamage1 libxfixes3 libxi6 libxtst6 \
     fonts-dejavu-core fonts-liberation \
     xdg-utils \
-    mesa-vulkan-drivers libgl1-mesa-dri \
+    mesa-vulkan-drivers libgl1-mesa-dri libgl1 libegl1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp/payload

@@ -97,6 +97,7 @@ services:
       LITELLM_URL: http://litellm:4000/v1
       LITELLM_API_KEY: ${LITELLM_MASTER_KEY:-sk-spockify-change-me}
       SEARXNG_URL: http://searxng:8080
+      SEARX_RESULT_LIMIT: ${SEARX_RESULT_LIMIT:-8}
       OLLAMA_URL: http://ollama:11434
       USE_DIRECT_OLLAMA: "true"
       ORCHESTRATOR_MODEL: ${ORCHESTRATOR_MODEL:-llama3.2-3b-cpu}
@@ -170,6 +171,8 @@ services:
       ENABLE_WEB_SEARCH: "true"
       WEB_SEARCH_ENGINE: searxng
       SEARXNG_QUERY_URL: http://searxng:8080/search?q=<query>
+      WEB_SEARCH_RESULT_COUNT: ${WEB_SEARCH_RESULT_COUNT:-8}
+      RAG_WEB_SEARCH_RESULT_COUNT: ${RAG_WEB_SEARCH_RESULT_COUNT:-8}
       BYPASS_WEB_SEARCH_WEB_LOADER: "true"
       # Empty = browser TTS (offline-safe). Set AUDIO_TTS_ENGINE=edge when online for neural voices.
       AUDIO_TTS_ENGINE: ${AUDIO_TTS_ENGINE:-}

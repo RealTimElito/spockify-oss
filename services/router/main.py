@@ -68,6 +68,7 @@ COMFYUI_URL = os.getenv(
     "COMFYUI_URL", "http://comfyui.spockify.svc.cluster.local:8188"
 ).rstrip("/")
 SEARXNG_URL = os.getenv("SEARXNG_URL", "http://searxng:8080").rstrip("/")
+SEARX_RESULT_LIMIT = int(os.getenv("SEARX_RESULT_LIMIT", "8"))
 ORCHESTRATOR_MODEL = os.getenv("ORCHESTRATOR_MODEL", "nemotron-nano-4b")
 ORCHESTRATOR_FALLBACK = os.getenv("ORCHESTRATOR_FALLBACK", "llama3.2-3b")
 ORCHESTRATOR_MAX_TOKENS = int(os.getenv("ORCHESTRATOR_MAX_TOKENS", "512"))
@@ -6063,7 +6064,7 @@ async def _enrich_weather_search_if_needed(
     messages: list[ChatMessage],
     query: str,
     *,
-    limit: int = 5,
+    limit: int = SEARX_RESULT_LIMIT,
     dual_weather: bool = False,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Fetch live weather APIs (open-meteo / SMHI). Snippets mix °C/°F and are not enough."""
@@ -6235,7 +6236,7 @@ def _truncate_searx_query(query: str, limit: int = MAX_SEARX_QUERY_CHARS) -> str
 async def _searxng_search(
     client: httpx.AsyncClient,
     query: str,
-    limit: int = 5,
+    limit: int = SEARX_RESULT_LIMIT,
     messages: Optional[list[ChatMessage]] = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     msgs = messages or []

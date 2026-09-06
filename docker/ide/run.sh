@@ -117,15 +117,21 @@ if command -v xhost >/dev/null 2>&1 && [[ -n "${DISPLAY:-}" ]]; then
   xhost +SI:localuser:"$(id -un)" >/dev/null 2>&1 || xhost +local: >/dev/null 2>&1 || true
 fi
 
+# :z relabel fails on root-owned trees (e.g. compose data/); skip under Enforcing + label=disable.
+WORKSPACE_MOUNT_OPTS=":z"
+if command -v getenforce >/dev/null 2>&1 && [[ "$(getenforce 2>/dev/null || true)" == "Enforcing" ]]; then
+  WORKSPACE_MOUNT_OPTS=""
+fi
+
 ARGS=(
   run --rm
   --name spockify-ide
   --hostname spockify-ide
+  # Host IPC shares /dev/shm; do not also set --shm-size (Podman 5 rejects both).
   --ipc=host
-  --shm-size=1g
   -e HOME=/home/spockify
-  -e ELECTRON_OZONE_PLATFORM_HINT=auto
-  -v "${WORKSPACE}:/workspace:z"
+  -e ELECTRON_OZONE_PLATFORM_HINT=${ELECTRON_OZONE_PLATFORM_HINT:-auto}
+  -v "${WORKSPACE}:/workspace${WORKSPACE_MOUNT_OPTS}"
   -v spockify-ide-home:/home/spockify
 )
 
@@ -149,6 +155,13 @@ fi
 if [[ -d /dev/dri ]]; then
   ARGS+=(--device /dev/dri)
 fi
+
+# Session D-Bus (Electron menus/portals); optional.
+if [[ -n "${XDG_RUNTIME_DIR:-}" && -S "${XDG_RUNTIME_DIR}/bus" ]]; then
+  ARGS+=(-e DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus")
+  ARGS+=(-v "${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus")
+fi
+
 
 # Fedora SELinux: X11/Wayland sockets rarely work with MCS :z labels.
 if command -v getenforce >/dev/null 2>&1 && [[ "$(getenforce 2>/dev/null || true)" == "Enforcing" ]]; then

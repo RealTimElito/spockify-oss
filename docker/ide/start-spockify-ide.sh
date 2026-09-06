@@ -10,10 +10,39 @@ RUN="${HERE}/run.sh"
 export SPOCKIFY_IDE_IMAGE="${SPOCKIFY_IDE_IMAGE:-localhost/spockify-ide:local}"
 export SPOCKIFY_WORKSPACE="${SPOCKIFY_WORKSPACE:-${ROOT}}"
 
+# SSH / tty: adopt the active graphical seat's display if unset.
+if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
+  runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  if [[ -S "${runtime}/wayland-0" ]]; then
+    export XDG_RUNTIME_DIR="${runtime}"
+    export WAYLAND_DISPLAY=wayland-0
+  fi
+  if [[ -z "${DISPLAY:-}" && -d /tmp/.X11-unix ]]; then
+    for sock in /tmp/.X11-unix/X*; do
+      [[ -S "${sock}" ]] || continue
+      export DISPLAY=":${sock##*/X}"
+      break
+    done
+  fi
+  if [[ -z "${XAUTHORITY:-}" ]]; then
+    for auth in "${runtime}"/.mutter-Xwaylandauth.* "${HOME}/.Xauthority"; do
+      if [[ -f "${auth}" ]]; then
+        export XAUTHORITY="${auth}"
+        break
+      fi
+    done
+  fi
+fi
+
 if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
   echo "No graphical session (DISPLAY/WAYLAND_DISPLAY empty)." >&2
   echo "Open a GUI terminal on the desktop, then run this again." >&2
   exit 1
+fi
+
+# Electron in rootless Podman is more reliable on X11/Xwayland than nested Wayland.
+if [[ -n "${DISPLAY:-}" ]]; then
+  export ELECTRON_OZONE_PLATFORM_HINT="${ELECTRON_OZONE_PLATFORM_HINT:-x11}"
 fi
 
 if command -v xhost >/dev/null 2>&1 && [[ -n "${DISPLAY:-}" ]]; then
@@ -42,6 +71,7 @@ fi
 echo "Spockify IDE"
 echo "  image:     ${SPOCKIFY_IDE_IMAGE}"
 echo "  workspace: ${SPOCKIFY_WORKSPACE}"
+echo "  display:   DISPLAY=${DISPLAY:-} WAYLAND=${WAYLAND_DISPLAY:-} ozone=${ELECTRON_OZONE_PLATFORM_HINT:-auto}"
 echo "  Tab/FIM:   set spockify.baseUrl to http://localhost:3080 (compose OWUI)"
 echo
 

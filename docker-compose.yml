@@ -116,6 +116,7 @@ services:
       LITELLM_URL: http://litellm:4000/v1
       LITELLM_API_KEY: ${LITELLM_MASTER_KEY:-sk-spockify-change-me}
       SEARXNG_URL: http://searxng:8080
+      SEARX_RESULT_LIMIT: ${SEARX_RESULT_LIMIT:-8}
       OLLAMA_URL: http://ollama:11434
       USE_DIRECT_OLLAMA: "true"
       # CPU-hot 3b frees VRAM for 8b/codestral on laptop GPUs (Spark k8s keeps GPU 3b).
@@ -201,6 +202,8 @@ services:
       WEB_SEARCH_ENGINE: searxng
       SEARXNG_QUERY_URL: http://searxng:8080/search?q=<query>
       RAG_WEB_SEARCH_ENGINE: searxng
+      WEB_SEARCH_RESULT_COUNT: ${WEB_SEARCH_RESULT_COUNT:-8}
+      RAG_WEB_SEARCH_RESULT_COUNT: ${RAG_WEB_SEARCH_RESULT_COUNT:-8}
       BYPASS_WEB_SEARCH_WEB_LOADER: "true"
       BYPASS_WEB_SEARCH_EMBEDDING_AND_RETRIEVAL: "true"
       # Empty = browser TTS (offline-safe). Set AUDIO_TTS_ENGINE=edge when online for neural voices.

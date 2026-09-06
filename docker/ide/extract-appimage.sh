@@ -30,6 +30,8 @@ cd /tmp && ./Spockify-IDE.AppImage --appimage-extract
 mkdir -p /opt
 mv /tmp/squashfs-root /opt/spockify-ide
 chmod u-s,g-s /opt/spockify-ide/usr/share/spockify-ide/chrome-sandbox 2>/dev/null || true
+# rootless Podman (--userns=keep-id) must read app files (product.json is often 0600).
+chmod -R a+rX /opt/spockify-ide
 rm -f /tmp/Spockify-IDE.AppImage
 rm -rf /tmp/payload
 test -x /opt/spockify-ide/AppRun

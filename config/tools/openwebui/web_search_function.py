@@ -24,7 +24,7 @@ class Tools:
             ),
             description="SearXNG base URL (no trailing path)",
         )
-        max_results: int = Field(default=5, ge=1, le=20)
+        max_results: int = Field(default=8, ge=1, le=20)
 
     def __init__(self):
         self.valves = self.Valves()
