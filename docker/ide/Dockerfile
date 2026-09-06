@@ -10,7 +10,8 @@
 #   cp Spockify-IDE-*-x86_64.AppImage docker/ide/payload/
 #   docker build -t spockify-ide:local -f docker/ide/Dockerfile docker/ide
 
-FROM debian:bookworm-slim
+# Ubuntu 24.04: AppImage native modules need GLIBCXX_3.4.31+ (Debian bookworm is too old).
+FROM ubuntu:24.04
 
 ARG TARGETARCH
 ARG APPIMAGE_URL=
@@ -18,15 +19,15 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl \
-    libgtk-3-0 libnss3 libxss1 libasound2 libgbm1 \
+    libgtk-3-0t64 libnss3 libxss1 libasound2t64 libgbm1 \
     libxshmfence1 libdrm2 libx11-xcb1 libxcb-dri3-0 \
     libxkbfile1 libsecret-1-0 libnotify4 libxrandr2 \
-    libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 \
-    libcups2 libpango-1.0-0 libxkbcommon0 libxcomposite1 \
+    libatk1.0-0t64 libatk-bridge2.0-0t64 libatspi2.0-0t64 \
+    libcups2t64 libpango-1.0-0 libxkbcommon0 libxcomposite1 \
     libxdamage1 libxfixes3 libxi6 libxtst6 \
     fonts-dejavu-core fonts-liberation \
     xdg-utils \
-    mesa-vulkan-drivers libgl1-mesa-dri libgl1 libegl1 \
+    mesa-vulkan-drivers libgl1 libegl1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp/payload

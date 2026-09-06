@@ -65,6 +65,7 @@ export interface SettingsSnapshot {
   provider: string;
   defaultModel: string;
   ossOnly: boolean;
+  codingOnly: boolean;
   agentMode: string;
   runAllUnsandboxed: boolean;
   agentPermissionMode: string;

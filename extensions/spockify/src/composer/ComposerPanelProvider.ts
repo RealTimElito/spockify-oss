@@ -20,6 +20,7 @@ import {
   formatRoutingHud,
   recordTurnRouting,
 } from '../util/routingHud';
+import { codingPickerOptionsFromConfig } from '../chat/codingPickerConfig';
 import { mergePickerModels } from '../chat/modelCatalog';
 import {
   readIdeThinkingMode,
@@ -230,17 +231,19 @@ export class ComposerPanelProvider implements vscode.WebviewViewProvider {
     let models: Array<{ id: string; label?: string }> = [];
     if (transport) {
       try {
+        const codingOpts = codingPickerOptionsFromConfig();
         models = mergePickerModels(
           (await transport.listModels({ ossOnly: true })).map((m) => ({
             id: m.id,
             label: m.name || m.id,
           })),
+          codingOpts,
         );
       } catch {
-        models = mergePickerModels([]);
+        models = mergePickerModels([], codingPickerOptionsFromConfig());
       }
     } else {
-      models = mergePickerModels([]);
+      models = mergePickerModels([], codingPickerOptionsFromConfig());
     }
     if (!this.selectedModel) {
       this.selectedModel =

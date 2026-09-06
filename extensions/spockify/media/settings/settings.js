@@ -316,6 +316,11 @@
             toggle('models.ossOnly', !!state.ossOnly),
           ) +
           row(
+            'Coding models only',
+            'Chat / Composer / Agent pickers prefer codestral, gpt-oss, coders (Tab unchanged)',
+            toggle('models.codingOnly', state.codingOnly !== false),
+          ) +
+          row(
             'Refresh catalog',
             '',
             btn('List models', { cmd: 'spockify.listModels' }) +

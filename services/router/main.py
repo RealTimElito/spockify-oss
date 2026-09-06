@@ -3282,6 +3282,11 @@ VOICE_MODE_MARKER_RE = re.compile(
     r"\[spockify_voice:(1|true|yes|on)\]",
     re.IGNORECASE,
 )
+# IDE coding sessions: prefer ROOM_CODER_WORKER over chat/vision micros.
+PREFER_CODING_MARKER_RE = re.compile(
+    r"\[spockify_prefer_coding:(1|true|yes|on)\]",
+    re.IGNORECASE,
+)
 VALID_SEARCH_MODES = frozenset({"auto", "on", "off"})
 
 # Thinking chip: Off | Low | Medium | High | Heavy. Default medium.
@@ -3602,18 +3607,34 @@ def _voice_mode_from_headers(headers: Any) -> bool:
     return False
 
 
-def _voice_mode_from_messages(
+def _prefer_coding_from_headers(headers: Any) -> bool:
+    """IDE / coding clients: X-Spockify-Prefer-Coding or X-Spockify-Client: ide."""
+    if headers is None:
+        return False
+    lookup = headers
+    if hasattr(headers, "items"):
+        lookup = {k.lower(): v for k, v in headers.items()}
+    if _parse_bool_flag(lookup.get("x-spockify-prefer-coding")):
+        return True
+    client = str(lookup.get("x-spockify-client") or "").strip().lower()
+    if client in ("ide", "spockify-ide", "desktop"):
+        return True
+    return False
+
+
+def _strip_marker_from_messages(
     messages: list[ChatMessage],
+    marker_re: re.Pattern[str],
 ) -> tuple[bool, list[ChatMessage]]:
-    """Extract optional Call/voice marker; strip it from messages."""
+    """Extract a system/user marker; strip it from messages."""
     found = False
     cleaned: list[ChatMessage] = []
     for msg in messages:
         text = _content_text(msg.content)
-        match = VOICE_MODE_MARKER_RE.search(text)
+        match = marker_re.search(text)
         if match:
             found = True
-            stripped = VOICE_MODE_MARKER_RE.sub("", text).strip()
+            stripped = marker_re.sub("", text).strip()
             if msg.role == "system" and not stripped:
                 continue
             if stripped != text:
@@ -3623,7 +3644,7 @@ def _voice_mode_from_messages(
                     new_parts: list[Any] = []
                     for part in msg.content:
                         if isinstance(part, dict) and part.get("type") == "text":
-                            part_text = VOICE_MODE_MARKER_RE.sub(
+                            part_text = marker_re.sub(
                                 "", str(part.get("text", ""))
                             ).strip()
                             new_parts.append({**part, "text": part_text})
@@ -3632,6 +3653,20 @@ def _voice_mode_from_messages(
                     msg = msg.model_copy(update={"content": new_parts})
         cleaned.append(msg)
     return found, cleaned
+
+
+def _voice_mode_from_messages(
+    messages: list[ChatMessage],
+) -> tuple[bool, list[ChatMessage]]:
+    """Extract optional Call/voice marker; strip it from messages."""
+    return _strip_marker_from_messages(messages, VOICE_MODE_MARKER_RE)
+
+
+def _prefer_coding_from_messages(
+    messages: list[ChatMessage],
+) -> tuple[bool, list[ChatMessage]]:
+    """Extract optional IDE prefer-coding marker; strip it from messages."""
+    return _strip_marker_from_messages(messages, PREFER_CODING_MARKER_RE)
 
 
 def _apply_voice_mode(
@@ -3706,6 +3741,97 @@ def _apply_voice_mode(
             patched.reasoning = (
                 f"{patched.reasoning}; voice→{VOICE_CHAT_WORKER}".strip("; ")
             )
+    return patched
+
+
+def _prefer_coding_keep_model(selected: str) -> bool:
+    """True when Auto already picked a coding / commit specialist."""
+    name = (selected or "").strip().lower()
+    if not name:
+        return False
+    if name in (
+        (ROOM_CODER_WORKER or "").strip().lower(),
+        (COMMIT_MESSAGE_WORKER or "").strip().lower(),
+        "mathstral",
+        "web-codestral",
+        "qwen3.6-coder-27b",
+        "qwen3.6-27b-coding",
+    ):
+        return True
+    if _is_coder_worker(name):
+        return True
+    if name.startswith(
+        (
+            "gpt-oss",
+            "codestral",
+            "devstral",
+            "codellama",
+            "codegemma",
+            "codeqwen",
+            "starcoder",
+            "deepseek-coder",
+            "spockify-coder",
+        )
+    ):
+        return True
+    if "coder" in name.replace("_", "-"):
+        return True
+    return False
+
+
+def _apply_prefer_coding(
+    decision: RoutingDecision,
+    prefer_coding: bool,
+) -> RoutingDecision:
+    """IDE Auto: remap chat/vision micros to ROOM_CODER_WORKER / web-codestral.
+
+    Keeps greetings/acks/math on the tiny fast path, vision image turns, and
+    explicit "talk to X" picks. Web chat (no prefer-coding hint) is unchanged.
+    """
+    if not prefer_coding:
+        return decision
+
+    patched = decision.model_copy(deep=True)
+    task = (patched.task_type or "").strip().lower()
+    selected = (patched.selected_model or "").strip()
+    path = (patched.routing_path or "").strip().lower()
+
+    if task == "explicit_model":
+        return patched
+
+    # Image / vision sticky must keep a vision-capable worker.
+    if task == "vision" or path.startswith("vision"):
+        return patched
+
+    # Tiny greeting / ack / arithmetic stay fast (not a coding session turn).
+    if selected == FAST_CHAT_WORKER and path in (
+        "heuristic",
+        "heuristic_ack",
+        "pattern_math",
+    ):
+        return patched
+    if task in ("math", "math_reasoning") and selected in (
+        FAST_CHAT_WORKER,
+        "llama3.2-3b",
+        "llama3.2-3b-cpu",
+    ):
+        return patched
+
+    if _prefer_coding_keep_model(selected):
+        return patched
+
+    if patched.needs_web_search or selected.startswith("web-"):
+        if selected != "web-codestral":
+            patched.selected_model = "web-codestral"
+            patched.reasoning = (
+                f"{patched.reasoning}; ide-coding→web-codestral".strip("; ")
+            )
+        return patched
+
+    patched.selected_model = ROOM_CODER_WORKER
+    patched.reasoning = (
+        f"{patched.reasoning}; ide-coding→{ROOM_CODER_WORKER}".strip("; ")
+    )
     return patched
 
 
@@ -9183,9 +9309,15 @@ async def chat_completions(
     header_mode = _search_mode_from_headers(request.headers)
     marker_mode, cleaned_messages = _search_mode_from_messages(req.messages)
     voice_from_msgs, cleaned_messages = _voice_mode_from_messages(cleaned_messages)
+    prefer_coding_msgs, cleaned_messages = _prefer_coding_from_messages(
+        cleaned_messages
+    )
     req.messages = cleaned_messages
     search_mode = marker_mode or header_mode or "auto"
     voice_mode = voice_from_msgs or _voice_mode_from_headers(request.headers)
+    prefer_coding = prefer_coding_msgs or _prefer_coding_from_headers(
+        request.headers
+    )
 
     user_msg = _user_text(req.messages)
     rules = _load_routing_rules()
@@ -9203,6 +9335,7 @@ async def chat_completions(
         )
         decision = _apply_user_search_mode(user_msg, decision, search_mode)
         decision = _apply_voice_mode(decision, voice_mode)
+        decision = _apply_prefer_coding(decision, prefer_coding)
         decision = _apply_thinking_mode(
             decision, thinking_mode, user_msg, think_enabled
         )
@@ -9214,13 +9347,14 @@ async def chat_completions(
             worker, thinking_mode, user_msg, decision
         )
         LOG.info(
-            "route path=%s model=%s worker=%s search=%s mode=%s voice=%s thinking=%s think=%s stream=%s thread=%s",
+            "route path=%s model=%s worker=%s search=%s mode=%s voice=%s coding=%s thinking=%s think=%s stream=%s thread=%s",
             decision.routing_path,
             decision.selected_model,
             worker,
             decision.needs_web_search,
             search_mode,
             voice_mode,
+            prefer_coding,
             thinking_mode,
             send_think,
             req.stream,

@@ -6,6 +6,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getAccount, getApiKey } from '../auth';
+import { codingPickerOptionsFromConfig } from '../chat/codingPickerConfig';
 import { mergePickerModels } from '../chat/modelCatalog';
 import { readIdeThinkingMode } from '../chat/thinkingPrefs';
 import { tryGetCodebaseProvider } from '../codebase/provider';
@@ -133,7 +134,7 @@ export async function buildSettingsSnapshot(
       /* offline OK */
     }
   }
-  models = mergePickerModels(models);
+  models = mergePickerModels(models, codingPickerOptionsFromConfig(cfg));
 
   const effective = await getEffectiveRules(context);
   const memories = await getMemories(context);
@@ -156,6 +157,7 @@ export async function buildSettingsSnapshot(
     provider: cfg.get<string>('provider') || 'remote',
     defaultModel: cfg.get<string>('defaultModel') || 'spockify-auto',
     ossOnly: cfg.get<boolean>('models.ossOnly', true),
+    codingOnly: cfg.get<boolean>('models.codingOnly', true),
     agentMode: cfg.get<string>('agent.mode') || 'agent',
     runAllUnsandboxed: cfg.get<boolean>('runAllUnsandboxed', false),
     agentPermissionMode:

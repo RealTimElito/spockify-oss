@@ -1144,6 +1144,36 @@
           "default": true,
           "description": "Strip closed models from catalog and completions."
         },
+        "spockify.models.codingOnly": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Limit chat/composer/agent model pickers to coding-relevant models (codestral, gpt-oss, qwen*coder*, devstral, mathstral, spockify-auto/room/agents). Tab/FIM is unchanged."
+        },
+        "spockify.models.codingAllowPrefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "codestral",
+            "spockify-coder",
+            "spockify-auto",
+            "spockify-room",
+            "spockify-agents",
+            "gpt-oss-",
+            "gpt-oss:",
+            "devstral",
+            "mathstral",
+            "codellama",
+            "codegemma",
+            "codeqwen",
+            "starcoder",
+            "deepseek-coder",
+            "web-codestral"
+          ],
+          "markdownDescription": "Extra id prefixes always shown when **coding only** is on (unioned with built-in Spark `code` group defaults)."
+        },
+
         "spockify.completions.enabled": {
           "type": "boolean",
           "default": true,

@@ -1639,6 +1639,102 @@ class VoiceModeRoutingTests(unittest.TestCase):
         self.assertIn("fahrenheit", lowered)
 
 
+class PreferCodingRoutingTests(unittest.TestCase):
+    def test_remaps_gemma_to_room_coder(self) -> None:
+        from main import _apply_prefer_coding
+
+        decision = RoutingDecision(
+            selected_model=DEFAULT_CHAT_WORKER,
+            task_type="general",
+            confidence=0.9,
+            reasoning="orchestrator chat",
+            routing_path="orchestrator",
+        )
+        patched = _apply_prefer_coding(decision, True)
+        self.assertEqual(patched.selected_model, ROOM_CODER_WORKER)
+        self.assertIn("ide-coding", patched.reasoning)
+
+    def test_keeps_greeting_on_fast_chat(self) -> None:
+        from main import FAST_CHAT_WORKER, _apply_prefer_coding
+
+        decision = RoutingDecision(
+            selected_model=FAST_CHAT_WORKER,
+            task_type="casual_chat",
+            confidence=0.9,
+            reasoning="greeting",
+            routing_path="heuristic",
+        )
+        patched = _apply_prefer_coding(decision, True)
+        self.assertEqual(patched.selected_model, FAST_CHAT_WORKER)
+
+    def test_keeps_codestral_and_gpt_oss(self) -> None:
+        from main import _apply_prefer_coding
+
+        for model in (ROOM_CODER_WORKER, "codestral", "gpt-oss-120b", "devstral-2"):
+            with self.subTest(model=model):
+                decision = RoutingDecision(
+                    selected_model=model,
+                    task_type="code_generation",
+                    confidence=0.9,
+                    reasoning="code",
+                    routing_path="heuristic",
+                )
+                patched = _apply_prefer_coding(decision, True)
+                self.assertEqual(patched.selected_model, model)
+
+    def test_web_gemma_becomes_web_codestral(self) -> None:
+        from main import _apply_prefer_coding
+
+        decision = RoutingDecision(
+            selected_model=DEFAULT_WEB_WORKER,
+            task_type="web_search",
+            needs_web_search=True,
+            search_query="fastapi docs",
+            confidence=0.9,
+            reasoning="docs",
+            routing_path="heuristic",
+        )
+        patched = _apply_prefer_coding(decision, True)
+        self.assertEqual(patched.selected_model, "web-codestral")
+        self.assertTrue(patched.needs_web_search)
+
+    def test_off_leaves_gemma(self) -> None:
+        from main import _apply_prefer_coding
+
+        decision = RoutingDecision(
+            selected_model=DEFAULT_CHAT_WORKER,
+            task_type="general",
+            confidence=0.9,
+            reasoning="default",
+            routing_path="default",
+        )
+        patched = _apply_prefer_coding(decision, False)
+        self.assertEqual(patched.selected_model, DEFAULT_CHAT_WORKER)
+
+    def test_client_ide_header(self) -> None:
+        from main import _prefer_coding_from_headers
+
+        self.assertTrue(
+            _prefer_coding_from_headers({"X-Spockify-Client": "ide"})
+        )
+        self.assertTrue(
+            _prefer_coding_from_headers({"x-spockify-prefer-coding": "1"})
+        )
+        self.assertFalse(_prefer_coding_from_headers({}))
+
+    def test_marker_stripped_from_messages(self) -> None:
+        from main import _prefer_coding_from_messages
+
+        msgs = [
+            ChatMessage(role="system", content="[spockify_prefer_coding:1]"),
+            ChatMessage(role="user", content="refactor this"),
+        ]
+        found, cleaned = _prefer_coding_from_messages(msgs)
+        self.assertTrue(found)
+        self.assertEqual(len(cleaned), 1)
+        self.assertEqual(cleaned[0].role, "user")
+
+
 class UncertaintyRsiTests(unittest.TestCase):
     def test_low_confidence_factual_escalates_to_search(self) -> None:
         from main import _apply_uncertainty_policy

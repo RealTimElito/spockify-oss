@@ -257,15 +257,48 @@ function normalizeThinkingMode(raw: unknown): string | undefined {
   return undefined;
 }
 
+const PREFER_CODING_MARKER = '[spockify_prefer_coding:1]';
+const PREFER_CODING_MARKER_ONLY_RE =
+  /^\s*\[spockify_prefer_coding:(1|true|yes|on)\]\s*$/i;
+
+/**
+ * IDE chat always prefers coding workers on spockify-auto.
+ * Marker survives LiteLLM header stripping (same pattern as thinking).
+ */
+function applyIdeCodingPrefer(request: ChatCompletionsRequest): {
+  payload: ChatCompletionsRequest;
+  headers: Record<string, string>;
+} {
+  const messages = Array.isArray(request.messages) ? [...request.messages] : [];
+  const cleaned = messages.filter((m) => {
+    if (m.role !== 'system' || typeof m.content !== 'string') return true;
+    return !PREFER_CODING_MARKER_ONLY_RE.test(m.content);
+  });
+  cleaned.unshift({
+    role: 'system',
+    content: PREFER_CODING_MARKER,
+  });
+  return {
+    payload: { ...request, messages: cleaned },
+    headers: {
+      'X-Spockify-Client': 'ide',
+      'X-Spockify-Prefer-Coding': '1',
+    },
+  };
+}
+
 function applyThinkingToRequest(request: ChatCompletionsRequest): {
   payload: ChatCompletionsRequest;
   headers: Record<string, string>;
 } {
-  const mode = normalizeThinkingMode(request.spockify_thinking);
+  const coding = applyIdeCodingPrefer(request);
+  const mode = normalizeThinkingMode(coding.payload.spockify_thinking);
   if (!mode) {
-    return { payload: request, headers: {} };
+    return coding;
   }
-  const messages = Array.isArray(request.messages) ? [...request.messages] : [];
+  const messages = Array.isArray(coding.payload.messages)
+    ? [...coding.payload.messages]
+    : [];
   const cleaned = messages.filter((m) => {
     if (m.role !== 'system' || typeof m.content !== 'string') return true;
     return !THINKING_MARKER_ONLY_RE.test(m.content);
@@ -276,12 +309,13 @@ function applyThinkingToRequest(request: ChatCompletionsRequest): {
   });
   return {
     payload: {
-      ...request,
+      ...coding.payload,
       messages: cleaned,
       spockify_thinking: mode,
       spockify_think_enabled: mode !== 'off',
     },
     headers: {
+      ...coding.headers,
       'X-Spockify-Thinking': mode,
       'X-Spockify-Think-Enabled': mode === 'off' ? '0' : '1',
     },

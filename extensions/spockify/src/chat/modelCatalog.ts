@@ -305,13 +305,93 @@ const PICKER_ORDER: readonly string[] = [
   'llava-13b',
 ];
 
+/** IDE coding picker order (matches LiteLLM `model_group_alias.code` + agents). */
+const CODING_PICKER_ORDER: readonly string[] = [
+  'gpt-oss-120b',
+  'gpt-oss-20b',
+  'codestral',
+  'qwen3.6-coder-27b',
+  'devstral-2',
+  'devstral-small-2',
+  'mathstral',
+  'web-codestral',
+];
+
 const DENY_PICKER_RE = /(?:^|[-/:])(kimi|mimo)(?:$|[-/:])/i;
+
+/**
+ * Non-coding surfaces: embeddings, TTS, vision-only, greeting micros, orchestrator.
+ * Coding models that also do vision (devstral-small-2) stay via allow prefixes.
+ */
+const CODING_DENY_RE =
+  /(?:^|[-/:_.])(embed|embedding|tts|whisper|bark|speech|llava|granite-vision|orchestrator)(?:$|[-/:_.])/i;
+
+/** Tiny greeting / CPU-only chat workers — not IDE coding targets. */
+const GREETING_ONLY_IDS = new Set([
+  'llama3.2-1b',
+  'llama3.2-3b',
+  'llama3.2-3b-cpu',
+  'spockify-chat',
+]);
+
+/**
+ * Defaults aligned with Spark LiteLLM `code` group + ROOM_CODER / agent entrypoints.
+ * Users can extend via `spockify.models.codingAllowPrefixes`.
+ */
+export const DEFAULT_CODING_ALLOW_PREFIXES: readonly string[] = [
+  'codestral',
+  'spockify-coder',
+  'spockify-auto',
+  'spockify-room',
+  'spockify-agents',
+  'gpt-oss-',
+  'gpt-oss:',
+  'devstral',
+  'mathstral',
+  'codellama',
+  'codegemma',
+  'codeqwen',
+  'starcoder',
+  'deepseek-coder',
+  'web-codestral',
+];
+
+/** Exact ids always kept when coding-only (beyond prefix match). */
+export const DEFAULT_CODING_ALLOW_IDS: ReadonlySet<string> = new Set([
+  AUTO_MODEL_ID,
+  'spockify-coder',
+  'spockify-room',
+  'spockify-agents',
+  'mathstral',
+  'codestral',
+  'codestral-latest',
+  'codestral-22b',
+  'codestral-vllm',
+  'qwen3.6-coder-27b',
+  'qwen3.6-27b-coding',
+]);
+
+/** Name heuristics for coder-tagged remotes (qwen*coder*, *coder*). */
+const CODING_NAME_RE =
+  /(?:^|[-/:_.])(coder|codestral|codellama|codegemma|codeqwen|devstral|mathstral|starcoder|deepseek-coder)(?:$|[-/:_.])/i;
 
 export interface PickerModel {
   id: string;
   label: string;
   family?: string;
   oss?: boolean;
+}
+
+export interface MergePickerOptions {
+  /**
+   * Prefer coding-relevant models for IDE chat/composer/agent.
+   * Default true. Set false to show the full chat catalog.
+   */
+  codingOnly?: boolean;
+  /** Extra / override allow prefixes (matched case-insensitively). */
+  allowPrefixes?: readonly string[];
+  /** Extra / override exact allow ids. */
+  allowIds?: readonly string[];
 }
 
 const BY_ALIAS = new Map(CATALOG_MODELS.map((m) => [m.alias, m]));
@@ -333,6 +413,51 @@ export function isDeniedPickerId(id: string): boolean {
   return DENY_PICKER_RE.test(id || '');
 }
 
+function normId(id: string): string {
+  return (id || '').trim().toLowerCase();
+}
+
+function prefixAllowed(id: string, prefixes: readonly string[]): boolean {
+  const n = normId(id);
+  return prefixes.some((p) => {
+    const pref = (p || '').trim().toLowerCase();
+    if (!pref) return false;
+    return n === pref || n.startsWith(pref);
+  });
+}
+
+/**
+ * True when an id belongs in the IDE coding model picker.
+ * Uses catalog `strengths: code`, Spark code-group prefixes, and name heuristics.
+ */
+export function isCodingPickerId(
+  id: string,
+  opts: Pick<MergePickerOptions, 'allowPrefixes' | 'allowIds'> = {},
+): boolean {
+  const n = normId(id);
+  if (!n || isDeniedPickerId(n)) return false;
+  if (CODING_DENY_RE.test(n) || GREETING_ONLY_IDS.has(n)) return false;
+
+  const allowIds = opts.allowIds?.length
+    ? new Set([...DEFAULT_CODING_ALLOW_IDS, ...opts.allowIds.map(normId)])
+    : DEFAULT_CODING_ALLOW_IDS;
+  if (allowIds.has(n)) return true;
+
+  const prefixes = opts.allowPrefixes?.length
+    ? [...DEFAULT_CODING_ALLOW_PREFIXES, ...opts.allowPrefixes]
+    : DEFAULT_CODING_ALLOW_PREFIXES;
+  if (prefixAllowed(n, prefixes)) return true;
+
+  const catalog = getCatalogModel(n);
+  if (catalog?.strengths.includes('code')) return true;
+
+  // qwen*coder* / *coder* remotes not yet in the local catalog
+  if (/qwen/i.test(n) && /coder/i.test(n)) return true;
+  if (CODING_NAME_RE.test(n)) return true;
+
+  return false;
+}
+
 function remoteLabel(
   m: { id: string; label?: string; name?: string },
 ): string {
@@ -342,16 +467,24 @@ function remoteLabel(
 /**
  * Catalog first (stable order), then extra remote ids.
  * Always includes spockify-auto. Strips Kimi/MiMo.
+ * When `codingOnly` (default), keeps coding-relevant models only.
  */
 export function mergePickerModels(
   remote: Array<{ id: string; label?: string; name?: string; oss?: boolean }> = [],
+  options: MergePickerOptions = {},
 ): PickerModel[] {
+  const codingOnly = options.codingOnly !== false;
+  const codingOpts = {
+    allowPrefixes: options.allowPrefixes,
+    allowIds: options.allowIds,
+  };
   const seen = new Set<string>();
   const out: PickerModel[] = [];
 
   const push = (row: PickerModel) => {
     const id = (row.id || '').trim();
     if (!id || seen.has(id) || isDeniedPickerId(id)) return;
+    if (codingOnly && !isCodingPickerId(id, codingOpts)) return;
     seen.add(id);
     out.push({ ...row, id, oss: row.oss !== false });
   };
@@ -363,11 +496,12 @@ export function mergePickerModels(
     oss: true,
   });
 
+  const order = codingOnly ? CODING_PICKER_ORDER : PICKER_ORDER;
   const ordered = [
-    ...PICKER_ORDER.map((alias) => BY_ALIAS.get(alias)).filter(
+    ...order.map((alias) => BY_ALIAS.get(alias)).filter(
       (m): m is CatalogModel => !!m,
     ),
-    ...CATALOG_MODELS.filter((m) => !PICKER_ORDER.includes(m.alias)),
+    ...CATALOG_MODELS.filter((m) => !order.includes(m.alias)),
   ];
   for (const m of ordered) {
     push({

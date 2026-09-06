@@ -9,6 +9,7 @@ RUN="${HERE}/run.sh"
 
 export SPOCKIFY_IDE_IMAGE="${SPOCKIFY_IDE_IMAGE:-localhost/spockify-ide:local}"
 export SPOCKIFY_WORKSPACE="${SPOCKIFY_WORKSPACE:-${ROOT}}"
+export SPOCKIFY_BASE_URL="${SPOCKIFY_BASE_URL:-${WEBUI_URL:-http://127.0.0.1:3080}}"
 
 # SSH / tty: adopt the active graphical seat's display if unset.
 if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
@@ -68,11 +69,47 @@ if [[ "${#ENGINE[@]}" -gt 0 ]]; then
   fi
 fi
 
+# GUI menu entry → ~/bin/spockify-ide (idempotent).
+install_desktop_launcher() {
+  local bin="${HOME}/bin/spockify-ide"
+  local desk_dir="${HOME}/.local/share/applications"
+  local desk="${desk_dir}/spockify-ide.desktop"
+  mkdir -p "${HOME}/bin" "${desk_dir}"
+  if [[ ! -x "${bin}" ]]; then
+    cat >"${bin}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+REPO="\${SPOCKIFY_REPO:-${ROOT}}"
+export SPOCKIFY_IDE_IMAGE="\${SPOCKIFY_IDE_IMAGE:-localhost/spockify-ide:local}"
+export SPOCKIFY_WORKSPACE="\${SPOCKIFY_WORKSPACE:-\$REPO}"
+export SPOCKIFY_BASE_URL="\${SPOCKIFY_BASE_URL:-\${WEBUI_URL:-http://127.0.0.1:3080}}"
+cd "\$REPO"
+exec ./docker/ide/start-spockify-ide.sh "\$@"
+EOF
+    chmod +x "${bin}"
+  fi
+  cat >"${desk}" <<EOF
+[Desktop Entry]
+Name=Spockify IDE
+Comment=Spockify IDE (container)
+Exec=${bin}
+Icon=spockify-ide
+Terminal=false
+Type=Application
+Categories=Development;IDE;
+StartupWMClass=spockify-ide
+EOF
+  if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "${desk_dir}" >/dev/null 2>&1 || true
+  fi
+}
+install_desktop_launcher
+
 echo "Spockify IDE"
 echo "  image:     ${SPOCKIFY_IDE_IMAGE}"
 echo "  workspace: ${SPOCKIFY_WORKSPACE}"
 echo "  display:   DISPLAY=${DISPLAY:-} WAYLAND=${WAYLAND_DISPLAY:-} ozone=${ELECTRON_OZONE_PLATFORM_HINT:-auto}"
-echo "  Tab/FIM:   set spockify.baseUrl to http://localhost:3080 (compose OWUI)"
+echo "  Tab/FIM:   spockify.baseUrl → ${SPOCKIFY_BASE_URL} (compose OWUI)"
 echo
 
 chmod +x "${RUN}"

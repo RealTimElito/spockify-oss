@@ -54,6 +54,7 @@ import {
   normalizeComposerUiMode,
   toRuntimeAgentMode,
 } from './composerModes';
+import { codingPickerOptionsFromConfig } from './codingPickerConfig';
 import { mergePickerModels } from './modelCatalog';
 import {
   readIdeThinkingMode,
@@ -1053,7 +1054,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
       );
     }
     models = (models || []).filter((m) => m && m.id && m.oss !== false);
-    return mergePickerModels(models);
+    return mergePickerModels(models, codingPickerOptionsFromConfig());
   }
 
   private async refreshModels(): Promise<void> {

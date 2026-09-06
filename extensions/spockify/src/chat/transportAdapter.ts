@@ -11,6 +11,7 @@ import type {
   ModelInfo,
 } from './types';
 import { textFromContent } from './chatContent';
+import { codingPickerOptionsFromConfig } from './codingPickerConfig';
 import { mergePickerModels } from './modelCatalog';
 
 export function adaptModelTransport(
@@ -26,7 +27,7 @@ export function adaptModelTransport(
           label: m.name || m.id,
           oss: true,
         }));
-      return mergePickerModels(mapped);
+      return mergePickerModels(mapped, codingPickerOptionsFromConfig());
     },
 
     chatCompletions(

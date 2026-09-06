@@ -71,10 +71,13 @@ export class SpockifyHttpClient {
     return `${this.baseUrl}/v1`;
   }
 
-  authHeaders(init?: HeadersInit): Headers {
+    authHeaders(init?: HeadersInit): Headers {
     const headers = new Headers(init);
     if (this.apiKey) {
       headers.set('Authorization', `Bearer ${this.apiKey}`);
+    }
+    if (!headers.has('X-Spockify-Client')) {
+      headers.set('X-Spockify-Client', 'ide');
     }
     return headers;
   }
