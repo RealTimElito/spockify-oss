@@ -16,8 +16,6 @@ ARG TARGETARCH
 ARG APPIMAGE_URL=
 ARG DEBIAN_FRONTEND=noninteractive
 
-SHELL ["/bin/bash", "-c"]
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl \
     libgtk-3-0 libnss3 libxss1 libasound2 libgbm1 \
@@ -33,36 +31,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /tmp/payload
 COPY payload/ /tmp/payload/
+COPY extract-appimage.sh /tmp/extract-appimage.sh
 
 # Prefer a baked-in AppImage; otherwise download the published one.
-# --appimage-extract does not need FUSE (unlike running the AppImage).
-RUN set -euo pipefail; \
-    LOCAL=""; \
-    for f in /tmp/payload/*.AppImage; do \
-      if [[ -f "${f}" ]]; then LOCAL="${f}"; break; fi; \
-    done; \
-    if [[ -n "${LOCAL}" ]]; then \
-      cp "${LOCAL}" /tmp/Spockify-IDE.AppImage; \
-    else \
-      URL="${APPIMAGE_URL}"; \
-      if [[ -z "${URL}" ]]; then \
-        if [[ "${TARGETARCH}" == "arm64" ]]; then \
-          URL="https://spockify.eu/downloads/Spockify-IDE-0.9.16-aarch64.AppImage"; \
-        else \
-          URL="https://spockify.eu/downloads/Spockify-IDE-0.9.16-x86_64.AppImage"; \
-        fi; \
-      fi; \
-      echo "Fetching ${URL}"; \
-      curl -fL --connect-timeout 20 --retry 3 -o /tmp/Spockify-IDE.AppImage "${URL}"; \
-    fi; \
-    chmod +x /tmp/Spockify-IDE.AppImage; \
-    cd /tmp && ./Spockify-IDE.AppImage --appimage-extract; \
-    mkdir -p /opt; \
-    mv /tmp/squashfs-root /opt/spockify-ide; \
-    chmod u-s,g-s /opt/spockify-ide/usr/share/spockify-ide/chrome-sandbox 2>/dev/null || true; \
-    rm -f /tmp/Spockify-IDE.AppImage; \
-    rm -rf /tmp/payload; \
-    test -x /opt/spockify-ide/AppRun
+# Script uses bash so Podman/buildah does not depend on Dockerfile SHELL.
+RUN APPIMAGE_URL="${APPIMAGE_URL}" TARGETARCH="${TARGETARCH}" \
+    bash /tmp/extract-appimage.sh \
+ && rm -f /tmp/extract-appimage.sh
 
 # Arbitrary host UIDs (rootless Podman / --user) can write config + workspace.
 RUN mkdir -p /home/spockify /workspace \
