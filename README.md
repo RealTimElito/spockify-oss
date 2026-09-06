@@ -26,7 +26,7 @@ Authorized security demo (scoped pentest/AD/hardening with permission — **not*
 
 `make clean` stops compose leftovers (frees ports 3080/4000/4100); `make clean CLEAN_DATA=1` or `./docker/clean.sh --data` also wipes local data. Does not touch k8s/PVCs.
 
-Details: [docker/README.md](docker/README.md) (custom Ollama tags → LiteLLM → defaults under **Adding models**). Fedora: do not `--build` Open WebUI; `make up` pulls GHCR.
+Details: [docker/README.md](docker/README.md) (**Use with spockify-auto** vs **Use as UI default** under **Adding models**). Fedora: do not `--build` Open WebUI; `make up` pulls GHCR.
 
 ### 2. Spockify IDE
 

@@ -44,12 +44,14 @@ cp "${ROOT}/docker/clean.sh" "${STAGE}/clean.sh"
 chmod +x "${STAGE}/clean.sh"
 cp "${ROOT}/docker/add-model.sh" "${STAGE}/add-model.sh"
 chmod +x "${STAGE}/add-model.sh"
+cp "${ROOT}/docker/set-chat-worker.sh" "${STAGE}/set-chat-worker.sh"
+chmod +x "${STAGE}/set-chat-worker.sh"
 cp "${ROOT}/docker-run.sh" "${STAGE}/docker-run.sh"
 chmod +x "${STAGE}/docker-run.sh"
 
 cat > "${STAGE}/Makefile" <<'EOF'
 # Unpacked compose kit (run.sh lives next to this file).
-.PHONY: help up down clean logs status gpu demo demo-gpu add-model
+.PHONY: help up down clean logs status gpu demo demo-gpu add-model set-chat-worker
 help:
 	@echo "make up       ./run.sh"
 	@echo "make down     stop containers (keeps ./data)"
@@ -59,7 +61,8 @@ help:
 	@echo "make gpu      ./run.sh --gpu (Docker gpus=all; Podman CDI or /dev/nvidia* fallback)"
 	@echo "make demo     ./run.sh --demo security (authorized defensive overlay — not unfiltered)"
 	@echo "make demo-gpu ./run.sh --gpu --demo security"
-	@echo "make add-model TAG=<ollama-tag> [DEFAULT=1]  pull + wire LiteLLM"
+	@echo "make add-model TAG=<ollama-tag> [AUTO=1|DEFAULT=1]  pull + wire LiteLLM"
+	@echo "make set-chat-worker MODEL=<name>|TAG=<tag>  keep UI on Auto; set chat worker"
 up:
 	chmod +x run.sh docker-run.sh
 	./run.sh
@@ -82,8 +85,11 @@ demo-gpu:
 	chmod +x run.sh
 	./run.sh --gpu --demo security
 add-model:
-	chmod +x add-model.sh engine.sh
+	chmod +x add-model.sh set-chat-worker.sh engine.sh
 	./add-model.sh
+set-chat-worker:
+	chmod +x set-chat-worker.sh engine.sh
+	./set-chat-worker.sh
 EOF
 
 cat > "${STAGE}/.env.example" <<EOF

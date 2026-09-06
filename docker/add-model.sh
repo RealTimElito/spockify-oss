@@ -2,9 +2,10 @@
 # Pull an Ollama tag into the running compose stack and wire LiteLLM.
 # Usage:
 #   make add-model TAG=llama3.2:3b
-#   make add-model TAG=gemma4:12b DEFAULT=1
+#   make add-model TAG=gemma4:12b AUTO=1      # Auto UI + DEFAULT_CHAT_WORKER
+#   make add-model TAG=gemma4:12b DEFAULT=1   # UI picker default = this model
 #   ./docker/add-model.sh TAG=llama3.2:3b
-# Env aliases: MODEL= (same as TAG), DEFAULT=1 (set .env defaults).
+# Env aliases: MODEL= (same as TAG).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,16 +24,20 @@ source "${HERE}/engine.sh"
 
 usage() {
   cat <<'EOF'
-Usage: make add-model TAG=<ollama-tag> [DEFAULT=1]
-       ./docker/add-model.sh TAG=<ollama-tag> [DEFAULT=1]
+Usage: make add-model TAG=<ollama-tag> [AUTO=1|DEFAULT=1]
+       ./docker/add-model.sh TAG=<ollama-tag> [AUTO=1|DEFAULT=1]
 
   Pulls TAG into the Ollama container, appends a LiteLLM model_list row
   (docker/litellm.yaml), and restarts litellm without wiping data.
 
   TAG / MODEL   Exact Ollama tag (required), e.g. llama3.2:3b or gemma4:12b
-  DEFAULT=1     Also set DEFAULT_MODELS and DEFAULT_CHAT_WORKER in .env
-                (does not change defaults unless this flag is set)
+  AUTO=1        Keep UI on spockify-auto; set DEFAULT_CHAT_WORKER (via
+                set-chat-worker). Prefer this for Auto routing.
+  DEFAULT=1     Use this model as the Open WebUI picker default
+                (DEFAULT_MODELS=<model> + DEFAULT_CHAT_WORKER=<model>).
+                Leaves Auto as a selectable model, not the UI default.
 
+  Do not pass AUTO=1 and DEFAULT=1 together.
   model_name is derived by replacing ':' with '-' (llama3.2:3b → llama3.2-3b).
 
 Env:
@@ -43,6 +48,7 @@ EOF
 
 TAG="${TAG:-${MODEL:-}}"
 DEFAULT="${DEFAULT:-0}"
+AUTO="${AUTO:-0}"
 SYNC_CONFIG="${SYNC_CONFIG:-0}"
 
 for arg in "$@"; do
@@ -51,6 +57,7 @@ for arg in "$@"; do
     TAG=*) TAG="${arg#TAG=}" ;;
     MODEL=*) TAG="${arg#MODEL=}" ;;
     DEFAULT=*) DEFAULT="${arg#DEFAULT=}" ;;
+    AUTO=*) AUTO="${arg#AUTO=}" ;;
     SYNC_CONFIG=*) SYNC_CONFIG="${arg#SYNC_CONFIG=}" ;;
     *)
       if [[ -z "${TAG}" && "${arg}" != *=* ]]; then
@@ -81,6 +88,22 @@ tag_to_model_name() {
 MODEL_NAME="$(tag_to_model_name "${TAG}")"
 if [[ -z "${MODEL_NAME}" ]]; then
   echo "error: could not derive model_name from TAG=${TAG}" >&2
+  exit 1
+fi
+
+DEFAULT_ON=0
+case "${DEFAULT}" in
+  1|true|yes|YES) DEFAULT_ON=1 ;;
+esac
+AUTO_ON=0
+case "${AUTO}" in
+  1|true|yes|YES) AUTO_ON=1 ;;
+esac
+
+if [[ "${DEFAULT_ON}" -eq 1 && "${AUTO_ON}" -eq 1 ]]; then
+  echo "error: pass AUTO=1 or DEFAULT=1, not both." >&2
+  echo "  AUTO=1     → UI stays spockify-auto; worker = ${MODEL_NAME}" >&2
+  echo "  DEFAULT=1  → UI picker default = ${MODEL_NAME}" >&2
   exit 1
 fi
 
@@ -266,11 +289,6 @@ set_env_key() {
   fi
 }
 
-DEFAULT_ON=0
-case "${DEFAULT}" in
-  1|true|yes|YES) DEFAULT_ON=1 ;;
-esac
-
 if [[ "${DEFAULT_ON}" -eq 1 ]]; then
   ENV_FILE="${ROOT}/.env"
   if [[ ! -f "${ENV_FILE}" && -f "${ROOT}/.env.example" ]]; then
@@ -291,6 +309,12 @@ if [[ "${DEFAULT_ON}" -eq 1 ]]; then
     || compose up -d router openwebui
 fi
 
+# AUTO=1: keep UI on Auto; set chat worker (recreates router/openwebui itself).
+if [[ "${AUTO_ON}" -eq 1 ]]; then
+  echo "AUTO=1: set-chat-worker MODEL=${MODEL_NAME} (DEFAULT_MODELS stays spockify-auto)..."
+  "${HERE}/set-chat-worker.sh" "MODEL=${MODEL_NAME}"
+fi
+
 echo
 echo "Done."
 echo "  Ollama tag:   ${TAG}"
@@ -298,16 +322,16 @@ echo "  LiteLLM name: ${MODEL_NAME}"
 if [[ "${ADDED_DOCKER}" -eq 0 ]]; then
   echo "  Catalog:      already wired (no yaml change)"
 fi
-if [[ "${DEFAULT_ON}" -eq 0 ]]; then
+if [[ "${AUTO_ON}" -eq 1 ]]; then
+  echo "  Auto worker:  DEFAULT_MODELS=spockify-auto DEFAULT_CHAT_WORKER=${MODEL_NAME}"
+elif [[ "${DEFAULT_ON}" -eq 1 ]]; then
+  echo "  UI default:   DEFAULT_MODELS=${MODEL_NAME} DEFAULT_CHAT_WORKER=${MODEL_NAME}"
+else
   cat <<EOF
 
-To use as default (optional — not applied unless DEFAULT=1):
-  # .env
-  DEFAULT_MODELS=${MODEL_NAME}
-  DEFAULT_CHAT_WORKER=${MODEL_NAME}
-  # then: make down && make up   # or make gpu
-Or re-run: make add-model TAG=${TAG} DEFAULT=1
+Next (pick one):
+  make set-chat-worker MODEL=${MODEL_NAME}   # keep UI on Auto; set chat worker
+  make add-model TAG=${TAG} AUTO=1           # same, after a future pull
+  make add-model TAG=${TAG} DEFAULT=1        # UI picker default = this model
 EOF
-else
-  echo "  Defaults:     DEFAULT_MODELS=${MODEL_NAME} DEFAULT_CHAT_WORKER=${MODEL_NAME}"
 fi

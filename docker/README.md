@@ -409,13 +409,43 @@ One-shot helper (pull + LiteLLM row + restart litellm, keeps data):
 
 ```bash
 make add-model TAG=llama3.2:3b
-make add-model TAG=gemma4:12b DEFAULT=1   # also set DEFAULT_MODELS / DEFAULT_CHAT_WORKER
+make add-model TAG=gemma4:12b AUTO=1      # Auto UI + DEFAULT_CHAT_WORKER
+make add-model TAG=gemma4:12b DEFAULT=1   # UI picker default = this model
 # MODEL= is an alias for TAG=
 ```
 
 `model_name` is the tag with `:` → `-` (e.g. `llama3.2:3b` → `llama3.2-3b`).
-Duplicates are skipped. Without `DEFAULT=1`, defaults are left alone; the script
-prints the `.env` lines to set manually.
+Duplicates are skipped. Without `AUTO=1` / `DEFAULT=1`, defaults are left alone;
+the script prints the next commands.
+
+### Use with spockify-auto
+
+Keep the Open WebUI picker on **Auto** (`spockify-auto`) and only swap the
+router English/chat worker:
+
+```bash
+make set-chat-worker MODEL=llama3.2-3b
+# or TAG=llama3.2:3b  → sanitized to llama3.2-3b
+# or after a pull: make add-model TAG=gemma4:12b AUTO=1
+```
+
+Writes `.env` (`DEFAULT_MODELS=spockify-auto`, `DEFAULT_CHAT_WORKER=…`, plus
+compose light/quality workers) and recreates **router + openwebui** only — no
+data wipe. Leaves `FAST_CHAT_WORKER` / orchestrator on the CPU-hot 3b path
+unless `MODEL` is explicitly `llama3.2-3b-cpu` or `llama3.2-3b`.
+
+### Use as UI default
+
+Point the picker at the model itself (Auto remains selectable, but is no longer
+the default):
+
+```bash
+make add-model TAG=gemma4:12b DEFAULT=1
+# sets DEFAULT_MODELS=<model> and DEFAULT_CHAT_WORKER=<model>
+```
+
+Prefer `AUTO=1` / `set-chat-worker` when you want routing, search heuristics, and
+thinking chips on Auto.
 
 The default pull is `llama3.2:3b`, `llama3.1:8b`, and `codestral`. To pull more
 on every `up`:
@@ -464,20 +494,22 @@ docker compose exec ollama ollama pull <exact-ollama-tag>
 3. Point defaults at that `model_name` as needed:
 
 ```bash
-# .env (commented examples also in .env.example)
-DEFAULT_MODELS=my-custom                 # Open WebUI default picker
+# Prefer Auto + worker (or: make set-chat-worker MODEL=my-custom)
+DEFAULT_MODELS=spockify-auto
 DEFAULT_CHAT_WORKER=my-custom             # spockify-auto English worker
-# FAST_CHAT_WORKER=my-custom              # greetings / short acks
+# FAST_CHAT_WORKER=my-custom              # only if you intend to replace CPU-hot 3b
 # ORCHESTRATOR_MODEL=my-custom            # routing planner
-```
 
-Leave `DEFAULT_MODELS=spockify-auto` if you still want the router as the UI
-default and only swap the worker via `DEFAULT_CHAT_WORKER`.
+# Or UI picker default (or: make add-model TAG=… DEFAULT=1)
+# DEFAULT_MODELS=my-custom
+# DEFAULT_CHAT_WORKER=my-custom
+```
 
 4. Pick up config:
 
 ```bash
-make down && make gpu       # or: make demo-gpu / make up
+make set-chat-worker MODEL=my-custom   # preferred: recreate router + openwebui
+# or: make down && make gpu            # full restart
 ```
 
 `litellm.yaml` is bind-mounted; `.env` worker vars need a compose recreate.
