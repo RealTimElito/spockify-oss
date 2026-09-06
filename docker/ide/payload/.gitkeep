@@ -1,0 +1,3 @@
+# Download a published AppImage into this directory to bake it in
+# instead of fetching APPIMAGE_URL at build time.
+#   cp /path/to/Spockify-IDE-*-x86_64.AppImage docker/ide/payload/

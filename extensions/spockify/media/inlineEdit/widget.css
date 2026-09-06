@@ -1,0 +1,121 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+}
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100%;
+}
+.head {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.head .loc {
+  font-size: 11px;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.head .phase {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+.body {
+  flex: 1;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+textarea {
+  width: 100%;
+  flex: 1;
+  min-height: 72px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  padding: 8px;
+}
+textarea:disabled {
+  opacity: 0.7;
+}
+.preview-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.4;
+}
+.preview-hint kbd {
+  font-family: var(--vscode-editor-font-family);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--vscode-keybindingLabel-background);
+  border: 1px solid var(--vscode-keybindingLabel-border);
+}
+.actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding: 0 10px 10px;
+}
+button {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  cursor: pointer;
+}
+button.primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+button.secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Float placement — compact card beside editor (Cursor-like; OSS split column) */
+body.float-mode {
+  background: transparent;
+}
+body.float-mode .wrap {
+  height: auto;
+  max-height: 100vh;
+  margin: 12px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  background: var(--vscode-editor-background);
+  overflow: hidden;
+}
+body.float-mode .body textarea {
+  min-height: 56px;
+  max-height: 140px;
+}
+body.float-mode .head {
+  background: var(--vscode-sideBar-background);
+}

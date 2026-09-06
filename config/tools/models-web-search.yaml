@@ -1,0 +1,35 @@
+# Models with web search enabled (SearXNG via LiteLLM /v1/search or router).
+#
+# Orchestrator: delegates search before routing to a worker when docs/current info needed.
+# Coding:       web-codestral for library docs, CVEs, API versions during implementation.
+# General:      web-gemma for planning/research tasks.
+# Chat:         web-llama for lightweight lookups.
+
+orchestrator:
+  - orchestrator
+  - spockify-orchestrator
+  - spockify-auto
+
+web_search_models:
+  - web-codestral
+  - web-gemma
+  - web-llama
+
+worker_aliases:
+  web-codestral: codestral
+  web-gemma: gemma4-12b
+  web-llama: llama3.1-8b
+
+routing_rules:
+  code_with_docs: web-codestral
+  general_with_docs: web-gemma
+  quick_lookup: web-llama
+
+litellm:
+  search_endpoint: /v1/search/spockify-searxng
+  websearch_interception:
+  # Models that accept litellm_web_search tool calls (API clients).
+    tool_capable:
+      - web-codestral
+      - web-gemma
+      - web-llama

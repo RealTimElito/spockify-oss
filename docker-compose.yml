@@ -1,0 +1,230 @@
+# Spockify self-host stack — Ubuntu, Fedora, and other Linux distros.
+# Chat UI + router + LiteLLM + Ollama + SearXNG + Postgres.
+#
+#   cp .env.example .env    # change secrets
+#   docker compose up -d --build
+#
+# Prebuilt images: set SPOCKIFY_*_IMAGE in .env (see docker/README.md).
+# NVIDIA GPU: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+# SELinux/Fedora: bind mounts use :z (shared container_file_t).
+# Rootless Podman: ./docker/run.sh applies docker-compose.podman.yml
+# (postgres named volume; ollama/openwebui :z binds; no :U).
+
+name: spockify
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: spockify
+      POSTGRES_USER: spockify
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spockify-dev}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      # Docker default: host bind. Podman/run.sh sets SPOCKIFY_PGDATA=spockify_pgdata
+      # so the host path is never mounted (podman-compose appends volumes).
+      - ${SPOCKIFY_PGDATA:-${STORAGE_ROOT:-./data/spockify}/postgres}:/var/lib/postgresql/data:z
+      - ${POSTGRES_INIT:-./docker/postgres-init}:/docker-entrypoint-initdb.d:ro,z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spockify -d spockify"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Not published on the host. Break in with: docker compose exec postgres psql -U spockify
+
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    restart: unless-stopped
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8080/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-change-me-searxng-secret}
+    volumes:
+      - ${SEARXNG_CONFIG:-./docker/searxng-settings.yml}:/etc/searxng/settings.yml:ro,z
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: "0.0.0.0:11434"
+      OLLAMA_KEEP_ALIVE: "10m"
+    volumes:
+      - ${STORAGE_ROOT:-./data/spockify}/ollama:/root/.ollama:z
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  ollama-pull:
+    image: docker.io/ollama/ollama:latest
+    restart: "no"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      # Lean default (~20 GiB): 3b orchestrator + 8b chat + codestral (Tab).
+      # 12GB+: append gemma4:12b. 16GB+: append devstral-small-2.
+      # Huge (~75GB) opt-in: append devstral-2 on Spark/121GiB hosts only. Smoke: llama3.2:3b
+      OLLAMA_PULL_MODELS: ${OLLAMA_PULL_MODELS:-llama3.2:3b llama3.1:8b codestral}
+    volumes:
+      - ${OLLAMA_PULL_SCRIPT:-./docker/ollama-pull.sh}:/ollama-pull.sh:ro,z
+      - ${OLLAMA_MODELFILES:-./config/modelfiles}:/modelfiles:ro,z
+    entrypoint: ["/bin/sh"]
+    command: ["/ollama-pull.sh"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-v1.79.3-stable
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-spockify-change-me}
+      DATABASE_URL: postgresql://spockify:${POSTGRES_PASSWORD:-spockify-dev}@postgres:5432/litellm
+      # Separate DB from Open WebUI; schema create is safe on first boot.
+      DISABLE_SCHEMA_UPDATE: "false"
+    volumes:
+      - ${LITELLM_CONFIG:-./docker/litellm.yaml}:/app/config.yaml:ro,z
+    ports:
+      - "${SPOCKIFY_API_PORT:-4000}:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  router:
+    image: ${SPOCKIFY_ROUTER_IMAGE:-spockify-router:local}
+    build:
+      context: ./services/router
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      LITELLM_URL: http://litellm:4000/v1
+      LITELLM_API_KEY: ${LITELLM_MASTER_KEY:-sk-spockify-change-me}
+      SEARXNG_URL: http://searxng:8080
+      OLLAMA_URL: http://ollama:11434
+      USE_DIRECT_OLLAMA: "true"
+      # CPU-hot 3b frees VRAM for 8b/codestral on laptop GPUs (Spark k8s keeps GPU 3b).
+      ORCHESTRATOR_MODEL: ${ORCHESTRATOR_MODEL:-llama3.2-3b-cpu}
+      ORCHESTRATOR_FALLBACK: llama3.1-8b
+      FAST_CHAT_WORKER: ${FAST_CHAT_WORKER:-llama3.2-3b-cpu}
+      # Consumer GPUs (8–12 GiB): 8b chat is the fast default. Override in .env:
+      #   DEFAULT_CHAT_WORKER=gemma4-12b  (after appending gemma4:12b to pulls)
+      DEFAULT_CHAT_WORKER: ${DEFAULT_CHAT_WORKER:-llama3.1-8b}
+      DEFAULT_CHAT_FALLBACK: ${DEFAULT_CHAT_FALLBACK:-llama3.2-3b-cpu}
+      LIGHT_CHAT_WORKER: ${LIGHT_CHAT_WORKER:-llama3.1-8b}
+      QUALITY_CHAT_WORKER: ${QUALITY_CHAT_WORKER:-llama3.1-8b}
+      DEFAULT_VISION_WORKER: ${DEFAULT_VISION_WORKER:-gemma4-12b}
+      DEFAULT_WEB_WORKER: ${DEFAULT_WEB_WORKER:-web-llama}
+      WEB_WORKER_FALLBACK: ${WEB_WORKER_FALLBACK:-web-llama}
+      ROOM_CODER_WORKER: codestral
+      COMMIT_MESSAGE_WORKER: codestral
+      HEAVY_WORKER_MODELS: ${HEAVY_WORKER_MODELS:-llama3.1-8b,llama3.2-3b-cpu,codestral,llama3.1-8b}
+      HEAVY_SYNTH_MODEL: ${HEAVY_SYNTH_MODEL:-llama3.1-8b}
+      GHOST_FIM_BACKEND: ollama
+      GHOST_OLLAMA_FIM_MODEL: codestral
+      GHOST_COMPLETE_MODEL: codestral
+      USE_COMPACT_ORCHESTRATOR_PROMPT: "true"
+      PREWARM_ON_STARTUP: "false"
+      PLAYWRIGHT_LOCAL: "0"
+      ORCHESTRATOR_PROMPT_PATH: /config/orchestrator-prompt.md
+      ROUTING_RULES_PATH: /config/routing-rules.json
+      SESSION_DIGEST_DIR: /tmp/spockify-session-memory
+    volumes:
+      - ${ORCHESTRATOR_PROMPT:-./config/orchestrator-prompt.md}:/config/orchestrator-prompt.md:ro,z
+      - ${ROUTING_RULES:-./docker/routing-rules.json}:/config/routing-rules.json:ro,z
+    ports:
+      - "${SPOCKIFY_ROUTER_PORT:-4100}:4100"
+    depends_on:
+      litellm:
+        condition: service_started
+      searxng:
+        condition: service_started
+      ollama:
+        condition: service_started
+
+  openwebui:
+    image: ${SPOCKIFY_OPENWEBUI_IMAGE:-spockify-openwebui:local}
+    build:
+      context: ./services/openwebui
+      dockerfile: Dockerfile
+      args:
+        BUILD_HASH: ${BUILD_HASH:-spockify-oss}
+        PRELOAD_MODELS: ${PRELOAD_MODELS:-false}
+        NODE_MAX_OLD_SPACE: ${NODE_MAX_OLD_SPACE:-4096}
+    restart: unless-stopped
+    environment:
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-change-me-to-at-least-32-characters}
+      DATABASE_URL: postgresql://spockify:${POSTGRES_PASSWORD:-spockify-dev}@postgres:5432/spockify
+      OPENAI_API_BASE_URL: http://litellm:4000/v1
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY:-sk-spockify-change-me}
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_OPENAI_API: "true"
+      DEFAULT_MODELS: ${DEFAULT_MODELS:-spockify-auto}
+      WEBUI_NAME: Spockify
+      ENV: prod
+      # Empty = derive from the request host (LAN IP works). Set WEBUI_URL for OAuth/share links.
+      WEBUI_URL: ${WEBUI_URL:-}
+      WEBUI_AUTH: "true"
+      ENABLE_SIGNUP: ${ENABLE_SIGNUP:-true}
+      ENABLE_LOGIN_FORM: "true"
+      ENABLE_PASSWORD_AUTH: "true"
+      DEFAULT_USER_ROLE: pending
+      BYPASS_MODEL_ACCESS_CONTROL: "true"
+      WEBUI_SESSION_COOKIE_SECURE: "false"
+      # Air-gap defaults: no HF auto-download, no version/community phone-home.
+      OFFLINE_MODE: ${OFFLINE_MODE:-true}
+      ENABLE_VERSION_UPDATE_CHECK: "false"
+      ENABLE_COMMUNITY_SHARING: "false"
+      ENABLE_FOLLOW_UP_GENERATION: "false"
+      ENABLE_MEMORIES: "false"
+      ENABLE_AUTOMATIONS: "true"
+      ENABLE_AUTOCOMPLETE_GENERATION: "false"
+      ENABLE_IMAGE_GENERATION: "false"
+      ENABLE_VIDEO_GENERATION: "false"
+      ENABLE_WEB_SEARCH: "true"
+      WEB_SEARCH_ENGINE: searxng
+      SEARXNG_QUERY_URL: http://searxng:8080/search?q=<query>
+      RAG_WEB_SEARCH_ENGINE: searxng
+      BYPASS_WEB_SEARCH_WEB_LOADER: "true"
+      BYPASS_WEB_SEARCH_EMBEDDING_AND_RETRIEVAL: "true"
+      # Empty = browser TTS (offline-safe). Set AUDIO_TTS_ENGINE=edge when online for neural voices.
+      AUDIO_TTS_ENGINE: ${AUDIO_TTS_ENGINE:-}
+      SPOCKIFY_ROUTER_URL: http://router:4100
+      DATA_DIR: /app/backend/data
+      WHISPER_MODEL: base
+    volumes:
+      - ${STORAGE_ROOT:-./data/spockify}/openwebui:/app/backend/data:z
+    ports:
+      - "${SPOCKIFY_CHAT_PORT:-3080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      litellm:
+        condition: service_started
+      router:
+        condition: service_started
+
+volumes:
+  # Declared for Podman (SPOCKIFY_PGDATA=spockify_pgdata). Unused on Docker bind.
+  spockify_pgdata:
