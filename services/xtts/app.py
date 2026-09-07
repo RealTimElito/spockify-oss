@@ -130,8 +130,13 @@ app = FastAPI(title="Spockify XTTS", version="9.9", lifespan=lifespan)
 
 @app.get("/health")
 def health():
-    return {
-        "ok": True,
+    # While warm-on-startup is pending, fail readiness so Spark boot waits
+    # for the model to be resident (not just the FastAPI process).
+    warming = (
+        XTTS_WARM_ON_STARTUP and _tts is None and _tts_error is None
+    )
+    body = {
+        "ok": not warming,
         "model": XTTS_MODEL,
         "device": XTTS_DEVICE,
         "loaded": _tts is not None,
@@ -139,6 +144,9 @@ def health():
         "warm_on_startup": XTTS_WARM_ON_STARTUP,
         "error": _tts_error,
     }
+    if warming:
+        raise HTTPException(status_code=503, detail="XTTS warming")
+    return body
 
 
 @app.post("/warmup")
