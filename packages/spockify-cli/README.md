@@ -68,7 +68,11 @@ export SPOCKIFY_LAB_HOST=<twin-ip>   # or SPOCKIFY_BASE_URL=http://<twin>:30400
 export LITELLM_MASTER_KEY=…          # from twin secret
 spockify lab models
 spockify lab "refactor the CLI help" --orch lab-orchestrator --exec lab-executor
+spockify bench dry-run
+spockify bench swe --subset lite --slice 0:1 --model gpt-oss-20b --workers 1
 ```
+
+Coding benches: [docs/BENCH.md](../../docs/BENCH.md) (`spockify bench` / `scripts/run-swebench.sh`). Twin or compose; local models only.
 
 **Horizon:** Agent default **48** turns; `--yolo` **80**; Ask **12**. Cap **80**.
 

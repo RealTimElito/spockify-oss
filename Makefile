@@ -1,5 +1,5 @@
 # Public Compose Makefile. Homelab k8s/release targets stay in the private tree.
-.PHONY: help up down clean logs status gpu gpou demo demo-gpu kit docker-kit compose-up compose-down build-cli migrate ide add-model set-chat-worker set-code-worker
+.PHONY: help up down clean logs status gpu gpou demo demo-gpu kit docker-kit compose-up compose-down build-cli migrate ide add-model set-chat-worker set-code-worker bench-dry-run bench-smoke bench-swe-lite
 
 help:
 	@echo "make up          start chat (./docker/run.sh — podman-compose if present, else Docker if the API is up)"
@@ -18,6 +18,9 @@ help:
 	@echo "make add-model   TAG=<ollama-tag> [AUTO=1|DEFAULT=1] — pull + wire LiteLLM"
 	@echo "make set-chat-worker MODEL=<name>|TAG=<tag> — keep UI on Auto; set DEFAULT_CHAT_WORKER"
 	@echo "make set-code-worker MODEL=<name>|TAG=<tag> — keep UI on Auto; set ROOM_CODER_WORKER"
+	@echo "make bench-dry-run  probe LiteLLM (coding eval harness)"
+	@echo "make bench-smoke    one coding completion via LiteLLM"
+	@echo "make bench-swe-lite SWE-bench Lite wrapper (see docs/BENCH.md)"
 
 up compose-up:
 	chmod +x docker/run.sh docker-run.sh
@@ -83,3 +86,13 @@ set-chat-worker:
 set-code-worker:
 	chmod +x docker/set-code-worker.sh docker/engine.sh
 	./docker/set-code-worker.sh
+
+# Coding evals (SWE-bench Lite wrapper) — see docs/BENCH.md
+bench-dry-run:
+	chmod +x scripts/run-swebench.sh && ./scripts/run-swebench.sh dry-run
+
+bench-smoke:
+	chmod +x scripts/run-swebench.sh && ./scripts/run-swebench.sh smoke
+
+bench-swe-lite:
+	chmod +x scripts/run-swebench.sh && ./scripts/run-swebench.sh swe --subset lite --slice 0:1 --workers 1

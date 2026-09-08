@@ -76,6 +76,9 @@ pnpm-debug.log*
 .nuxt/
 coverage/
 
+# --- Coding benches -----------------------------------------------------------
+bench-out/
+
 # --- LiteLLM local config overrides -------------------------------------------
 k8s/litellm/config/*
 !k8s/litellm/config/.gitkeep

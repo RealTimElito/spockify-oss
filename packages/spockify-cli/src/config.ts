@@ -9,6 +9,7 @@ export const DEFAULT_MODEL = 'gpt-oss-20b';
 /** Local OSS compose probes when SPOCKIFY_BASE_URL / WEBUI_URL are unset. */
 export const LOCAL_BASE_CANDIDATES = [
   'http://127.0.0.1:3080',
+  'http://127.0.0.1:30080',  // lab twin OWUI NodePort
   'http://127.0.0.1:4000',
   'http://127.0.0.1:30400',
 ] as const;
@@ -95,6 +96,69 @@ function hostKey(url: string): string {
   }
 }
 
+/** OWUI vs LiteLLM NodePorts on the same hostname share device-minted keys. */
+const OWUI_PORTS = new Set(['30080', '3080', '80', '443']);
+const LITELLM_PORTS = new Set(['30400', '4000', '30100']);
+
+function parseHostPort(url: string): { hostname: string; port: string } | null {
+  try {
+    const u = new URL(url.includes('://') ? url : `https://${url}`);
+    return {
+      hostname: u.hostname,
+      port: u.port || (u.protocol === 'https:' ? '443' : '80'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** True when URLs are the same stack (exact host:port or OWUI↔LiteLLM on one host). */
+export function sameCredentialStack(a: string, b: string): boolean {
+  if (hostKey(a) === hostKey(b)) return true;
+  const pa = parseHostPort(a);
+  const pb = parseHostPort(b);
+  if (!pa || !pb || pa.hostname !== pb.hostname) return false;
+  const cross =
+    (OWUI_PORTS.has(pa.port) && LITELLM_PORTS.has(pb.port)) ||
+    (LITELLM_PORTS.has(pa.port) && OWUI_PORTS.has(pb.port));
+  return cross;
+}
+
+/**
+ * Device login lives on Open WebUI, not LiteLLM.
+ * Map LiteLLM ports → matching OWUI NodePort/compose port on the same host.
+ */
+export function webUiBaseForLogin(baseUrl: string): string {
+  try {
+    const u = new URL(baseUrl.includes('://') ? baseUrl : `http://${baseUrl}`);
+    const port = u.port || (u.protocol === 'https:' ? '443' : '80');
+    if (!LITELLM_PORTS.has(port)) return baseUrl.replace(/\/+$/, '');
+    // Lab twin LiteLLM :30400 / :30100 → OWUI :30080; compose :4000 → :3080.
+    u.port = port === '4000' ? '3080' : '30080';
+    return u.toString().replace(/\/+$/, '');
+  } catch {
+    return baseUrl.replace(/\/+$/, '');
+  }
+}
+
+/**
+ * Lab closed-loop talks OpenAI `/v1/*` on LiteLLM.
+ * Map OWUI NodePort/compose → matching LiteLLM port on the same host.
+ */
+export function liteLlmBaseForApi(baseUrl: string): string {
+  try {
+    const u = new URL(baseUrl.includes('://') ? baseUrl : `http://${baseUrl}`);
+    const port = u.port || (u.protocol === 'https:' ? '443' : '80');
+    if (LITELLM_PORTS.has(port)) return baseUrl.replace(/\/+$/, '');
+    if (!OWUI_PORTS.has(port) && port !== '') return baseUrl.replace(/\/+$/, '');
+    // Lab twin OWUI :30080 → LiteLLM :30400; compose :3080 → :4000.
+    u.port = port === '3080' || port === '80' || port === '443' ? '4000' : '30400';
+    return u.toString().replace(/\/+$/, '');
+  } catch {
+    return baseUrl.replace(/\/+$/, '');
+  }
+}
+
 /** Loopback, lab env, or RFC1918 — safe to use LITELLM_MASTER_KEY from shell. */
 function allowsEnvMasterKey(baseUrl: string): boolean {
   if (process.env.SPOCKIFY_LAB_TWIN === '1') return true;
@@ -130,7 +194,8 @@ export function resolveApiKey(
   }
   const creds = loadCredentials();
   if (!creds?.accessToken) return undefined;
-  if (baseUrl && hostKey(creds.baseUrl) !== hostKey(baseUrl)) {
+  // Host-scoped, but OWUI (:30080/:3080) keys are valid on same-host LiteLLM.
+  if (baseUrl && !sameCredentialStack(creds.baseUrl, baseUrl)) {
     return undefined;
   }
   return creds.accessToken;

@@ -8,6 +8,8 @@ import {
   loadCredentials,
   resolveApiKey,
   saveCredentials,
+  webUiBaseForLogin,
+  liteLlmBaseForApi,
 } from './config';
 import {
   discoverBaseUrl,
@@ -18,6 +20,7 @@ import {
 import { runRepl } from './repl';
 import { runTui } from './tui';
 import { runLabAgents } from './labAgents';
+import { printBenchHelp, runBench } from './bench';
 import type { AgentMode } from './agent/types';
 import { ansi } from './ui';
 
@@ -31,6 +34,9 @@ Usage:
   spockify "fix the bug"  One-shot prompt
   spockify lab "…"          Lab twin closed-loop (orch + parallel exec)
   spockify lab models       Show lab dual-role mapping / live aliases
+  spockify bench dry-run    Probe LiteLLM (coding eval harness)
+  spockify bench smoke      One coding completion
+  spockify bench swe        SWE-bench Lite wrapper (see docs/BENCH.md)
   spockify login            Device link + code login
   spockify logout           Clear saved credentials
   spockify whoami           Show login status
@@ -42,8 +48,13 @@ Options:
   --model <id>     Model (default: live stack, else ${DEFAULT_MODEL})
   --orch <id>      Lab orchestrator (default: lab-orchestrator)
   --exec <id>      Lab executor (default: lab-executor)
-  --workers <n>    Lab parallel executors per round (default: 4)
+  --workers <n>    Lab parallel executors / bench instance workers
   --max-rounds <n> Lab plan→exec→review rounds (default: 5)
+  --subset <id>    Bench: lite|verified (default: lite)
+  --slice <spec>   Bench: instance slice (default: 0:1)
+  --filter <re>    Bench: instance-id regex
+  --output <dir>   Bench: output directory
+  --install        Bench: pip install mini-swe-agent
   --ask            Read-only tools
   --yolo           Auto-approve mutating tools (80-turn horizon)
   --max-turns <n>  Agent loop budget (default 48; yolo 80; max 80; or SPOCKIFY_MAX_TURNS)
@@ -51,13 +62,15 @@ Options:
   --base-url <url> Spockify host (auto: WEBUI_URL → local → ${DEFAULT_BASE_URL})
   --api-key <key>  LiteLLM key (else device login / SPOCKIFY_API_KEY / LITELLM_MASTER_KEY)
   --no-open        Don't open browser on login
-  --dry-run        Lab: validate only (no model calls)
+  --dry-run        Lab/bench: validate only (no heavy runs)
 
 Lab twin:
   export SPOCKIFY_LAB_HOST=<twin-ip>   # probes :30080 / :30400
   # or: SPOCKIFY_BASE_URL=http://<twin>:30400
   spockify lab models
   spockify lab "add tests for foo" --orch lab-orchestrator --exec lab-executor
+  spockify bench dry-run
+  spockify bench swe --subset lite --slice 0:1 --model gpt-oss-20b
 
 Auth:
   spockify login   Visit the link, enter the code, Approve (mints a virtual key)
@@ -81,7 +94,8 @@ function parseArgs(argv: string[]) {
         key === 'no-open' ||
         key === 'help' ||
         key === 'tui' ||
-        key === 'dry-run'
+        key === 'dry-run' ||
+        key === 'install'
       ) {
         flags[key] = true;
         continue;
@@ -124,8 +138,9 @@ async function ensureApiKey(
 
   if (!apiKey) {
     console.log('No API key — starting device login…');
+    const loginBase = webUiBaseForLogin(baseUrl);
     const creds = await deviceLogin({
-      baseUrl,
+      baseUrl: loginBase,
       open: !flags['no-open'],
       onStatus: (m) => console.log(m),
     });
@@ -159,7 +174,7 @@ async function main(): Promise<void> {
 
   if (cmd === 'login') {
     await deviceLogin({
-      baseUrl,
+      baseUrl: webUiBaseForLogin(baseUrl),
       open: !flags['no-open'],
       onStatus: (m) => console.log(m),
     });
@@ -206,6 +221,46 @@ async function main(): Promise<void> {
       console.log(`  ${ansi.cyan(m.id)}${alias}`);
       if (m.blurb) console.log(`      ${ansi.dim(m.blurb)}`);
     }
+    return;
+  }
+
+
+  if (cmd === 'bench') {
+    const rest = positionals.slice(1);
+    const mode = (rest[0] || 'help').toLowerCase();
+    if (mode === 'help' || flags.help) {
+      printBenchHelp();
+      return;
+    }
+    let apiKey: string | undefined;
+    try {
+      apiKey = await ensureApiKey(flags, baseUrl);
+    } catch {
+      apiKey =
+        typeof flags['api-key'] === 'string'
+          ? flags['api-key']
+          : process.env.LITELLM_MASTER_KEY || process.env.SPOCKIFY_API_KEY;
+    }
+    const workersRaw =
+      typeof flags.workers === 'string' ? Number(flags.workers) : undefined;
+    const code = await runBench({
+      mode,
+      baseUrl: liteLlmBaseForApi(baseUrl),
+      apiKey,
+      model: typeof flags.model === 'string' ? flags.model : undefined,
+      subset: typeof flags.subset === 'string' ? flags.subset : undefined,
+      slice: typeof flags.slice === 'string' ? flags.slice : undefined,
+      filter: typeof flags.filter === 'string' ? flags.filter : undefined,
+      workers:
+        workersRaw != null && Number.isFinite(workersRaw)
+          ? Math.max(1, Math.min(8, Math.floor(workersRaw)))
+          : undefined,
+      output: typeof flags.output === 'string' ? flags.output : undefined,
+      dryRun: Boolean(flags['dry-run']),
+      install: Boolean(flags.install),
+      extraArgs: rest.slice(1),
+    });
+    process.exitCode = code;
     return;
   }
 

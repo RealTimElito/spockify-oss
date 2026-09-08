@@ -80,6 +80,27 @@ function openBrowser(url: string): void {
   }
 }
 
+
+/** Rewrite activate URL onto the CLI base host when WEBUI_URL is wrong. */
+function localizeVerificationLink(
+  serverLink: string | undefined,
+  baseUrl: string,
+  userCode: string,
+): string {
+  const fallback = `${baseUrl}/api/v1/spockify/cli/activate?user_code=${encodeURIComponent(userCode)}`;
+  if (!serverLink) return fallback;
+  try {
+    const server = new URL(serverLink);
+    const local = new URL(baseUrl);
+    if (server.host === local.host) return serverLink;
+    server.protocol = local.protocol;
+    server.host = local.host;
+    return server.toString();
+  } catch {
+    return fallback;
+  }
+}
+
 /**
  * Device link+code login (Claude Code–style).
  * Opens the verification URL and polls until a LiteLLM virtual key is minted.
@@ -102,7 +123,13 @@ export async function deviceLogin(options: {
     );
   }
   const dc = started.data;
-  const link = dc.verification_uri_complete || dc.verification_uri;
+  // Prefer --base-url / SPOCKIFY_BASE_URL host over server verification_uri
+  // (twin/prod mis-set WEBUI_URL often points activate links at spockify.eu).
+  const link = localizeVerificationLink(
+    dc.verification_uri_complete || dc.verification_uri,
+    baseUrl,
+    dc.user_code,
+  );
   say('');
   say('Spockify CLI login');
   say(`  Code:  ${dc.user_code}`);
