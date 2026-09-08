@@ -94,6 +94,11 @@ describe('modelCatalog', () => {
     assert.equal(isCodingPickerId('gemma4-31b'), false);
     assert.equal(isCodingPickerId('web-gemma'), false);
     assert.equal(isCodingPickerId('magistral'), false);
+    // Lab twin dual-role aliases (lab-orchestrator would otherwise hit CODING_DENY_RE)
+    assert.equal(isCodingPickerId('lab-orchestrator'), true);
+    assert.equal(isCodingPickerId('lab-executor'), true);
+    assert.equal(isCodingPickerId('lab-plan'), true);
+    assert.equal(isCodingPickerId('lab-code'), true);
   });
 
   it('denies Kimi cloud and MiMo', () => {

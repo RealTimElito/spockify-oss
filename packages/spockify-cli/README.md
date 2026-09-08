@@ -53,11 +53,22 @@ spockify --yolo "refactor foo"    # auto-approve writes/shell (80-turn horizon)
 spockify --max-turns 64 "…"       # override loop budget (or SPOCKIFY_MAX_TURNS)
 spockify --model codestral
 spockify models                   # list models from the live stack
+spockify lab models               # lab dual-role aliases (orch/exec)
+spockify lab "add tests for foo"  # closed-loop orch → parallel exec
 spockify whoami
 spockify logout
 ```
 
 REPL slash commands: `/ask` `/agent` `/yolo` `/model` `/mode` `/status` `/clear` `/exit`
+
+**Lab twin dual-role:** point at LiteLLM NodePort or OWUI, then use `lab-orchestrator` / `lab-executor` in `/model`, or `spockify lab …` for the closed-loop harness (`packages/spockify-lab-agents`). Remap backends on the twin with `scripts/lab-set-dual-roles.sh`.
+
+```bash
+export SPOCKIFY_LAB_HOST=<twin-ip>   # or SPOCKIFY_BASE_URL=http://<twin>:30400
+export LITELLM_MASTER_KEY=…          # from twin secret
+spockify lab models
+spockify lab "refactor the CLI help" --orch lab-orchestrator --exec lab-executor
+```
 
 **Horizon:** Agent default **48** turns; `--yolo` **80**; Ask **12**. Cap **80**.
 

@@ -162,6 +162,10 @@ function unescapeReasoningText(text: string): string {
 const PLACEHOLDER_REASONING_RE =
 	/^(?:thinking(?:\s+process)?|thought(?:\s+process)?|chain[-\s]?of[-\s]?thought|reasoning|思考过程|思考過程)[.。:：…]*$/i;
 
+/** Truncated CoT openings left when a gateway drops the rest of the stream. */
+const SHORT_COT_STUB_RE =
+	/^(?:we need|we should|the user|here'?s|here is|let me|i need|okay|ok|sure|right|so|well)[.…]?$/i;
+
 /** True when text is empty, a CoT label echo, or a short phrase repeated twice. */
 export function isGarbageReasoning(text: string): boolean {
 	const raw = String(text || '').trim();
@@ -173,6 +177,11 @@ export function isGarbageReasoning(text: string): boolean {
 		.trim();
 	if (!normalized) return true;
 	if (PLACEHOLDER_REASONING_RE.test(normalized)) return true;
+	if (SHORT_COT_STUB_RE.test(normalized)) return true;
+	// Very short stubs (≤3 words, no newline) are almost always truncated CoT.
+	if (!raw.includes('\n') && normalized.split(' ').length <= 3 && normalized.length <= 24) {
+		return true;
+	}
 	// "thinking process thinking process" (and similar doubled labels)
 	const words = normalized.split(' ');
 	if (words.length >= 2 && words.length <= 8 && words.length % 2 === 0) {

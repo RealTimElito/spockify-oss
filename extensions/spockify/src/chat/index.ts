@@ -14,6 +14,7 @@ import {
   isChatModelTransport,
 } from './transportAdapter';
 import type { ChatModelTransport, ChatPanelDeps } from './types';
+import { resolveCodingDefaultModel } from './codingPickerConfig';
 
 export {
   ChatPanelProvider,
@@ -46,9 +47,7 @@ export function registerChatPanel(
   },
 ): RegisteredChat {
   const defaultModel =
-    deps?.defaultModel ??
-    vscode.workspace.getConfiguration('spockify').get<string>('defaultModel') ??
-    'spockify-auto';
+    deps?.defaultModel ?? resolveCodingDefaultModel();
 
   const provider = new ChatPanelProvider(context, context.extensionUri, {
     transport: deps?.transport ?? new MockChatTransport(),

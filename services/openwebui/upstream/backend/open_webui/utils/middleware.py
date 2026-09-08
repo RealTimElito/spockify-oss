@@ -3175,6 +3175,27 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         metadata['spockify_think_enabled'] = thinking != 'off'
         form_data['extra_headers'] = extra_headers
 
+        # Direct LiteLLM → Ollama models never see router think=. Map the chip
+        # to OpenAI reasoning_effort so LiteLLM can set Ollama think=.
+        # Router aliases keep the marker/headers only (router owns think=).
+        if not is_spockify_router_model(routed_id):
+            model_name = str(routed_id or form_data.get('model') or '').lower()
+            can_think = bool(
+                re.search(r'gemma|gpt-oss|nemotron|qwen|kimi|magistral', model_name)
+            )
+            blocked = bool(
+                re.search(r'llama|codestral|mistral|phi|llava', model_name)
+            ) and not bool(re.search(r'nemotron|gemma|magistral', model_name))
+            if can_think and not blocked:
+                if thinking == 'off':
+                    form_data.pop('reasoning_effort', None)
+                else:
+                    effort = 'high' if thinking == 'heavy' else thinking
+                    if effort in ('low', 'medium', 'high'):
+                        form_data['reasoning_effort'] = effort
+            else:
+                form_data.pop('reasoning_effort', None)
+
     # Wave 9.4 — forward Spockify skill pack ids to the router.
     pack_ids = form_data.pop('spockify_skill_ids', None) or form_data.get('skill_ids') or []
     if pack_ids:

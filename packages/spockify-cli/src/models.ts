@@ -48,6 +48,16 @@ export const MODEL_PRESETS: ModelPreset[] = [
     aliases: ['agents'],
     blurb: 'Parallel agents + synthesis',
   },
+  {
+    id: 'lab-orchestrator',
+    aliases: ['orch', 'lab-plan', 'plan-model'],
+    blurb: 'Lab twin orchestrator / planner (dual-role)',
+  },
+  {
+    id: 'lab-executor',
+    aliases: ['exec', 'lab-code', 'code-model'],
+    blurb: 'Lab twin executor / implementer (dual-role)',
+  },
 ];
 
 const META = new Set(['', 'list', 'ls', 'help', '?', 'show']);

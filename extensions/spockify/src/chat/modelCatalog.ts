@@ -354,6 +354,8 @@ export const DEFAULT_CODING_ALLOW_PREFIXES: readonly string[] = [
   'starcoder',
   'deepseek-coder',
   'web-codestral',
+  // Lab twin dual-role aliases (lab-orchestrator / lab-executor / …)
+  'lab-',
 ];
 
 /** Exact ids always kept when coding-only (beyond prefix match). */
@@ -369,6 +371,10 @@ export const DEFAULT_CODING_ALLOW_IDS: ReadonlySet<string> = new Set([
   'codestral-vllm',
   'qwen3.6-coder-27b',
   'qwen3.6-27b-coding',
+  'lab-orchestrator',
+  'lab-executor',
+  'lab-plan',
+  'lab-code',
 ]);
 
 /** Name heuristics for coder-tagged remotes (qwen*coder*, *coder*). */
@@ -436,7 +442,7 @@ export function isCodingPickerId(
 ): boolean {
   const n = normId(id);
   if (!n || isDeniedPickerId(n)) return false;
-  if (CODING_DENY_RE.test(n) || GREETING_ONLY_IDS.has(n)) return false;
+  if (GREETING_ONLY_IDS.has(n)) return false;
 
   const allowIds = opts.allowIds?.length
     ? new Set([...DEFAULT_CODING_ALLOW_IDS, ...opts.allowIds.map(normId)])
@@ -446,7 +452,9 @@ export function isCodingPickerId(
   const prefixes = opts.allowPrefixes?.length
     ? [...DEFAULT_CODING_ALLOW_PREFIXES, ...opts.allowPrefixes]
     : DEFAULT_CODING_ALLOW_PREFIXES;
+  // Lab dual-role aliases must win over the generic "orchestrator" deny.
   if (prefixAllowed(n, prefixes)) return true;
+  if (CODING_DENY_RE.test(n)) return false;
 
   const catalog = getCatalogModel(n);
   if (catalog?.strengths.includes('code')) return true;

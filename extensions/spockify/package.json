@@ -990,7 +990,17 @@
         "spockify.defaultModel": {
           "type": "string",
           "default": "spockify-auto",
-          "description": "Default OSS model for chat / composer / terminal agent."
+          "description": "Default OSS model for chat / composer / terminal agent. Lab twin: lab-executor or lab-orchestrator."
+        },
+        "spockify.lab.orchestratorModel": {
+          "type": "string",
+          "default": "lab-orchestrator",
+          "markdownDescription": "Lab twin planner model id (LiteLLM alias). Use with Plan mode or `spockify lab --orch`."
+        },
+        "spockify.lab.executorModel": {
+          "type": "string",
+          "default": "lab-executor",
+          "markdownDescription": "Lab twin implementer model id (LiteLLM alias). Prefer for Agent/Composer coding on the twin."
         },
         "spockify.inlineEdit.widgetPanel": {
           "type": "boolean",
@@ -1169,9 +1179,10 @@
             "codeqwen",
             "starcoder",
             "deepseek-coder",
-            "web-codestral"
+            "web-codestral",
+            "lab-"
           ],
-          "markdownDescription": "Extra id prefixes always shown when **coding only** is on (unioned with built-in Spark `code` group defaults)."
+          "markdownDescription": "Extra id prefixes always shown when **coding only** is on (unioned with built-in Spark `code` group defaults). Includes `lab-` for twin dual-role aliases."
         },
 
         "spockify.completions.enabled": {

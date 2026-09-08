@@ -10,12 +10,31 @@ export const DEFAULT_MODEL = 'gpt-oss-20b';
 export const LOCAL_BASE_CANDIDATES = [
   'http://127.0.0.1:3080',
   'http://127.0.0.1:4000',
+  'http://127.0.0.1:30400',
 ] as const;
+
+/** Lab twin probes when SPOCKIFY_LAB_HOST or SPOCKIFY_LAB_TWIN is set. */
+export function labTwinBaseCandidates(): string[] {
+  const host = (process.env.SPOCKIFY_LAB_HOST || '').trim();
+  if (host) {
+    return [
+      `http://${host}:30080`,
+      `http://${host}:30400`,
+      `http://${host}:30100`,
+    ];
+  }
+  if (process.env.SPOCKIFY_LAB_TWIN === '1') {
+    // Host comes from env only — do not hardcode LAN IPs in the CLI package.
+    return ['http://127.0.0.1:30080', 'http://127.0.0.1:30400'];
+  }
+  return [];
+}
 
 export function formatUnreachableHint(baseUrl: string): string {
   return (
     `For local OSS compose use --base-url http://127.0.0.1:3080 ` +
-    `(or export SPOCKIFY_BASE_URL / WEBUI_URL). Tried host: ${baseUrl}. ` +
+    `(or export SPOCKIFY_BASE_URL / WEBUI_URL). Lab twin: SPOCKIFY_LAB_HOST=<host> ` +
+    `or SPOCKIFY_BASE_URL=http://<host>:30400. Tried host: ${baseUrl}. ` +
     `Cloud default is ${DEFAULT_BASE_URL}.`
   );
 }
@@ -76,10 +95,27 @@ function hostKey(url: string): string {
   }
 }
 
+/** Loopback, lab env, or RFC1918 — safe to use LITELLM_MASTER_KEY from shell. */
+function allowsEnvMasterKey(baseUrl: string): boolean {
+  if (process.env.SPOCKIFY_LAB_TWIN === '1') return true;
+  if (process.env.SPOCKIFY_LAB_HOST?.trim()) return true;
+  const host = hostKey(baseUrl).split(':')[0] || '';
+  if (host === '127.0.0.1' || host === 'localhost') return true;
+  const parts = host.split('.').map((p) => Number(p));
+  if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+    const a = parts[0]!;
+    const b = parts[1]!;
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+  }
+  return false;
+}
+
 /**
  * Resolve API key for the active base URL.
  * Saved device keys are host-scoped — ignore them when pointing at a different stack.
- * Local compose often has LITELLM_MASTER_KEY in the shell env.
+ * Local compose / lab twin often has LITELLM_MASTER_KEY in the shell env.
  */
 export function resolveApiKey(
   explicit?: string,
@@ -89,11 +125,8 @@ export function resolveApiKey(
   const fromEnv = process.env.SPOCKIFY_API_KEY?.trim();
   if (fromEnv) return fromEnv;
   const master = process.env.LITELLM_MASTER_KEY?.trim();
-  if (master && baseUrl) {
-    const local =
-      hostKey(baseUrl).startsWith('127.0.0.1:') ||
-      hostKey(baseUrl).startsWith('localhost:');
-    if (local) return master;
+  if (master && baseUrl && allowsEnvMasterKey(baseUrl)) {
+    return master;
   }
   const creds = loadCredentials();
   if (!creds?.accessToken) return undefined;

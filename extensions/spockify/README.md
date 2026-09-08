@@ -22,10 +22,13 @@ First-party AI extension for **Spockify Desktop IDE**. Talks to **`https://spock
 
 | Key | Default | Notes |
 |-----|---------|--------|
-| `spockify.baseUrl` | `https://spockify.eu` | Product root (not `/v1`) |
+| `spockify.baseUrl` | `https://spockify.eu` | Product root (not `/v1`). Lab twin OWUI: `http://<twin>:30080`. |
 | `spockify.provider` | `remote` | `local` = coming soon |
-| `spockify.defaultModel` | `spockify-auto` | Chat default |
-| `spockify.models.ossOnly` | `true` | WS-E will enforce |
+| `spockify.defaultModel` | `spockify-auto` | Chat default. Twin coding: `lab-executor`. |
+| `spockify.lab.orchestratorModel` | `lab-orchestrator` | Twin planner alias |
+| `spockify.lab.executorModel` | `lab-executor` | Twin implementer alias |
+| `spockify.models.codingOnly` | `true` | Hide non-coding workers in picker |
+| `spockify.models.codingAllowPrefixes` | includes `lab-` | Twin dual-role aliases stay visible |
 
 API key: command **Spockify: Set API Key** (SecretStorage). Optional env `SPOCKIFY_API_KEY` for Extension Development Host.
 

@@ -38,6 +38,7 @@ import {
   type AgentMessage,
 } from '../runtime';
 import { getApplyService } from '../apply';
+import { resolveCodingDefaultModel } from '../chat/codingPickerConfig';
 
 export type TransportFactory = () => Promise<ModelTransport | undefined>;
 
@@ -174,9 +175,7 @@ async function generateComposerTurn(
   applyFailed: boolean;
   messages?: AgentMessage[];
 }> {
-  const model =
-    vscode.workspace.getConfiguration('spockify').get<string>('defaultModel') ||
-    'spockify-auto';
+  const model = resolveCodingDefaultModel();
 
   const runtimeHandle = getRuntimeHandle();
   if (runtimeHandle) {

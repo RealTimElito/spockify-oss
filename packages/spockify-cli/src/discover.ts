@@ -2,6 +2,7 @@ import { createModelTransport, type ModelInfo } from '@spockify/ide-client';
 import {
   DEFAULT_BASE_URL,
   LOCAL_BASE_CANDIDATES,
+  labTwinBaseCandidates,
   formatUnreachableHint,
   type SpockifyCredentials,
 } from './config';
@@ -47,7 +48,7 @@ export async function discoverBaseUrl(explicit?: string): Promise<string> {
   const fromWebui = process.env.WEBUI_URL?.trim();
   if (fromWebui) return fromWebui.replace(/\/+$/, '');
 
-  for (const candidate of LOCAL_BASE_CANDIDATES) {
+  for (const candidate of [...labTwinBaseCandidates(), ...LOCAL_BASE_CANDIDATES]) {
     if (await probeBaseUrl(candidate)) return candidate;
   }
 
@@ -181,6 +182,8 @@ export function pickDefaultModel(
     return lower.get(want.toLowerCase())!;
   }
   for (const id of [
+    'lab-executor',
+    'lab-code',
     'spockify-auto',
     'codestral',
     'llama3.2-3b',

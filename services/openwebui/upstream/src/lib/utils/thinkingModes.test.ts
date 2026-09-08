@@ -46,6 +46,16 @@ describe('extractReasoningText / sanitizeReasoningText', () => {
 		);
 	});
 
+	it('drops truncated CoT stubs from broken stream gateways', () => {
+		expect(isGarbageReasoning('we need')).toBe(true);
+		expect(isGarbageReasoning("Here's")).toBe(true);
+		expect(isGarbageReasoning('The user')).toBe(true);
+		expect(sanitizeReasoningText('we need')).toBe('');
+		expect(
+			sanitizeReasoningText('We need to verify the multiplication before answering.')
+		).toBe('We need to verify the multiplication before answering.');
+	});
+
 	it('dedupes the same body from details and output', () => {
 		const body = 'Compare the Off path to Medium.';
 		const content = `<details type="reasoning" done="true"><summary>Thought</summary>\n> ${body}\n</details>`;

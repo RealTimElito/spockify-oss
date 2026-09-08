@@ -17,6 +17,7 @@ import {
 } from './discover';
 import { runRepl } from './repl';
 import { runTui } from './tui';
+import { runLabAgents } from './labAgents';
 import type { AgentMode } from './agent/types';
 import { ansi } from './ui';
 
@@ -28,6 +29,8 @@ Usage:
   spockify --tui            Fullscreen TUI (mouse + settings)
   spockify tui              Same as --tui
   spockify "fix the bug"  One-shot prompt
+  spockify lab "…"          Lab twin closed-loop (orch + parallel exec)
+  spockify lab models       Show lab dual-role mapping / live aliases
   spockify login            Device link + code login
   spockify logout           Clear saved credentials
   spockify whoami           Show login status
@@ -37,13 +40,24 @@ Usage:
 Options:
   --tui            Fullscreen TUI mode (btop-style)
   --model <id>     Model (default: live stack, else ${DEFAULT_MODEL})
+  --orch <id>      Lab orchestrator (default: lab-orchestrator)
+  --exec <id>      Lab executor (default: lab-executor)
+  --workers <n>    Lab parallel executors per round (default: 4)
+  --max-rounds <n> Lab plan→exec→review rounds (default: 5)
   --ask            Read-only tools
   --yolo           Auto-approve mutating tools (80-turn horizon)
   --max-turns <n>  Agent loop budget (default 48; yolo 80; max 80; or SPOCKIFY_MAX_TURNS)
   --cwd <path>     Workspace root (default: .)
-  --base-url <url> Spockify host (auto: WEBUI_URL → :3080 → :4000 → ${DEFAULT_BASE_URL})
+  --base-url <url> Spockify host (auto: WEBUI_URL → local → ${DEFAULT_BASE_URL})
   --api-key <key>  LiteLLM key (else device login / SPOCKIFY_API_KEY / LITELLM_MASTER_KEY)
   --no-open        Don't open browser on login
+  --dry-run        Lab: validate only (no model calls)
+
+Lab twin:
+  export SPOCKIFY_LAB_HOST=<twin-ip>   # probes :30080 / :30400
+  # or: SPOCKIFY_BASE_URL=http://<twin>:30400
+  spockify lab models
+  spockify lab "add tests for foo" --orch lab-orchestrator --exec lab-executor
 
 Auth:
   spockify login   Visit the link, enter the code, Approve (mints a virtual key)
@@ -61,7 +75,14 @@ function parseArgs(argv: string[]) {
     }
     if (a.startsWith('--')) {
       const key = a.slice(2);
-      if (key === 'ask' || key === 'yolo' || key === 'no-open' || key === 'help' || key === 'tui') {
+      if (
+        key === 'ask' ||
+        key === 'yolo' ||
+        key === 'no-open' ||
+        key === 'help' ||
+        key === 'tui' ||
+        key === 'dry-run'
+      ) {
         flags[key] = true;
         continue;
       }
@@ -188,8 +209,45 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (cmd === 'lab' || cmd === 'lab-agents') {
+    const rest = positionals.slice(1);
+    const modelsOnly =
+      rest.length === 0 ||
+      ['models', 'model', 'ls', 'list'].includes((rest[0] || '').toLowerCase());
+    const task = modelsOnly ? undefined : rest.join(' ');
+    const cwd =
+      typeof flags.cwd === 'string' ? path.resolve(flags.cwd) : process.cwd();
+    let apiKey: string | undefined;
+    try {
+      apiKey = await ensureApiKey(flags, baseUrl);
+    } catch {
+      apiKey =
+        typeof flags['api-key'] === 'string'
+          ? flags['api-key']
+          : process.env.LITELLM_MASTER_KEY || process.env.SPOCKIFY_API_KEY;
+    }
+    const code = await runLabAgents({
+      task,
+      modelsOnly,
+      orch: typeof flags.orch === 'string' ? flags.orch : undefined,
+      execModel: typeof flags.exec === 'string' ? flags.exec : undefined,
+      workers:
+        typeof flags.workers === 'string' ? Number(flags.workers) : undefined,
+      maxRounds:
+        typeof flags['max-rounds'] === 'string'
+          ? Number(flags['max-rounds'])
+          : undefined,
+      cwd,
+      baseUrl,
+      apiKey,
+      dryRun: Boolean(flags['dry-run']),
+    });
+    process.exitCode = code;
+    return;
+  }
+
   const promptParts =
-    cmd && !['login', 'logout', 'whoami', 'models', 'chat', 'tui'].includes(cmd)
+    cmd && !['login', 'logout', 'whoami', 'models', 'chat', 'tui', 'lab', 'lab-agents'].includes(cmd)
       ? positionals
       : positionals[0] === 'chat'
         ? positionals.slice(1)

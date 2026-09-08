@@ -20,7 +20,10 @@ import {
   formatRoutingHud,
   recordTurnRouting,
 } from '../util/routingHud';
-import { codingPickerOptionsFromConfig } from '../chat/codingPickerConfig';
+import {
+  codingPickerOptionsFromConfig,
+  resolveCodingDefaultModel,
+} from '../chat/codingPickerConfig';
 import { mergePickerModels } from '../chat/modelCatalog';
 import {
   readIdeThinkingMode,
@@ -246,9 +249,12 @@ export class ComposerPanelProvider implements vscode.WebviewViewProvider {
       models = mergePickerModels([], codingPickerOptionsFromConfig());
     }
     if (!this.selectedModel) {
+      const preferred = resolveCodingDefaultModel();
+      const ids = new Set(models.map((m) => m.id));
       this.selectedModel =
-        vscode.workspace.getConfiguration('spockify').get<string>('defaultModel') ||
+        (ids.has(preferred) ? preferred : undefined) ||
         models[0]?.id ||
+        preferred ||
         'spockify-auto';
     }
     const mode =
