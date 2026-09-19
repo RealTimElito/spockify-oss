@@ -64,7 +64,12 @@ Keep the historical Lite `sqlfluff__sqlfluff-1625` / gpt-oss-20b **pass@1 = 0** 
 
 ## Tracking (open)
 
-- Pluggable harness: see `docs/HARNESS_PROFILE.md` (P0–P4 shipped; default remains runHarness)
+- Pluggable harness profile v0 — see `docs/HARNESS_PROFILE.md` (default remains `runHarness`):
+  - **P0** Done — this profile doc + `packages/spockify-harness/schema/harness-event.v0.json` (matches `HarnessEvent`)
+  - **P1** Done — `@spockify/harness-host` stdio JSONL; `spockify --harness spockify` unchanged default
+  - **P2** Done — `spockify harness list | test | use`; test cards include harness id
+  - **P3** Done — optional `@spockify/harness-adapter-external` only (not under `services/`, not a compose dep)
+  - **P4** Partial — IDE session activity badge + CLI `harness:` line read `~/.spockify/harnesses`; lab still always uses the Spockify kernel stdio bridge (no yaml plugin picker yet)
 - Scored SWE-Lite / Verified on `@spockify/harness` (not mini-SWE wrapper)
 - MCP tool proxy via `@spockify/mcp`
 

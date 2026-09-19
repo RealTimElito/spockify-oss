@@ -16,6 +16,15 @@ import {
 } from '@spockify/harness-host';
 
 function repoRootGuess(): string {
+  let dir = path.resolve(__dirname, '../..');
+  for (let i = 0; i < 6; i++) {
+    if (fs.existsSync(path.join(dir, '.git')) || fs.existsSync(path.join(dir, 'packages/spockify-harness'))) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
   return path.resolve(__dirname, '../../..');
 }
 
@@ -105,8 +114,32 @@ export async function harnessTest(
     .toString()
     .trim();
   const digest = commandDigest(h);
+  const skipLive =
+    process.env.SPOCKIFY_HARNESS_TEST_SKIP_LIVE === '1' ||
+    process.env.SPOCKIFY_HARNESS_TEST_SKIP_LIVE === 'true';
 
-  if (h.id === 'spockify') {
+  const cardPath = path.join(outDir, `CARD-${h.id}.md`);
+  const card = [
+    `# Harness plugin card — ${h.id}`,
+    '',
+    `- Harness id: \`${h.id}\``,
+    `- Command digest: \`${digest}\``,
+    `- Label: ${h.label || h.command}`,
+    `- Model: \`${opts.model || process.env.SPOCKIFY_CARD_MODEL || 'gpt-oss-20b'}\``,
+    `- Commit: \`${sha}\``,
+    `- Fixtures: ${FIXTURES.join(', ')}`,
+    skipLive ? '- Live fixtures: skipped (`SPOCKIFY_HARNESS_TEST_SKIP_LIVE=1`)' : '',
+    '',
+    h.id === 'spockify'
+      ? 'Default kernel (`runHarness`). See snapshots/harness-20b-card-* for measured rows.'
+      : 'Plugin harness — same-box exam only; do not mix into Spockify board %.',
+    '',
+  ]
+    .filter((line) => line !== undefined)
+    .join('\n');
+  await fsPromises.writeFile(cardPath, card);
+
+  if (!skipLive && h.id === 'spockify') {
     const runner = path.join(
       root,
       'packages/spockify-harness/scripts/run-20b-card.ts',
@@ -129,28 +162,12 @@ export async function harnessTest(
         });
       } catch {
         console.error('spockify fixture card runner failed');
+        console.log(`Wrote partial ${cardPath}`);
         return 1;
       }
     }
   }
 
-  const card = [
-    `# Harness plugin card — ${h.id}`,
-    '',
-    `- Harness id: \`${h.id}\``,
-    `- Command digest: \`${digest}\``,
-    `- Label: ${h.label || h.command}`,
-    `- Model: \`${opts.model || process.env.SPOCKIFY_CARD_MODEL || 'gpt-oss-20b'}\``,
-    `- Commit: \`${sha}\``,
-    `- Fixtures: ${FIXTURES.join(', ')}`,
-    '',
-    h.id === 'spockify'
-      ? 'Default kernel (`runHarness`). See snapshots/harness-20b-card-* for measured rows.'
-      : 'Plugin harness — same-box exam only; do not mix into Spockify board %.',
-    '',
-  ].join('\n');
-  const cardPath = path.join(outDir, `CARD-${h.id}.md`);
-  await fsPromises.writeFile(cardPath, card);
   console.log(`Wrote ${cardPath}`);
   console.log(`harness_id=${h.id} digest=${digest}`);
   return 0;
