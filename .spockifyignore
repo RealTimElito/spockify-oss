@@ -1,0 +1,7 @@
+# Spockify IDE codebase index — keep large vendor / AppImage trees out.
+apps/spockify-ide/vendor/
+apps/spockify-ide/build/
+**/Spockify-IDE.AppDir/
+**/node_modules/
+**/dist/
+**/.git/

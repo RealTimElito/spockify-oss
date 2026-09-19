@@ -1,0 +1,1 @@
+export { registerChrome } from './status';

@@ -1,0 +1,19 @@
+[0m
+[0;2mInstalling [0mopencode [0;2mversion: [0m1.18.31[0m
+#=#=#                                                                          ##O#-#                                                                         ################                                                          23.5%#######################################                                   55.2%##############################################################            86.4%######################################################################## 100.0%
+[0m[0;2mSuccessfully added [0mopencode [0;2mto $PATH in [0m/workspace/.bashrc[0m
+
+[0;2m                    [0m             ▄     
+[0;2m█▀▀█ █▀▀█ █▀▀█ █▀▀▄ [0m█▀▀▀ █▀▀█ █▀▀█ █▀▀█
+[0;2m█░░█ █░░█ █▀▀▀ █░░█ [0m█░░░ █░░█ █░░█ █▀▀▀
+[0;2m▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ [0m▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+
+
+[0;2mOpenCode includes free models, to start:[0m
+
+cd <project>  [0;2m# Open directory[0m
+opencode      [0;2m# Run command[0m
+
+[0;2mFor more information visit [0mhttps://opencode.ai/docs
+
+

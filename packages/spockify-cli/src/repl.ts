@@ -1,0 +1,493 @@
+import { createModelTransport } from '@spockify/ide-client';
+import { loadAgentsMd } from '@spockify/harness';
+import { runAgentTurn } from './agent/loop';
+import { ToolRegistry } from './agent/registry';
+import { registerCliTools } from './agent/tools';
+import type { AgentMessage, AgentMode } from './agent/types';
+import { DEFAULT_MODEL } from './config';
+import { DoublePressExit, type ExitKey } from './exitGuard';
+import { readBoxedLine, readLineRaw } from './inputRaw';
+import {
+  isModelMetaCommand,
+  resolveModelId,
+  type ModelPreset,
+} from './models';
+import { fetchStackModels, resolveStackApiBackend } from './discover';
+import { pickFromList } from './picker';
+import {
+  MarkdownStreamRenderer,
+  Spinner,
+  agentsStatusLine,
+  disableMouseTracking,
+  modelLabel,
+  renderAssistantStart,
+  renderBanner,
+  renderError,
+  renderGoodbye,
+  renderHelp,
+  renderHint,
+  renderStatusLine,
+  renderStatusPanel,
+  renderToolResultCard,
+  renderToolStart,
+  toolStatusLine,
+  renderPermissionRequest,
+  type SessionUiState,
+  ansi,
+} from './ui';
+import {
+  isThinkingMode,
+  nextThinkingMode,
+  normalizeThinkingMode,
+  resolveInitialThinkingMode,
+  thinkingModeLabel,
+  type ThinkingMode,
+} from './thinking';
+
+export interface ReplOptions {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  mode: AgentMode;
+  cwd: string;
+  yolo: boolean;
+  maxTurns?: number;
+  email?: string;
+  prompt?: string;
+}
+
+function write(s: string): void {
+  process.stdout.write(s);
+}
+
+export async function runRepl(opts: ReplOptions): Promise<void> {
+  disableMouseTracking();
+
+  const apiBackend = await resolveStackApiBackend(opts.baseUrl);
+  const transport = createModelTransport({
+    apiKey: opts.apiKey,
+    baseUrl: opts.baseUrl,
+    apiBackend,
+  });
+  const registry = new ToolRegistry();
+  registerCliTools(registry);
+
+  const history: AgentMessage[] = [];
+
+  let mode = opts.mode;
+  let yolo = opts.yolo;
+  let thinking: ThinkingMode = resolveInitialThinkingMode();
+  let model = opts.model || DEFAULT_MODEL;
+  let turns = 0;
+  let shouldExit = false;
+  let turnAbort: AbortController | undefined;
+  let stackModels: ModelPreset[] | null = null;
+
+  const loadStackModels = async (): Promise<ModelPreset[]> => {
+    if (stackModels) return stackModels;
+    stackModels = await fetchStackModels({
+      apiKey: opts.apiKey,
+      baseUrl: opts.baseUrl,
+    });
+    return stackModels;
+  };
+
+  const exitGuard = new DoublePressExit(write);
+
+  const state = (): SessionUiState => ({
+    model,
+    mode,
+    yolo,
+    thinking,
+    cwd: opts.cwd,
+    email: opts.email,
+    baseUrl: opts.baseUrl,
+    turns,
+  });
+
+  /** @returns true if caller should exit */
+  async function handleInterrupt(key: ExitKey): Promise<boolean> {
+    turnAbort?.abort();
+    if (exitGuard.press(key)) {
+      shouldExit = true;
+      exitGuard.dispose();
+      return true;
+    }
+    return false;
+  }
+
+  const readLine = () =>
+    readLineRaw({
+      onInterrupt: handleInterrupt,
+      shouldExit: () => shouldExit,
+    });
+
+  const confirm = async (
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<boolean> => {
+    if (shouldExit) return false;
+    write(renderPermissionRequest(name, args));
+    write(
+      `  ${ansi.dim('Allow?')} ${ansi.green('[y]')} ${ansi.dim('/')} ${ansi.red('[N]')} ${ansi.accent('❯')} `,
+    );
+    const ans = await readLine();
+    if (ans === 'exit' || ans === 'retry' || shouldExit) return false;
+    return /^y(es)?$/i.test(ans.trim());
+  };
+
+  const pickMode = async (): Promise<void> => {
+    const next = await pickFromList({
+      title: 'Mode',
+      current: mode,
+      items: [
+        {
+          value: 'build',
+          label: 'build / agent',
+          hint: 'edit files · run tools',
+        },
+        {
+          value: 'plan',
+          label: 'plan / ask',
+          hint: 'read-only',
+        },
+      ],
+    });
+    if (!next) return;
+    mode = next as AgentMode;
+    if (mode === 'ask' || mode === 'plan') yolo = false;
+    write(renderHint(`Mode → ${mode}`));
+  };
+
+  const pickPerm = async (): Promise<void> => {
+    const current = yolo && mode === 'agent' ? 'run-all' : 'ask';
+    const next = await pickFromList({
+      title: 'Permissions',
+      current,
+      items: [
+        {
+          value: 'ask',
+          label: 'ask',
+          hint: 'confirm before tools',
+        },
+        {
+          value: 'run-all',
+          label: 'run all',
+          hint: 'skip confirms (yolo)',
+        },
+      ],
+    });
+    if (!next) return;
+    if (next === 'run-all') {
+      if (mode === 'ask') mode = 'agent';
+      yolo = true;
+      write(renderHint('Permissions → run all'));
+    } else {
+      yolo = false;
+      write(renderHint('Permissions → ask'));
+    }
+  };
+
+  const pickModel = async (): Promise<void> => {
+    let items: ModelPreset[];
+    try {
+      items = await loadStackModels();
+    } catch (err) {
+      write(renderError(err instanceof Error ? err.message : String(err)));
+      return;
+    }
+    if (!items.length) {
+      write(renderHint('No models returned from this stack.'));
+      return;
+    }
+    const next = await pickFromList({
+      title: `Model  ${ansi.dim(opts.baseUrl)}`,
+      current: model,
+      items: items.map((p) => ({
+        value: p.id,
+        label:
+          modelLabel(p.id) === p.id
+            ? p.id
+            : `${modelLabel(p.id)} (${p.id})`,
+        hint: p.blurb,
+      })),
+    });
+    if (!next) return;
+    model = next;
+    write(renderHint(`Model → ${modelLabel(model)}`));
+  };
+
+  const askBoxed = async (): Promise<string | null> => {
+    while (!shouldExit) {
+      if (exitGuard.isArmed()) {
+        await exitGuard.waitUntilClear();
+        if (shouldExit) return null;
+      }
+
+      const line = await readBoxedLine({
+        state,
+        onInterrupt: handleInterrupt,
+        shouldExit: () => shouldExit,
+      });
+      if (line === 'exit' || shouldExit) return null;
+      if (line === 'retry') {
+        await exitGuard.waitUntilClear();
+        if (shouldExit) return null;
+        write('\n');
+        continue;
+      }
+      return line;
+    }
+    return null;
+  };
+
+  const runOnce = async (userText: string) => {
+    const prior = history.filter((m) => m.role !== 'system');
+    prior.push({ role: 'user', content: userText });
+    const md = new MarkdownStreamRenderer(write);
+    turnAbort = new AbortController();
+    const signal = turnAbort.signal;
+    let headerWritten = false;
+    let lastHeader = '';
+    const spinner = new Spinner('thinking');
+    spinner.start();
+    try {
+      const agentsMd = await loadAgentsMd(opts.cwd);
+      const updated = await runAgentTurn({
+        transport,
+        registry,
+        model,
+        mode,
+        thinking,
+        messages: prior,
+        cwd: opts.cwd,
+        yolo,
+        maxTurns: opts.maxTurns,
+        signal,
+        agentsMd,
+        confirm: yolo ? undefined : confirm,
+        onEvent: (ev) => {
+          if (ev.type === 'model') {
+            spinner.stop();
+            const line = renderAssistantStart(ev.requested, ev.resolved);
+            if (!headerWritten) {
+              write(line);
+              headerWritten = true;
+              lastHeader = line;
+            } else if (ev.resolved && line !== lastHeader) {
+              // Rewrite the header line once the worker is known
+              write(`\x1b[1A\r\x1b[2K${line.replace(/^\n/, '')}`);
+              lastHeader = line;
+            }
+          } else if (ev.type === 'text') {
+            spinner.stop();
+            if (!headerWritten) {
+              write(renderAssistantStart(model));
+              headerWritten = true;
+            }
+            md.push(ev.content);
+          } else if (ev.type === 'toolStart') {
+            spinner.stop();
+            if (!headerWritten) {
+              write(renderAssistantStart(model));
+              headerWritten = true;
+            }
+            md.flush();
+            const human = toolStatusLine(ev.name, ev.arguments);
+            write(renderToolStart(human, ''));
+            spinner.setLabel(human);
+          } else if (ev.type === 'toolResult') {
+            md.flush();
+            write(
+              renderToolResultCard(
+                ev.name,
+                ev.ok,
+                ev.content || ev.error || '',
+              ),
+            );
+            // Resume live status between tools (Cursor-like “Planning next moves”).
+            spinner.setLabel('planning next moves');
+            spinner.start();
+          } else if (ev.type === 'agents') {
+            const line = agentsStatusLine(ev.run);
+            spinner.setLabel(line);
+            spinner.start();
+          } else if (ev.type === 'error') {
+            spinner.stop();
+            if (!headerWritten) {
+              write(renderAssistantStart(model));
+              headerWritten = true;
+            }
+            md.flush();
+            write(renderError(ev.message));
+          } else if (ev.type === 'done' && ev.cancelled) {
+            spinner.stop();
+            md.flush();
+            write(renderHint('Cancelled.'));
+          } else if (ev.type === 'done') {
+            spinner.setLabel('wrapping up');
+            spinner.stop();
+          }
+        },
+      });
+      md.flush();
+      if (!signal.aborted) {
+        history.length = 0;
+        history.push(...updated.filter((m) => m.role !== 'system'));
+        turns += 1;
+      }
+    } catch (err) {
+      spinner.stop();
+      md.flush();
+      if (signal.aborted || shouldExit) {
+        write(renderHint('Cancelled.'));
+        return;
+      }
+      write(renderError(err instanceof Error ? err.message : String(err)));
+      throw err;
+    } finally {
+      spinner.stop();
+      turnAbort = undefined;
+    }
+    write('\n');
+  };
+
+  if (opts.prompt) {
+    write(renderBanner(state()));
+    write(`${ansi.accent('❯')} ${opts.prompt}\n`);
+    write(`${renderStatusLine(state())}\n`);
+    await runOnce(opts.prompt);
+    exitGuard.dispose();
+    return;
+  }
+
+  write(renderBanner(state()));
+
+  while (!shouldExit) {
+    let line: string | null;
+    try {
+      line = await askBoxed();
+    } catch {
+      break;
+    }
+    if (line === null || shouldExit) break;
+    const text = line.trim();
+    if (!text) continue;
+    if (text === '/exit' || text === '/quit') break;
+
+    if (text === '/ask' || text === '/plan') {
+      mode = text === '/plan' ? 'plan' : 'ask';
+      yolo = false;
+      write(renderHint(`Mode → ${mode} (read-only)`));
+      continue;
+    }
+    if (text === '/agent' || text === '/build') {
+      mode = text === '/build' ? 'build' : 'agent';
+      write(renderHint(`Mode → ${yolo ? 'yolo' : mode}`));
+      continue;
+    }
+    if (text === '/init') {
+      const { initAgentsMd } = await import('@spockify/harness');
+      const r = await initAgentsMd(opts.cwd);
+      write(
+        renderHint(
+          r.created
+            ? `Wrote ${r.path}`
+            : `Already present: ${r.path} (use force via re-init later)`,
+        ),
+      );
+      continue;
+    }
+    if (text === '/mode') {
+      await pickMode();
+      await pickPerm();
+      continue;
+    }
+    if (text === '/yolo') {
+      if (mode === 'ask' || mode === 'plan') {
+        write(renderHint('Switch to /build or /agent first — plan/ask is read-only.'));
+        continue;
+      }
+      yolo = !yolo;
+      write(renderHint(yolo ? 'Permissions → run all' : 'Permissions → ask'));
+      continue;
+    }
+    if (text === '/status') {
+      write(renderStatusPanel(state()));
+      continue;
+    }
+    if (text === '/clear') {
+      history.length = 0;
+      turns = 0;
+      write(renderHint('Conversation cleared.'));
+      continue;
+    }
+    if (text === '/model' || text.startsWith('/model ')) {
+      const arg = text.slice('/model'.length).trim();
+      if (!arg || isModelMetaCommand(arg)) {
+        await pickModel();
+        continue;
+      }
+      let available: ModelPreset[] | undefined;
+      try {
+        available = await loadStackModels();
+      } catch (err) {
+        write(renderError(err instanceof Error ? err.message : String(err)));
+        continue;
+      }
+      const resolved = resolveModelId(arg, available);
+      if (!resolved) {
+        write(renderHint(`Unknown model “${arg}”. Try /model`));
+        continue;
+      }
+      const onStack = available.some(
+        (m) => m.id.toLowerCase() === resolved.toLowerCase(),
+      );
+      if (!onStack) {
+        write(
+          renderHint(
+            `“${resolved}” is not on this stack (${opts.baseUrl}). Try /model`,
+          ),
+        );
+        continue;
+      }
+      model = resolved;
+      write(renderHint(`Model → ${modelLabel(model)}`));
+      continue;
+    }
+    if (text === '/help') {
+      write(renderHelp());
+      continue;
+    }
+    if (text === '/think' || text.startsWith('/think ')) {
+      const arg = text.slice('/think'.length).trim().toLowerCase();
+      if (!arg) {
+        thinking = nextThinkingMode(thinking);
+      } else if (isThinkingMode(arg)) {
+        thinking = arg;
+      } else {
+        const normalized = normalizeThinkingMode(arg, thinking);
+        if (normalized === thinking && arg !== normalized) {
+          write(
+            renderHint(
+              `Unknown thinking “${arg}”. Use off, low, medium, high, or heavy.`,
+            ),
+          );
+          continue;
+        }
+        thinking = normalized;
+      }
+      write(renderHint(`Thinking → ${thinkingModeLabel(thinking)}`));
+      continue;
+    }
+
+    try {
+      await runOnce(text);
+    } catch {
+      /* already printed */
+    }
+  }
+
+  exitGuard.dispose();
+  write(renderGoodbye());
+}

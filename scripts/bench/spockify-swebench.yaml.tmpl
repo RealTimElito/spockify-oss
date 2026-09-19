@@ -1,0 +1,89 @@
+# Generated for mini-SWE-agent → Spockify LiteLLM (local models only).
+# See docs/BENCH.md
+# mini-swe-agent v2 injects the issue text as {{task}} (not problem_statement).
+# LEAP-021: step_limit / cost_limit substituted at generate time.
+
+agent:
+  system_template: |
+    You are a helpful assistant that can interact with a computer shell to solve programming tasks.
+    Every response MUST include EXACTLY ONE bash command inside a ```bash fenced block.
+    Example:
+    ```bash
+    ls /testbed
+    ```
+    Do NOT use function calls, tool calls, or container.exec — only the markdown ```bash fence.
+    Do not use cloud APIs. Put the command in the assistant content, not only in private thinking.
+    Prefer small surgical edits via python3 pathlib (read_text/replace/write_text).
+    Never use sed -i with \\n or /a\\ — that writes a literal backslash-n and breaks Python.
+    Never emit apply_patch, unified-diff tool JSON, or multi-kilobyte heredocs inside one command.
+    Never run grep -R, ls -R, or find / without -maxdepth — they hang under qemu.
+  instance_template: |
+    <pr_description>
+    Consider the following PR description:
+    {{task}}
+    </pr_description>
+
+    <instructions>
+    # Task Instructions
+
+    Work in /testbed. Implement a general, codebase-consistent fix in non-test source files.
+    Each response MUST include a short rationale AND exactly one ```bash command in content.
+
+    Efficiency rules (important — step budget is limited):
+    1. Locate the failing rule/module quickly (`rg -n PATH` / `find PATH -maxdepth 3 -name`). Never `grep -R` or `ls -R`.
+    2. Read only the relevant file slices (`sed -n` / `rg -n` / `head`). Cap searches with path + head.
+    3. Prefer the **smallest** fix. If the report is about L031 / "aliases in
+       join" wording, update ONLY the LintResult `description=` string to
+       exactly this value (character-for-character, including the period):
+       Avoid aliases in from clauses and join conditions.
+       Do NOT invent wording (no "using", no missing period). Do not rewrite
+       rule control flow.
+    4. Apply edits with `python3` + pathlib `replace`. Never `sed -i` with `\\n`.
+       Never `apply_patch`.
+    5. After any `.py` edit: `python3 -m py_compile path/to/file.py` before submit.
+    6. As soon as `git diff` is non-empty on the intended sources AND compile is clean, submit.
+
+    Submission (separate turns, in order):
+    1) `python3 -m py_compile path/to/changed.py`
+    2) `git diff -- path/to/changed_sources > patch.txt`
+    3) `head -200 patch.txt` (confirm non-empty; description string exact; no literal `\\n`)
+    4) Submit EXACTLY:
+    `echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt`
+
+    If patch.txt is empty, you have not changed tracked sources — keep editing, then submit.
+    </instructions>
+  format_error_template: |
+    Format error. Reply with EXACTLY ONE bash command in a ```bash fence, for example:
+    ```bash
+    ls /testbed
+    ```
+    Do not use function/tool calls. Put the fence in the assistant content.
+  step_limit: {{STEP_LIMIT}}
+  cost_limit: {{COST_LIMIT}}
+
+model:
+  # Spockify salvage: empty content / tool_calls / reasoning_content → ```bash
+  model_class: spockify_litellm_model.SpockifyLitellmModel
+  model_name: "{{MODEL_NAME}}"
+  model_kwargs:
+    custom_llm_provider: openai
+    api_base: "{{API_BASE}}"
+    api_key: "{{API_KEY}}"
+    temperature: 0.0
+    # gpt-oss spends tokens on reasoning first; low caps → empty content.
+    max_tokens: 4096
+    # Cap hung ESTAB calls (LEAP-021 run i); recover via soft-fail / empty-stop.
+    timeout: 120
+    # Discourage native tool_calls; mini-swe wants markdown fences.
+    tool_choice: "none"
+  # cost_tracking via env MSWEA_COST_TRACKING=ignore_errors (v1.14 rejects
+  # cost_tracking as a model config key).
+
+environment:
+  # Spockify: sanitize grep -R + kill zombies on timeout (qemu hang class).
+  environment_class: spockify_docker_env.SpockifyDockerEnvironment
+  cwd: "/testbed"
+  timeout: 45
+  # Keep container around across steps (default --rm made twin lose the box).
+  run_args: []
+  container_timeout: "2h"

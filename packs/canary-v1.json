@@ -1,0 +1,57 @@
+{
+  "id": "canary-v1",
+  "version": 1,
+  "frozen": "2026-09-16",
+  "model": "gpt-oss-20b",
+  "think": "low",
+  "budget_wall_s": 900,
+  "target_wall_s": 300,
+  "target_note": "Phase 4 kernel default under shared LiteLLM+Lite board; functional oracles are the gate, wall ≤900s",
+  "gate_script": "scripts/lab_regress_quick.sh",
+  "evals": [
+    {
+      "id": "rate",
+      "family": "pytest-fix",
+      "expected_n_passed": 3,
+      "oracle": "pytest -q green",
+      "fixture_hint": "snapshots/overnight-20260915/fixtures/tip52_rate"
+    },
+    {
+      "id": "hello",
+      "family": "inspect",
+      "expected_n_passed": null,
+      "oracle": "FINDINGS cover greet()",
+      "fixture_hint": "snapshots/overnight-20260915/fixtures/tip54_hello"
+    },
+    {
+      "id": "docs",
+      "family": "docs",
+      "expected_n_passed": null,
+      "oracle": "API.md contains greet+add and len>=80 (tip61 class; ~700B preferred)",
+      "fixture_hint": "snapshots/overnight-20260915/fixtures/tip54_docs"
+    },
+    {
+      "id": "calc",
+      "family": "pytest-fix",
+      "expected_n_passed": 2,
+      "oracle": "pytest -q green",
+      "fixture_hint": "snapshots/overnight-20260915/fixtures/tip61_calc"
+    },
+    {
+      "id": "rename",
+      "family": "refactor",
+      "expected_n_passed": null,
+      "oracle": "def hello present; def greet absent; import hello",
+      "fixture_hint": "snapshots/overnight-20260915/fixtures/tip61_rename"
+    }
+  ],
+  "stamp_fields": [
+    "command",
+    "host",
+    "model",
+    "think",
+    "per_eval_pass",
+    "wall_s",
+    "git_sha"
+  ]
+}
