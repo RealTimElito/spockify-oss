@@ -1,0 +1,36 @@
+# Production SearXNG settings — mounted into k8s/searxng ConfigMap.
+use_default_settings: true
+general:
+  instance_name: "Spockify Search"
+  debug: false
+search:
+  safe_search: 1
+  autocomplete: duckduckgo
+  default_lang: en
+  formats:
+    - html
+    - json
+server:
+  secret_key: os.environ/SEARXNG_SECRET_KEY
+  limiter: true
+  image_proxy: true
+  method: GET
+engines:
+  - name: duckduckgo
+    engine: duckduckgo
+    disabled: false
+  - name: google
+    engine: google
+    disabled: false
+  - name: wikipedia
+    engine: wikipedia
+    disabled: false
+  - name: github
+    engine: github
+    disabled: false
+  - name: stackoverflow
+    engine: stackoverflow
+    disabled: false
+  - name: arxiv
+    engine: arxiv
+    disabled: false

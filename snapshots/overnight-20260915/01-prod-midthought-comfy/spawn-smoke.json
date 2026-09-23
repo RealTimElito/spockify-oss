@@ -1,0 +1,108 @@
+{
+  "elapsed_s": 401.0,
+  "agents": 32,
+  "raw_hits": 34,
+  "statuses": [
+    [
+      "pending",
+      3
+    ],
+    [
+      "pending",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ],
+    [
+      "running",
+      3
+    ]
+  ],
+  "content_len": 2821,
+  "think_len": 3328,
+  "SPAWN_in_content": false,
+  "SPAWN_in_think": false,
+  "err": null,
+  "samples": [
+    "keys=event,selected_model_id,web_search,worker",
+    "keys=event,reasoning,routing_path,selected_model_id,web_search,worker",
+    "keys=event,selected_model_id,web_search,worker",
+    "keys=choices,created,event,id,model,object,selected_model_id,spockify_agents,spockify_hud,spockify_thinking,worker",
+    "keys=event,selected_model_id,web_search,worker",
+    "keys=choices,created,event,id,model,object,selected_model_id,spockify_agents,spockify_hud,spockify_thinking,worker",
+    "keys=event,selected_model_id,web_search,worker",
+    "keys=choices,created,event,id,model,object,selected_model_id,spockify_agents,spockify_hud,spockify_thinking,worker",
+    "keys=choices,created,event,id,model,object,selected_model_id,spockify_agents,spockify_hud,spockify_thinking,worker",
+    "keys=event,selected_model_id,web_search,worker",
+    "keys=choices,created,event,id,model,object,selected_model_id,spockify_agents,spockify_hud,spockify_thinking,worker",
+    "keys=choices,created,event,id,model,object,selected_model_id,spockify_agents,spockify_hud,spockify_thinking,worker"
+  ],
+  "head": "For a **small authenticated API**, the best choice depends on whether you prioritize development speed, runtime performance, or architectural structure.\n\n### Recommendation\n\n*   **Choose FastAPI** if your priority is **speed of delivery**. It offers the fastest path from idea to production due to automatic documentation (Swagger/OpenAPI) and built-in data validation via Pydantic.\n*   **Choose Go chi** if your priority is **performance and minimalism**. It is ideal if you want a \"no-magic\" approa",
+  "tail": "It provides full control over every component of the request lifecycle.\n*   **Auth:** Handled via middleware; you can easily wrap specific route groups (e.g., `/api/admin`) with authentication layers.\n*   **Cons:** Requires significantly more boilerplate than FastAPI for tasks like JSON parsing and input validation.\n\n#### \ud83c\udfd7\ufe0f NestJS (TypeScript/Node.js)\nNestJS provides a heavy architectural framework inspired by Angular, utilizing decorators and dependency injection.\n*   **Pros:** Provides a strict blueprint that prevents the codebase from becoming messy as it grows. It has robust integration with Passport.js for authentication.\n*   **Cons:** The \"boilerplate overhead\" is high. For a small API, you may spend more time configuring the framework's structure than writing actual business logic."
+}

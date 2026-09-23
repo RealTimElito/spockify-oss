@@ -1,0 +1,217 @@
+:root {
+  --ink: #e8eef7;
+  --muted: #93a4bb;
+  --bg: #071018;
+  --line: rgba(125, 211, 252, 0.14);
+  --teal: #3dfff0;
+  --amber: #ffb454;
+  --font-display: "Syne", system-ui, sans-serif;
+  --font-body: "Outfit", system-ui, sans-serif;
+  --max: 760px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--font-body);
+  background: var(--bg);
+  line-height: 1.55;
+}
+
+a {
+  color: var(--teal);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 80% 55% at 15% 10%, rgba(61, 255, 240, 0.16), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(255, 180, 84, 0.1), transparent 50%),
+    linear-gradient(180deg, #050b12 0%, #071018 45%, #0a1520 100%);
+  animation: aurora 18s ease-in-out infinite alternate;
+}
+
+.grid-drift {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.28;
+  background-image:
+    linear-gradient(rgba(125, 211, 252, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, 0.07) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 20%, transparent 75%);
+  animation: drift 40s linear infinite;
+}
+
+@keyframes aurora {
+  from { filter: hue-rotate(0deg) saturate(1); }
+  to { filter: hue-rotate(-12deg) saturate(1.15); }
+}
+
+@keyframes drift {
+  from { background-position: 0 0; }
+  to { background-position: 48px 48px; }
+}
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem clamp(1rem, 4vw, 2rem);
+  backdrop-filter: blur(14px);
+  background: rgba(7, 16, 24, 0.72);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.brand-mark img {
+  border-radius: 8px;
+}
+
+.top nav {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.top nav a {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.nav-cta {
+  color: #041018 !important;
+  background: var(--teal);
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-weight: 600 !important;
+}
+
+main {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: clamp(2.5rem, 8vh, 5rem) clamp(1rem, 4vw, 2rem) 3rem;
+}
+
+.hero h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 4.6vw, 2.85rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.lede,
+.meta,
+.pools p,
+footer p {
+  color: var(--muted);
+}
+
+.lede {
+  margin: 1.1rem 0 1.6rem;
+  font-size: 1.08rem;
+}
+
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.72rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.btn:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.btn.primary {
+  color: #041018;
+  background: linear-gradient(135deg, var(--teal), #7dffd8 70%, var(--amber));
+}
+
+.btn.ghost {
+  color: var(--ink);
+  border-color: var(--line);
+  background: rgba(12, 24, 36, 0.55);
+}
+
+.meta {
+  margin: 1.25rem 0 0;
+  font-size: 0.95rem;
+}
+
+.pools {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.pools h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.pools ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.pools li {
+  margin: 0.35rem 0;
+}
+
+footer {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 2rem) 2.5rem;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .top nav a:not(.nav-cta) {
+    display: none;
+  }
+}

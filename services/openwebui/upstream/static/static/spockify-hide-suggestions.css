@@ -1,0 +1,16 @@
+/* Hide empty-chat prompt suggestion chips (no disable env var in v0.9.6). */
+.mx-5 > .mb-1.flex.gap-1.text-xs.font-medium.items-center {
+  display: none !important;
+}
+
+.mx-5 > .h-40.w-full {
+  display: none !important;
+}
+
+div[role="list"].max-h-40.overflow-auto.scrollbar-none.items-start {
+  display: none !important;
+}
+
+button.waterfall.flex.flex-col.flex-1 {
+  display: none !important;
+}

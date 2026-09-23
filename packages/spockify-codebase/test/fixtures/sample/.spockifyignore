@@ -1,0 +1,6 @@
+# Example .spockifyignore — same syntax as gitignore
+# (fixtures use this to prove ignore rules)
+
+secrets/
+*.secret
+vendor/

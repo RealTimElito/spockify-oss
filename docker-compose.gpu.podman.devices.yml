@@ -1,0 +1,22 @@
+# Podman classic NVIDIA device overlay (Fedora default when CDI is not proven).
+# Applied by ./docker/run.sh --gpu unless nvidia-ctk list + podman probe both
+# succeed. Prefer this path on Fedora; CDI is optional.
+#
+# run.sh may regenerate a host-specific copy that only lists devices that exist
+# (multi-GPU, optional uvm/dri). This committed file is the single-GPU template
+# and is packed into the download kit.
+#
+# SELinux: sudo setsebool -P container_use_devices on
+
+name: spockify
+
+services:
+  ollama:
+    devices:
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      OLLAMA_FLASH_ATTENTION: "1"

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Self-host Spockify — Docker Compose</title>
+  <meta name="description" content="Run Spockify on your box: Compose kit, open chat on localhost." />
+  <link rel="icon" type="image/png" href="/ide/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <div class="grid-drift" aria-hidden="true"></div>
+
+  <header class="top">
+    <a class="brand-mark" href="./">
+      <img src="/ide/logo-128.png" width="36" height="36" alt="" />
+      <span>Spockify</span>
+    </a>
+    <nav>
+      <a href="/ide">IDE</a>
+      <a href="/product">Product</a>
+      <a class="nav-cta" href="/chat">Sign in</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Self-host with Compose</h1>
+      <p class="lede">
+        Chat UI, router (<code>spockify-auto</code>), LiteLLM, Ollama, SearXNG, Postgres.
+        No cloud default. First account on the UI is admin.
+      </p>
+      <pre class="shell" style="text-align:left;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;overflow:auto;font-size:.92rem;line-height:1.45"><code>cp .env.example .env    # change secrets
+./docker/run.sh         # Podman if compose works, else Docker
+# open http://localhost:3080</code></pre>
+      <div class="cta-row">
+        <a class="btn primary" href="/downloads/spockify-docker.zip">Compose kit</a>
+        <a class="btn ghost" href="https://github.com/Spockify/spockify-oss">Public source</a>
+        <a class="btn ghost" href="/ide">Download IDE</a>
+      </div>
+      <p class="meta">
+        Kit also at GitHub Release <code>docker-v*</code>. GPU: <code>./docker/run.sh --gpu</code>.
+        Longer notes live in the repo README and <code>docker/README.md</code>.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p><a href="./">Home</a> · <a href="/product">Product</a> · <a href="/chat">Sign in</a></p>
+  </footer>
+</body>
+</html>
