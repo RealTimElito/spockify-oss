@@ -1,0 +1,21 @@
+# Lab / vsce packaging: keep the VSIX lean. Prefer scripts/pack-spockify-lab-vsix.sh
+# (stages dist + bundled @spockify packages). This file is a safety net for
+# in-tree `vsce package` so monorepo file: symlinks are not followed.
+
+.vscode/**
+.vscode-test/**
+src/**
+test/**
+**/*.ts
+**/*.map
+tsconfig*.json
+.gitignore
+.gitkeep
+**/.gitkeep
+node_modules/**
+!node_modules/@spockify/**
+node_modules/@spockify/**/node_modules/**
+node_modules/@spockify/**/src/**
+node_modules/@spockify/**/test/**
+**/*.vsix
+scripts/**

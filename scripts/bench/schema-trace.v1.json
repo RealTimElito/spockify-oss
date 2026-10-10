@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spockify.eu/schemas/bench-trace.v1.json",
+  "title": "Spockify lab/bench turn trace v1",
+  "description": "One JSONL object per lab/SWE turn. Reject traces missing model, think, stop_reason, or wall_s (LEAP-001).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ts",
+    "ticket",
+    "sha",
+    "host",
+    "role",
+    "model",
+    "think",
+    "tools",
+    "writes",
+    "pytest",
+    "rounds",
+    "wall_s",
+    "tokens",
+    "stop_reason",
+    "infra_fail",
+    "instance_id"
+  ],
+  "properties": {
+    "ts": {
+      "type": "string",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "ticket": {
+      "type": "string",
+      "description": "LEAP-NNN or overnight tip id"
+    },
+    "sha": {
+      "type": "string",
+      "description": "git SHA of harness under test"
+    },
+    "host": {
+      "type": "string",
+      "description": "hostname where the loop ran"
+    },
+    "role": {
+      "type": "string",
+      "enum": ["orch", "exec", "router", "swe"]
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "think": {
+      "type": ["string", "boolean", "null"],
+      "description": "think level: off|low|medium|high|heavy or boolean for magistral"
+    },
+    "tools": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "writes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "pytest": {
+      "type": "object",
+      "required": ["n_pass", "n_fail", "tail"],
+      "properties": {
+        "n_pass": { "type": ["integer", "null"] },
+        "n_fail": { "type": ["integer", "null"] },
+        "tail": { "type": "string" }
+      }
+    },
+    "rounds": { "type": ["integer", "null"] },
+    "wall_s": { "type": "number" },
+    "tokens": { "type": ["integer", "null"] },
+    "stop_reason": {
+      "type": "string",
+      "enum": [
+        "early-stop",
+        "max-rounds",
+        "timeout",
+        "user",
+        "sandbox",
+        "infra"
+      ]
+    },
+    "infra_fail": { "type": "boolean" },
+    "instance_id": { "type": ["string", "null"] }
+  }
+}

@@ -1,0 +1,26 @@
+# Podman-only overlay. Included by ./docker/run.sh when ENGINE is Podman.
+# :z = SELinux shared label. Do not add :U — it recursively chowns the bind
+# (Ollama model blobs are large / not chownable rootless → EPERM).
+# Docker Compose is not given this file.
+#
+#   podman-compose -f docker-compose.yml -f docker-compose.podman.yml up -d
+#
+# Postgres is a named volume (not ${STORAGE_ROOT}/postgres). Rootless Podman
+# cannot chown a host bind for alpine UID 70; a podman-managed volume can.
+# Existing ./data/spockify/postgres is unused and is not migrated.
+
+name: spockify
+
+services:
+  postgres:
+    volumes:
+      - spockify_pgdata:/var/lib/postgresql/data
+  ollama:
+    volumes:
+      - ${STORAGE_ROOT:-./data/spockify}/ollama:/root/.ollama:z
+  openwebui:
+    volumes:
+      - ${STORAGE_ROOT:-./data/spockify}/openwebui:/app/backend/data:z
+
+volumes:
+  spockify_pgdata:

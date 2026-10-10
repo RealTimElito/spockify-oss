@@ -1,0 +1,6 @@
+# Cap context so Q4 weights (~15GB) plus KV fit a 16GB card.
+# Create after `ollama pull devstral-small-2`.
+FROM devstral-small-2:latest
+
+PARAMETER num_ctx 8192
+PARAMETER temperature 0.2

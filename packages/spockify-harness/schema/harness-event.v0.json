@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spockify.eu/schema/harness-event.v0.json",
+  "title": "HarnessEvent v0",
+  "description": "Matches packages/spockify-harness/src/types.ts HarnessEvent",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["type", "text"],
+      "properties": {
+        "type": { "const": "status" },
+        "text": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "requested"],
+      "properties": {
+        "type": { "const": "model" },
+        "requested": { "type": "string" },
+        "resolved": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "content"],
+      "properties": {
+        "type": { "const": "text" },
+        "content": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "content"],
+      "properties": {
+        "type": { "const": "thinking" },
+        "content": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "id", "name", "arguments"],
+      "properties": {
+        "type": { "const": "toolStart" },
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "arguments": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "id", "name", "ok", "content"],
+      "properties": {
+        "type": { "const": "toolResult" },
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ok": { "type": "boolean" },
+        "content": { "type": "string" },
+        "error": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "id", "name"],
+      "properties": {
+        "type": { "const": "toolKilled" },
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "signature", "count"],
+      "properties": {
+        "type": { "const": "loopWarning" },
+        "signature": { "type": "string" },
+        "count": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "ok"],
+      "properties": {
+        "type": { "const": "compact" },
+        "ok": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "id", "kind"],
+      "properties": {
+        "type": { "const": "taskSpawn" },
+        "id": { "type": "string" },
+        "kind": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "const": "taskDone" },
+        "id": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "prompt"],
+      "properties": {
+        "type": { "const": "askUser" },
+        "prompt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "run"],
+      "properties": {
+        "type": { "const": "agents" },
+        "run": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "done" },
+        "cancelled": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["type", "message"],
+      "properties": {
+        "type": { "const": "error" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@spockify/shadow-workspace",
+  "version": "0.0.1",
+  "description": "Durable overlay for Composer proposals (Phase 4)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p .",
+    "lint": "tsc -p . --noEmit",
+    "test": "npm run build && npx --yes tsx --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.6.0"
+  }
+}

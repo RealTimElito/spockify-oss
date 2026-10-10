@@ -1,0 +1,30 @@
+{
+  "name": "@spockify/harness-adapter-external",
+  "version": "0.1.0",
+  "description": "Optional out-of-process wrapper for third-party harness binaries (profile v0)",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

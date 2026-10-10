@@ -1,0 +1,16 @@
+{
+  "next_due": {
+    "C1": 0,
+    "C2": 1789754511,
+    "C3": 1789750911,
+    "C4": 1789770711,
+    "C5": 1789777911,
+    "C7": 1789792311
+  },
+  "inflight": null,
+  "last_canary": null,
+  "consecutive_red": 0,
+  "host_flag": "HOST-GREEN",
+  "note": "Not armed on prod Spark (LEAP-019 HOLD).",
+  "cycles": 3
+}

@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "note": "Prod coding pins: gpt-oss-20b / gpt-oss-120b only. lab_models lists unpublished candidates (promoted:false). qwen3-coder-30b-a3b maps to Instruct Q4/Q8 (not fp16). Selecting devstral-2 evicts 120b-hot. Do not add lab candidates to the prod dropdown.",
+  "models": [
+    {
+      "id": "gpt-oss-20b",
+      "role": "coder",
+      "pool": "spark",
+      "think_allowed": ["off", "low", "medium", "high"],
+      "promoted": true
+    },
+    {
+      "id": "gpt-oss-120b",
+      "role": "coder",
+      "pool": "spark",
+      "think_allowed": ["off", "low", "medium", "high"],
+      "promoted": true
+    }
+  ],
+  "lab_models": [
+    {
+      "id": "devstral-small-2",
+      "role": "coder",
+      "pool": "lab",
+      "think_allowed": ["off"],
+      "promoted": false
+    },
+    {
+      "id": "devstral-2",
+      "role": "coder",
+      "pool": "lab",
+      "think_allowed": ["off"],
+      "promoted": false
+    },
+    {
+      "id": "qwen3-coder-30b-a3b",
+      "role": "coder",
+      "pool": "eval",
+      "think_allowed": ["off", "low", "medium", "high"],
+      "promoted": false,
+      "ollama_tag": "qwen3-coder:30b-a3b-q4_K_M"
+    }
+  ]
+}
