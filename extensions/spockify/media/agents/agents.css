@@ -1,0 +1,166 @@
+/* Spockify Agents panel — Cursor-style live run view. Reuses chat.css's
+ * tool-card + ghost-btn + chip language (linked alongside this file) so it
+ * reads as the same design system as Chat, not a separate UI. */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+}
+
+.agents-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.run-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--spk-border, rgba(127, 127, 127, 0.25));
+  flex-shrink: 0;
+}
+
+.run-header-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.run-status-dot {
+  font-size: 10px;
+  line-height: 1;
+}
+.run-status-dot.pending, .run-status-dot.running { color: var(--spk-accent, #6af); }
+.run-status-dot.synthesizing { color: var(--spk-accent, #6af); }
+.run-status-dot.done { color: var(--vscode-testing-iconPassed, #3a8); }
+.run-status-dot.failed { color: var(--vscode-errorForeground, #c55); }
+.run-status-dot.cancelled { color: var(--vscode-descriptionForeground, #888); }
+
+.run-title {
+  font-weight: 600;
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-meta {
+  margin-top: 3px;
+  font-size: 10px;
+  opacity: 0.65;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.run-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.run-prompt {
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.85;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 80px;
+  overflow: auto;
+}
+
+.workers {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 8px 12px;
+}
+
+.worker-row {
+  border: 1px solid var(--spk-border, rgba(127, 127, 127, 0.2));
+  border-radius: 6px;
+  margin: 6px 0;
+  background: color-mix(in srgb, var(--vscode-sideBar-background) 94%, #000);
+  overflow: hidden;
+}
+
+.worker-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.worker-head:hover { background: rgba(127, 127, 127, 0.08); }
+
+.worker-icon { font-size: 11px; width: 14px; text-align: center; flex-shrink: 0; }
+.worker-icon.running { color: var(--spk-accent, #6af); }
+.worker-icon.done { color: var(--vscode-testing-iconPassed, #3a8); }
+.worker-icon.failed { color: var(--vscode-errorForeground, #c55); }
+.worker-icon.cancelled { color: var(--vscode-descriptionForeground, #888); }
+.worker-icon.pending { opacity: 0.5; }
+
+.worker-name {
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worker-status-line {
+  font-size: 10px;
+  opacity: 0.65;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worker-elapsed {
+  font-size: 9px;
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.worker-chevron {
+  font-size: 9px;
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+
+.worker-body {
+  padding: 0 8px 8px;
+  display: none;
+}
+.worker-row.expanded .worker-body { display: block; }
+
+.worker-transcript {
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 4px 0 0;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.worker-error {
+  color: var(--vscode-errorForeground, #c55);
+  font-size: 10px;
+  margin-top: 4px;
+}
+
+.empty-state {
+  margin: auto;
+  text-align: center;
+  opacity: 0.65;
+  font-size: 11px;
+  padding: 24px;
+}
