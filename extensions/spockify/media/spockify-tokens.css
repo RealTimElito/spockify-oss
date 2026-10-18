@@ -1,0 +1,33 @@
+/* Spockify workbench accent tokens (extension-contributed webviews).
+ * Matches spockify.eu / Spockify Dark — cyan on deep navy; compact chrome. */
+
+:root {
+  --spockify-brand: #1aa89c;
+  --spockify-brand-bright: #3dfff0;
+  --spockify-brand-muted: color-mix(in srgb, var(--spockify-brand-bright) 28%, transparent);
+  --spockify-ink: #e8eef7;
+  --spockify-muted: #93a4bb;
+  --spockify-bg: #071018;
+  --spockify-bg-elev: #0c1824;
+  --spockify-amber: #ffb454;
+  --spockify-danger: #ff6b6b;
+  --spockify-density: 8px;
+  --spockify-radius: 4px;
+  --spockify-font-xs: 9px;
+  --spockify-font-sm: 11px;
+}
+
+.spockify-accent-border {
+  border-left: 2px solid var(--spockify-brand-bright);
+}
+
+.spockify-dense {
+  font-size: var(--spockify-font-sm);
+  line-height: 1.32;
+}
+
+.spockify-dense .header,
+.spockify-dense .composer {
+  padding: 4px 6px;
+  gap: 3px;
+}
