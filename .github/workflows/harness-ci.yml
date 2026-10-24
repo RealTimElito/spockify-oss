@@ -1,0 +1,90 @@
+# Kernel, CLI, and production-secret checks on every PR.
+name: Harness CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  kernel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install ide-client + harness
+        run: |
+          npm install --prefix packages/spockify-ide-client
+          npm install --prefix packages/spockify-harness
+      - name: Install bubblewrap (isolation smoke)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y bubblewrap || true
+          if command -v bwrap >/dev/null 2>&1; then
+            bwrap --version
+          else
+            echo "bwrap missing; live isolation tests will skip"
+          fi
+      - name: Harness tests
+        run: npm test --prefix packages/spockify-harness
+      - name: Bwrap isolation smoke
+        working-directory: packages/spockify-harness
+        run: |
+          if ! command -v bwrap >/dev/null 2>&1; then
+            echo "skip: bwrap not installed"
+            exit 0
+          fi
+          npx tsx --test test/isolate.test.ts
+
+  cli:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install CLI workspace
+        run: |
+          npm install --prefix packages/spockify-ide-client
+          npm install --prefix packages/spockify-harness
+          npm install --prefix packages/spockify-harness-host
+          npm install --prefix packages/spockify-cli
+      - name: CLI tests
+        run: npm test --prefix packages/spockify-cli
+      - uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: v3.1.3
+      - name: Signed CycloneDX SBOM
+        run: |
+          chmod +x docker/sbom.sh docker/sign-sbom.sh docker/verify-sbom.sh \
+            docker/test/sbom.test.sh
+          bash docker/test/sbom.test.sh
+      - name: G6 SLO scrape + canary lock
+        run: |
+          chmod +x docker/slo-scrape.sh docker/test/slo.test.sh \
+            docker/test/canary-pack.test.sh
+          bash docker/test/slo.test.sh
+          bash docker/test/canary-pack.test.sh
+
+  production-secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholders pass in workstation mode
+        run: bash docker/check-production-secrets.sh
+      - name: Production profile checks
+        run: |
+          chmod +x docker/check-production-secrets.sh docker/restore-drill.sh \
+            docker/record-image-digests.sh docker/slo-scrape.sh \
+            docker/sign-sbom.sh docker/verify-sbom.sh docker/pilot-rehearsal.sh \
+            docker/test/production-profile.test.sh docker/test/slo.test.sh \
+            docker/test/canary-pack.test.sh docker/test/sbom.test.sh
+          bash docker/pilot-rehearsal.sh
