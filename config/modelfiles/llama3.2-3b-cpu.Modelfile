@@ -1,0 +1,5 @@
+# CPU-only alias of llama3.2:3b for OSS/laptop compose.
+# Keeps greetings/orchestrator off the GPU so chat/codestral can use VRAM.
+# keep_alive: warm via API/env (see docker/ollama-pull.sh), not a global forever.
+FROM llama3.2:3b
+PARAMETER num_gpu 0
