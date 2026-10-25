@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "id": "g4-promoted-models",
+  "auto": "spockify-auto",
+  "note": "Honest G4 deck. Promoted rows match coding-models.v1.json. Auto never selects pool:lab or unpublished ids. No cloud/:cloud tags. num_ctx is derived from Ollama/LiteLLM metadata; Auto/coding default stays gpt-oss-20b think=off. Catalog does not inject num_ctx on gpt-oss requests (Ollama default stands). LiteLLM already sends num_ctx for the Qwen 3.8 row.",
+  "hardware": {
+    "class": "single-tenant ~120Gi unified-memory NVIDIA workstation",
+    "video_gen": false,
+    "note": "Tool/stream claims are local OpenAI-compatible Ollama/LiteLLM. num_ctx values are copied from Ollama model_info / LiteLLM yaml, not GPU-measured."
+  },
+  "promoted": [
+    {
+      "id": "gpt-oss-20b",
+      "promoted": true,
+      "pool": "spark",
+      "role": "coder",
+      "auto_eligible": true,
+      "think_allowed": ["off", "low", "medium", "high"],
+      "tools": true,
+      "stream": true,
+      "context": "131072",
+      "num_ctx": 131072,
+      "num_ctx_source": "ollama /api/show model_info[\"gpt-oss.context_length\"]",
+      "notes": "Default Auto worker. think=off omitted. No heavy in coding think_allowed. Context from Ollama metadata; request option not injected."
+    },
+    {
+      "id": "gpt-oss-120b",
+      "promoted": true,
+      "pool": "spark",
+      "role": "coder",
+      "auto_eligible": true,
+      "think_allowed": ["off", "low", "medium", "high"],
+      "tools": true,
+      "stream": true,
+      "context": "131072",
+      "num_ctx": 131072,
+      "num_ctx_source": "ollama /api/show model_info[\"gpt-oss.context_length\"]",
+      "notes": "Auto may pick for multi-file / architecture. Evicted by user-selected devstral-2. Context from Ollama metadata; request option not injected."
+    },
+    {
+      "id": "qwen3.8-flash-next-ud-UD-Q3_K_XL",
+      "promoted": true,
+      "pool": "spark",
+      "role": "coder",
+      "auto_eligible": false,
+      "think_allowed": ["off", "low", "medium", "high"],
+      "tools": true,
+      "stream": true,
+      "context": "262144",
+      "num_ctx": 262144,
+      "num_ctx_source": "config/litellm.yaml litellm_params.num_ctx (GGUF context_length)",
+      "notes": "Explicit prod pin only. Auto never selects it. Large resident weight. LiteLLM already sends this num_ctx."
+    }
+  ],
+  "lab_only": [
+    {
+      "id": "devstral-small-2",
+      "promoted": false,
+      "pool": "lab",
+      "role": "coder",
+      "auto_eligible": false,
+      "think_allowed": ["off"],
+      "tools": true,
+      "stream": true,
+      "context": "not-pinned",
+      "notes": "Unpublished. No think=."
+    },
+    {
+      "id": "devstral-2",
+      "promoted": false,
+      "pool": "lab",
+      "role": "coder",
+      "auto_eligible": false,
+      "think_allowed": ["off"],
+      "tools": true,
+      "stream": true,
+      "context": "not-pinned",
+      "notes": "Unpublished. User pin evicts 120b-hot. No think=."
+    },
+    {
+      "id": "qwen3-coder-30b-a3b",
+      "promoted": false,
+      "pool": "eval",
+      "role": "coder",
+      "auto_eligible": false,
+      "think_allowed": ["off", "low", "medium", "high"],
+      "tools": true,
+      "stream": true,
+      "context": "not-pinned",
+      "ollama_tag": "qwen3-coder:30b-a3b-q4_K_M",
+      "notes": "Unpublished Instruct Q4/Q8. Not on public prod API. think= omitted (Instruct)."
+    }
+  ]
+}
