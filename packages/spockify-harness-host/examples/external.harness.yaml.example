@@ -1,0 +1,11 @@
+# Copy to ~/.spockify/harnesses/<id>.yaml
+id: external-example
+command: my-harness-binary
+args: ["--workspace", "{cwd}"]
+env:
+  OPENAI_BASE_URL: "{transport.baseUrl}"
+  OPENAI_API_KEY: "{transport.apiKey}"
+  OPENAI_MODEL: "{transport.model}"
+profile: v0
+tools: host
+label: External profile-v0 harness
