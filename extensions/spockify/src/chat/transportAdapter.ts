@@ -14,12 +14,36 @@ import { textFromContent } from './chatContent';
 import { codingPickerOptionsFromConfig } from './codingPickerConfig';
 import { mergePickerModels } from './modelCatalog';
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms,
+    );
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
 export function adaptModelTransport(
   transport: ModelTransport,
 ): ChatModelTransport {
   return {
     async listModels(): Promise<ModelInfo[]> {
-      const models = await transport.listModels({ ossOnly: true });
+      const cfg = codingPickerOptionsFromConfig();
+      // Prefer the unfiltered server list so custom / local models appear.
+      let models = await transport.listModels({ ossOnly: false });
+      if (!models.length) {
+        models = await transport.listModels({ ossOnly: true });
+      }
       const mapped = models
         .filter((m) => m?.id)
         .map((m) => ({
@@ -27,7 +51,9 @@ export function adaptModelTransport(
           label: m.name || m.id,
           oss: true,
         }));
-      return mergePickerModels(mapped, codingPickerOptionsFromConfig());
+      // Only merge the hard-coded catalog when the server returned nothing.
+      if (mapped.length) return mapped;
+      return mergePickerModels(mapped, cfg);
     },
 
     chatCompletions(
@@ -136,12 +162,28 @@ export function createFallbackChatTransport(
   return {
     async listModels(): Promise<ModelInfo[]> {
       try {
-        const live = await getLive();
-        if (live) return adaptModelTransport(live).listModels();
-      } catch {
-        /* mock */
+        const live = await withTimeout(getLive(), 8000, 'getLive');
+        if (live) {
+          const listed = await withTimeout(
+            adaptModelTransport(live).listModels(),
+            8000,
+            'listModels',
+          );
+          if (listed.length) return listed;
+        }
+      } catch (err) {
+        console.warn(
+          '[spockify] live listModels failed, using fallback catalog:',
+          err instanceof Error ? err.message : err,
+        );
       }
-      return mock.listModels();
+      const fallback = await mock.listModels();
+      return fallback.map((m) => ({
+        ...m,
+        label: m.label?.includes('(fallback)')
+          ? m.label
+          : `${m.label || m.id} (fallback)`,
+      }));
     },
 
     chatCompletions(

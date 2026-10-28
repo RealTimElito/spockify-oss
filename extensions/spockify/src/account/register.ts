@@ -66,13 +66,25 @@ export function registerAccountCommands(
     vscode.commands.registerCommand('spockify.listModels', async () => {
       const transport = await getTransport();
       if (!transport) {
+        void vscode.window.showErrorMessage(
+          'Not connected. Use Spockify: Sign In or set base URL + API key, then try again.',
+        );
         return;
       }
-      const models = await transport.listModels({ ossOnly: true });
+      let models = await transport.listModels({ ossOnly: true });
+      if (!models.length) {
+        models = await transport.listModels({ ossOnly: false });
+      }
       const ids = models.map((m) => m.id);
       output.appendLine(`models (${ids.length}): ${ids.join(', ')}`);
+      if (!ids.length) {
+        void vscode.window.showWarningMessage(
+          'Connected, but the server returned no models. Check your base URL and that models are loaded on the stack.',
+        );
+        return;
+      }
       void vscode.window.showInformationMessage(
-        `Spockify: ${ids.length} OSS models (Output → Spockify)`,
+        `Spockify: ${ids.length} models — ${ids.slice(0, 8).join(', ')}${ids.length > 8 ? '…' : ''} (full list in Output → Spockify)`,
       );
     }),
   );

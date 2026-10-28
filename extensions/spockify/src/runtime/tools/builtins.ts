@@ -465,6 +465,132 @@ export function registerBuiltinTools(
       return { ok: true, content: text || '(no errors or warnings)' };
     },
   );
+
+  registry.register(
+    {
+      name: 'git_status',
+      description:
+        'Show a short git status and recent log for the workspace. ' +
+        'Use before writing commit messages or reviewing what changed.',
+      parameters: { type: 'object', properties: {} },
+      mutates: false,
+      source: 'builtin',
+    },
+    async (_args, ctx) => {
+      const { execFile } = await import('child_process');
+      const { promisify } = await import('util');
+      const exec = promisify(execFile);
+      const cwd = ctx.cwd || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!cwd) return { ok: false, content: '', error: 'no workspace' };
+      try {
+        const status = await exec('git', ['status', '-sb'], { cwd });
+        const log = await exec('git', ['log', '-5', '--oneline'], { cwd });
+        return {
+          ok: true,
+          content: `status:\n${status.stdout}\nrecent:\n${log.stdout}`,
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          content: '',
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+  );
+
+  registry.register(
+    {
+      name: 'open_file',
+      description:
+        'Open a workspace file in the editor (optionally at a line). ' +
+        'Use when the user asks to see or jump to a file.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Workspace-relative or absolute path' },
+          line: { type: 'number', description: '1-based line to reveal' },
+        },
+        required: ['path'],
+      },
+      mutates: false,
+      source: 'builtin',
+    },
+    async (args) => {
+      const raw = String(args.path || '').trim();
+      if (!raw) return { ok: false, content: '', error: 'path required' };
+      const folder = vscode.workspace.workspaceFolders?.[0];
+      const uri = raw.startsWith('/')
+        ? vscode.Uri.file(raw)
+        : vscode.Uri.joinPath(folder?.uri ?? vscode.Uri.file('/'), raw);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const line = Math.max(0, Number(args.line || 1) - 1);
+      await vscode.window.showTextDocument(doc, {
+        selection: new vscode.Range(line, 0, line, 0),
+      });
+      return { ok: true, content: `opened ${raw}` };
+    },
+  );
+
+  registry.register(
+    {
+      name: 'workspace_info',
+      description:
+        'Summarize the open workspace: folders, open editors, and active file. ' +
+        'Useful at the start of a task to orient.',
+      parameters: { type: 'object', properties: {} },
+      mutates: false,
+      source: 'builtin',
+    },
+    async () => {
+      const folders = (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath);
+      const editors = vscode.window.visibleTextEditors.map(
+        (e) => vscode.workspace.asRelativePath(e.document.uri),
+      );
+      const active = vscode.window.activeTextEditor
+        ? vscode.workspace.asRelativePath(vscode.window.activeTextEditor.document.uri)
+        : '(none)';
+      return {
+        ok: true,
+        content: [
+          `folders: ${folders.join(', ') || '(none)'}`,
+          `active: ${active}`,
+          `open: ${editors.join(', ') || '(none)'}`,
+        ].join('\n'),
+      };
+    },
+  );
+
+  registry.register(
+    {
+      name: 'search_symbols',
+      description:
+        'Search workspace symbols by name (functions, classes, types). ' +
+        'Faster than grep when you know the symbol name.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Symbol name or prefix' },
+        },
+        required: ['query'],
+      },
+      mutates: false,
+      source: 'builtin',
+    },
+    async (args) => {
+      const query = String(args.query || '').trim();
+      if (!query) return { ok: false, content: '', error: 'query required' };
+      const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+        'vscode.executeWorkspaceSymbolProvider',
+        query,
+      );
+      const lines = (symbols || []).slice(0, 30).map((s) => {
+        const rel = vscode.workspace.asRelativePath(s.location.uri);
+        return `${s.name} (${rel}:${s.location.range.start.line + 1})`;
+      });
+      return { ok: true, content: lines.join('\n') || '(no symbols)' };
+    },
+  );
 }
 
 /** Tokens from a free-text query suitable as grep patterns (broaden on thin index). */

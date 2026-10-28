@@ -187,9 +187,13 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
           e.affectsConfiguration('spockify.agentPermissionMode') ||
           e.affectsConfiguration('spockify.chat.maxMode') ||
           e.affectsConfiguration('spockify.chat.thinking') ||
-          e.affectsConfiguration('spockify.agent.mode')
+          e.affectsConfiguration('spockify.agent.mode') ||
+          e.affectsConfiguration('spockify.baseUrl') ||
+          e.affectsConfiguration('spockify.models') ||
+          e.affectsConfiguration('spockify.defaultModel')
         ) {
           this.postModelPrefs();
+          void this.refreshModels();
         }
       }),
     );
@@ -204,6 +208,9 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     this.signedIn = signedIn;
     this.accountLabel = accountLabel;
     this.post({ type: 'auth', signedIn, accountLabel });
+    // Credentials just changed — re-fetch models so the sidebar leaves the
+    // hard-coded fallback as soon as the server is reachable.
+    void this.refreshModels();
   }
 
   /**
@@ -1180,7 +1187,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     this.syncActiveTabStreamingUi();
   }
 
-  /** Catalog for the model menu — never return empty when signed in. */
+  /** Catalog for the model menu — prefer the live server list. */
   private async loadModelsForPicker(): Promise<ModelInfo[]> {
     let models: ModelInfo[] = [];
     try {
@@ -1190,7 +1197,19 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
         `[chat] listModels failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
-    models = (models || []).filter((m) => m && m.id && m.oss !== false);
+    models = (models || []).filter((m) => m && m.id);
+    // If the transport returned real server models (not the labeled fallback),
+    // show them as-is. mergePickerModels always injects the hard-coded catalog
+    // and then filters to old coding pins, which is why the sidebar looked wrong.
+    const looksLikeFallback =
+      models.length > 0 &&
+      models.every(
+        (m) =>
+          typeof m.label === 'string' && m.label.includes('(fallback)'),
+      );
+    if (models.length && !looksLikeFallback) {
+      return models;
+    }
     return mergePickerModels(models, codingPickerOptionsFromConfig());
   }
 

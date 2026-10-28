@@ -76,8 +76,16 @@ function registerWorkspaceSkillTools(
         mutates: false,
       },
       async (args, ctx) => {
-        const skills = await harness.loadSkills(skillsDir(args, ctx.cwd));
-        const text = skills.map((s) => `${s.id}: ${s.title}`).join('\n');
+        const local = await harness.loadSkills(skillsDir(args, ctx.cwd));
+        const bundled = await harness.loadSkills(
+          require('path').join(
+            ctx.extensionPath || '',
+            'bundled-skills',
+          ),
+        ).catch(() => []);
+        const seen = new Set(local.map((s) => s.id));
+        const all = [...local, ...bundled.filter((s) => !seen.has(s.id))];
+        const text = all.map((s) => `${s.id}: ${s.title}`).join('\n');
         return { ok: true, content: text || '(no skills)' };
       },
     );

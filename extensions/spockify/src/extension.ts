@@ -56,6 +56,7 @@ import { registerAgentRuntime } from './runtime';
 import { registerSync } from './sync';
 import { registerUpdateCheck } from './update';
 import { registerSettings } from './settings';
+import { seedBundledSkills } from './skills/seedBundled';
 import { registerLabAgents } from './lab/register';
 import {
   registerChatPanel,
@@ -72,6 +73,25 @@ interface ResolveOptions {
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel('Spockify');
   context.subscriptions.push(output);
+
+  // Register Settings before anything else so the command always exists.
+  // The handler is a mutable delegate so we can wire the real panel later
+  // without double-registering.
+  let openSettingsImpl: (section?: string) => Promise<void> = async () => {
+    await vscode.commands.executeCommand('workbench.action.openSettings', 'spockify');
+  };
+  context.subscriptions.push(
+    vscode.commands.registerCommand('spockify.settings.open', async (section?: string) => {
+      await openSettingsImpl(section);
+    }),
+  );
+  // Status-bar gear points at the same command.
+  const gear = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 101);
+  gear.text = '$(gear)';
+  gear.tooltip = 'Spockify Settings';
+  gear.command = 'spockify.settings.open';
+  gear.show();
+  context.subscriptions.push(gear);
   const remote = vscode.env.remoteName ?? 'local';
   output.appendLine(
     `Spockify extension activating… remote=${remote} (AI → configured base URL)`,
@@ -158,9 +178,25 @@ export function activate(context: vscode.ExtensionContext): void {
   const getTransportQuiet = (): Promise<ModelTransport | undefined> =>
     resolveTransport({ promptIfMissing: false });
 
+  // Wire the real settings panel now that deps exist.
+  openSettingsImpl = async (section?: string) => {
+    const { openSettingsPanel } = await import('./settings/SettingsPanel');
+    await openSettingsPanel(
+      { context, output, refreshAuthUi, getTransport: getTransportQuiet },
+      section as import('./settings/protocol').SettingsSectionId | undefined,
+    );
+  };
+
   // Chat commands first so palette entries work even if later setup throws.
   let chatProvider: ReturnType<typeof registerChatPanel>['provider'] | undefined;
   registerChatCommand(context, getTransport, output, () => chatProvider);
+
+  // Seed bundled skills into the workspace (never overwrites).
+  void seedBundledSkills(context, output).catch((err) =>
+    output.appendLine(`[skills] seed failed: ${err}`),
+  );
+
+  // Settings already registered at the top of activate().
 
   try {
     activateRest(context, {
@@ -304,12 +340,7 @@ function activateRest(
     refreshAuthUi,
   });
   registerUpdateCheck(context, output);
-  registerSettings({
-    context,
-    output,
-    refreshAuthUi,
-    getTransport: getTransportQuiet,
-  });
+  // Settings already registered in activate() so the command exists even on partial startup.
 
   const checkpointStore = registerCheckpointCommands(context, output);
   const applyService = getApplyService(context);
