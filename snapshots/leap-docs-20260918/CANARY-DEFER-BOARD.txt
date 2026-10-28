@@ -1,0 +1,7 @@
+ts=2026-09-18T16:31:51Z
+status=DEFER
+reason=lite-full-20260917 board holds gpt-oss-20b on Spark LiteLLM :24001
+gate_script=scripts/canary_gate.sh
+pack=packs/canary-v1.json
+sha=d62736d
+host=spock
