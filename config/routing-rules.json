@@ -1,0 +1,204 @@
+{
+  "version": "1.3",
+  "orchestrator": {
+    "primary": "nemotron-3-nano:4b",
+    "fallback": "llama3.2:3b",
+    "heavy": "gemma4:12b",
+    "alias": "spockify-auto",
+    "prompt_configmap": "orchestrator-prompt"
+  },
+  "backends": {
+    "ollama": {
+      "api_base_env": "OLLAMA_API_BASE",
+      "default": "http://ollama.spockify.svc.cluster.local:11434"
+    },
+    "vllm": {
+      "api_base_env": "VLLM_API_BASE",
+      "default": "http://vllm.spockify.svc.cluster.local:8000",
+      "api_key_env": "VLLM_API_KEY"
+    }
+  },
+  "web_search": {
+    "provider": "searxng",
+    "internal_url": "http://searxng.spockify.svc.cluster.local:8080",
+    "litellm_tool": "spockify-searxng",
+    "delegate_before_answer": true,
+    "router_service": "spockify-router:4100",
+    "fast_mode": true
+  },
+  "excluded_providers": [
+    "deepseek",
+    "yi",
+    "baichuan",
+    "chatglm",
+    "internlm",
+    "glm",
+    "kimi-k2.6:cloud",
+    "kimi-k2.7-code:cloud"
+  ],
+  "task_routes": [
+    {
+      "task_type": "casual_chat",
+      "patterns": ["hello", "hi ", "hey", "how are you", "good morning", "good evening", "what's up", "thanks", "thank you", "greetings"],
+      "model": "llama3.2-3b",
+      "confidence": 0.92,
+      "fallback_model": "gemma4-12b",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "code_generation",
+      "patterns": ["write code", "implement", "refactor", "debug", "fix bug", "unit test", "python script", "typescript", "fibonacci", "write a function", "create a class"],
+      "model": "gpt-oss-120b",
+      "fallback_model": "gpt-oss-20b",
+      "confidence": 0.9,
+      "backend": "ollama",
+      "prompt_additions": "Write complete runnable code. No outlines or refusals. Prefer correctness over cleverness."
+    },
+    {
+      "task_type": "code_review",
+      "patterns": ["review code", "code review", "pull request"],
+      "model": "gpt-oss-120b",
+      "fallback_model": "gpt-oss-20b",
+      "confidence": 0.88,
+      "backend": "ollama",
+      "prompt_additions": "Be specific: cite issues with severity, impact, and a concrete fix. Do not invent bugs."
+    },
+    {
+      "task_type": "web_search",
+      "patterns": ["github", "gitlab", "documentation", "docs for", "api docs", "read the manual", "look up", "latest version", "release notes", "weather", "forecast", "forecast for", "coming week", "this week", "per day", "day by day", "temperature", "news today", "headlines", "stock price", "exchange rate", "sports score", "who won", "winner of", "eurovision", "current events", "breaking news", "price of", "crypto price", "news", "today", "tomorrow"],
+      "model": "web-gemma",
+      "confidence": 0.9,
+      "backend": "ollama"
+    },
+    {
+      "task_type": "web_search",
+      "patterns": ["latest", "CVE", "current version", "search web", "http://", "https://"],
+      "model": "web-codestral",
+      "confidence": 0.9,
+      "backend": "ollama"
+    },
+    {
+      "task_type": "architecture",
+      "patterns": ["architecture", "system design", "trade-offs", "design doc", "how should I structure"],
+      "model": "gpt-oss-120b",
+      "confidence": 0.9,
+      "fallback_model": "gemma4-31b",
+      "backend": "ollama",
+      "prompt_additions": "State assumptions, compare 2–3 options with trade-offs, then recommend one. Be decisive when evidence supports it."
+    },
+    {
+      "task_type": "deep_reasoning",
+      "patterns": ["deep dive", "comprehensive analysis", "thorough review", "in-depth", "think carefully", "reason step"],
+      "model": "gpt-oss-120b",
+      "confidence": 0.88,
+      "fallback_model": "gemma4-31b",
+      "backend": "ollama",
+      "prompt_additions": "Lead with the conclusion. Show key reasoning briefly. Flag any uncertain steps."
+    },
+    {
+      "task_type": "math_reasoning",
+      "patterns": ["prove", "theorem", "equation", "integral", "calculus", "algebra", "math problem"],
+      "model": "mathstral",
+      "confidence": 0.88,
+      "fallback_model": "gemma4-31b",
+      "backend": "ollama",
+      "prompt_additions": "Show steps clearly. Check the final answer against the problem statement before finishing."
+    },
+    {
+      "task_type": "reasoning",
+      "patterns": ["analyze", "compare", "evaluate", "plan", "pros and cons", "should I", "explain why"],
+      "model": "gemma4-31b",
+      "confidence": 0.85,
+      "fallback_model": "gemma4-26b",
+      "backend": "ollama",
+      "prompt_additions": "Be structured and decisive. Prefer a clear recommendation over a vague list."
+    },
+    {
+      "task_type": "fast_chat",
+      "patterns": ["summarize", "quick", "short answer", "tl;dr", "in one sentence"],
+      "model": "gemma4-12b",
+      "confidence": 0.9,
+      "fallback_model": "llama3.1-8b",
+      "backend": "ollama",
+      "prompt_additions": "Be brief and dense. No preamble."
+    },
+    {
+      "task_type": "agentic_planning",
+      "patterns": ["multi-step", "agent", "orchestrate", "workflow", "step by step plan"],
+      "model": "gpt-oss-120b",
+      "confidence": 0.85,
+      "fallback_model": "gemma4-31b",
+      "backend": "ollama",
+      "prompt_additions": "Give an ordered plan with concrete next actions. Call out risks and unknowns."
+    },
+    {
+      "task_type": "nvidia_chat",
+      "patterns": ["nemotron", "nvidia model"],
+      "model": "nemotron-70b",
+      "confidence": 0.85,
+      "fallback_model": "gemma4-31b",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "explicit_model",
+      "patterns": [
+        "talk to qwen",
+        "let me talk to qwen",
+        "use qwen",
+        "switch to qwen",
+        "chat with qwen",
+        "speak to qwen"
+      ],
+      "model": "qwen3.5-9b",
+      "confidence": 0.95,
+      "fallback_model": "qwen3.6-35b",
+      "backend": "ollama",
+      "prompt_additions": "You are local qwen3.5-9b on Spockify (on-device). Help the user."
+    },
+    {
+      "task_type": "explicit_model",
+      "patterns": ["talk to gpt-oss", "use gpt-oss", "switch to gpt-oss", "use gpt oss"],
+      "model": "gpt-oss-120b",
+      "confidence": 0.95,
+      "fallback_model": "gpt-oss-20b",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "explicit_model",
+      "patterns": ["talk to gemma", "use gemma", "switch to gemma"],
+      "model": "gemma4-12b",
+      "confidence": 0.95,
+      "fallback_model": "gemma4-31b",
+      "backend": "ollama"
+    },
+    {
+      "task_type": "explicit_model",
+      "patterns": ["talk to magistral", "use magistral", "switch to magistral"],
+      "model": "magistral",
+      "confidence": 0.95,
+      "backend": "ollama"
+    },
+    {
+      "task_type": "multilingual_chat",
+      "patterns": ["translate to chinese", "translate to japanese", "translate to korean", "in chinese", "in japanese", "用中文", "日本語で"],
+      "model": "qwen3.5-9b",
+      "confidence": 0.84,
+      "fallback_model": "qwen3.6-35b",
+      "backend": "ollama"
+    }
+  ],
+  "model_groups": {
+    "code": ["gpt-oss-20b", "codestral", "codestral-latest", "codestral-vllm", "qwen3.6-coder-27b"],
+    "chat": ["gemma4-12b", "gemma4-31b", "gemma4-26b", "spockify-chat", "llama3.2-3b", "llama3.1-8b", "mistral-nemo", "phi4", "qwen3.5-9b"],
+    "reasoning": ["gpt-oss-120b", "gpt-oss-20b", "gemma4-31b", "gemma4-26b", "llama3.3-70b", "nemotron-70b", "gemma4-27b", "gemma4-12b", "mixtral-8x7b", "nemotron-nano-30b", "qwen3.6-35b", "qwen3.6-27b"],
+    "fast": ["spockify-chat", "llama3.2-3b", "phi4", "phi4-mini", "nemotron-nano-4b", "nemotron-mini", "llama3.1-8b", "gemma4-12b"],
+    "web": ["web-codestral", "web-gemma", "web-llama"],
+    "xlarge": ["gpt-oss-120b", "llama3.3-70b", "nemotron-70b", "mixtral-8x7b", "gemma4-31b", "gemma4-26b", "nemotron-nano-30b", "qwen3.6-35b"]
+  },
+  "default_route": {
+    "model": "gemma4-12b",
+    "fallback_model": "llama3.1-8b",
+    "backend": "ollama",
+    "prompt_additions": "Answer clearly and accurately. Search public facts before asserting them. Ask when only the user knows. Hedge only when truly uncertain."
+  }
+}
