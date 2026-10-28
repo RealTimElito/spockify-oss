@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spockify — self-hosted coding stack</title>
+  <meta name="description" content="Self-hosted coding stack for open-weight models. One kernel. Your GPUs." />
+  <link rel="icon" type="image/png" href="/ide/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <div class="grid-drift" aria-hidden="true"></div>
+
+  <header class="top">
+    <a class="brand-mark" href="./">
+      <img src="/ide/logo-128.png" width="36" height="36" alt="" />
+      <span>Spockify</span>
+    </a>
+    <nav>
+      <a href="/ide">IDE</a>
+      <a href="/self-host">Self-host</a>
+      <a href="/product">Product</a>
+      <a class="nav-cta" href="/chat">Sign in</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Self-hosted coding stack for open-weight models. One kernel. Your GPUs.</h1>
+      <p class="lede">
+        Chat, IDE, and CLI on LiteLLM. Default harness is Spockify.
+        Wichy-class tool loops and OpenHands-class SWE sandboxes are optional backends — not the product.
+      </p>
+      <div class="cta-row">
+        <a class="btn primary" href="/self-host">Self-host</a>
+        <a class="btn ghost" href="/ide">Download IDE</a>
+        <a class="btn ghost" href="/chat">Sign in</a>
+      </div>
+      <p class="meta">
+        Wichy is a local tool framework. OpenHands is a SWE sandbox.
+        Spockify is the environment both can plug into — default loop included.
+      </p>
+    </section>
+
+    <section class="pools" aria-label="Pools">
+      <h2>Three pools</h2>
+      <ul>
+        <li><strong>Chat</strong> — UI and router. No SWE on this ingress.</li>
+        <li><strong>Coding sessions</strong> — One runHarness process per session.</li>
+        <li><strong>Eval</strong> — Canary and slices. Never the chat ingress.</li>
+      </ul>
+      <p>More GPUs add sessions. They do not raise pass@1. Quality is model × harness × slice.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>No cloud default. This page is static. Sign in opens chat at <a href="/chat">/chat</a>.</p>
+  </footer>
+</body>
+</html>
