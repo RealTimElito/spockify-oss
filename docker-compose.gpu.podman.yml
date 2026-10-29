@@ -1,0 +1,29 @@
+# Podman NVIDIA CDI overlay (Fedora). Applied by ./docker/run.sh --gpu ONLY when
+# CDI is proven resolvable: `nvidia-ctk cdi list` shows nvidia.com/gpu=all|0 AND
+# `podman run --device nvidia.com/gpu=…` succeeds. File existence alone is NOT
+# enough. Default path is docker-compose.gpu.podman.devices.yml (/dev/nvidia*).
+#
+# Host setup (once) — for the optional CDI path:
+#   sudo dnf install -y nvidia-container-toolkit
+#   sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+#   sudo nvidia-ctk runtime configure --runtime=podman
+#   sudo systemctl --user restart podman.socket
+#   nvidia-ctk cdi list   # expect nvidia.com/gpu=all
+# SELinux: sudo setsebool -P container_use_devices on
+#
+# Verify after make gpu:
+#   podman exec "$(podman ps -qf name=ollama | head -1)" nvidia-smi
+#   podman exec "$(podman ps -qf name=ollama | head -1)" ollama ps
+
+name: spockify
+
+services:
+  # Nesting: devices under services.ollama (Compose service key). Correct for
+  # podman-compose CDI; do not put devices under deploy.resources.
+  ollama:
+    devices:
+      - nvidia.com/gpu=all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      OLLAMA_FLASH_ATTENTION: "1"

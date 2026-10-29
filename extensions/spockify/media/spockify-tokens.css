@@ -1,0 +1,33 @@
+/* Spockify workbench accent tokens (extension-contributed webviews).
+ * Crisp teal on deep navy — avoid neon bloom / soft opacity text. */
+
+:root {
+  --spockify-brand: #1aa89c;
+  --spockify-brand-bright: #2dd4bf;
+  --spockify-brand-muted: rgba(45, 212, 191, 0.16);
+  --spockify-ink: #f0f4fa;
+  --spockify-muted: #a8b4c4;
+  --spockify-bg: #080e14;
+  --spockify-bg-elev: #101925;
+  --spockify-amber: #ffb454;
+  --spockify-danger: #ff6b6b;
+  --spockify-density: 8px;
+  --spockify-radius: 4px;
+  --spockify-font-xs: 11px;
+  --spockify-font-sm: 12px;
+}
+
+.spockify-accent-border {
+  border-left: 2px solid var(--spockify-brand-bright);
+}
+
+.spockify-dense {
+  font-size: var(--spockify-font-sm);
+  line-height: 1.35;
+}
+
+.spockify-dense .header,
+.spockify-dense .composer {
+  padding: 4px 6px;
+  gap: 3px;
+}
