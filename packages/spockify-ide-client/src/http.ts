@@ -91,6 +91,13 @@ export function normalizeBaseUrl(baseUrl?: string): string {
   return normalizeProductBaseUrl(baseUrl);
 }
 
+/** Strip a leading "Bearer" prefix (case-insensitive) and trim. */
+function normalizeApiKey(raw: string | undefined | null): string {
+  return String(raw || '')
+    .replace(/^Bearer\s+/i, '')
+    .trim();
+}
+
 export class SpockifyHttpClient {
   readonly baseUrl: string;
   private readonly apiKey: string;
@@ -98,7 +105,7 @@ export class SpockifyHttpClient {
 
   constructor(options: SpockifyClientOptions = {}) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl);
-    this.apiKey = (options.apiKey || '').trim();
+    this.apiKey = normalizeApiKey(options.apiKey);
     this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
@@ -110,9 +117,10 @@ export class SpockifyHttpClient {
     return `${this.baseUrl}/v1`;
   }
 
-    authHeaders(init?: HeadersInit): Headers {
+  authHeaders(init?: HeadersInit): Headers {
     const headers = new Headers(init);
     if (this.apiKey) {
+      // Always a single "Bearer " prefix; never "Bearer Bearer sk-…"
       headers.set('Authorization', `Bearer ${this.apiKey}`);
     }
     if (!headers.has('X-Spockify-Client')) {
