@@ -28,6 +28,13 @@ function baseUrl(): string {
   ).replace(/\/$/, '');
 }
 
+/** Strip a leading "Bearer" prefix (case-insensitive) and trim. */
+function normalizeApiKey(raw: string | undefined | null): string {
+  return String(raw || '')
+    .replace(/^Bearer\s+/i, '')
+    .trim();
+}
+
 export async function searchWeb(
   context: vscode.ExtensionContext,
   query: string,
@@ -36,7 +43,7 @@ export async function searchWeb(
   const q = query.trim();
   if (!q) return [];
 
-  const key = await getApiKey(context);
+  const key = normalizeApiKey(await getApiKey(context));
   if (!key) {
     throw new Error('Sign in to Spockify to use web search');
   }
@@ -78,7 +85,7 @@ export async function fetchWebUrl(
     return { ok: false, url: '', error: 'url required' };
   }
 
-  const key = await getApiKey(context);
+  const key = normalizeApiKey(await getApiKey(context));
   if (!key) {
     return {
       ok: false,
