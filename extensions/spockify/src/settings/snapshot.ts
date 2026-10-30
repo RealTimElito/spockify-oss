@@ -42,6 +42,13 @@ export function maskSecret(secret: string | undefined): string {
   return `${s.slice(0, 4)}…${s.slice(-4)}`;
 }
 
+/** Strip a leading "Bearer" prefix (case-insensitive) and trim. */
+function normalizeApiKey(raw: string | undefined | null): string {
+  return String(raw || '')
+    .replace(/^Bearer\s+/i, '')
+    .trim();
+}
+
 export async function fetchUsageSnapshot(
   baseUrl: string,
   apiKey: string | undefined,
@@ -51,7 +58,8 @@ export async function fetchUsageSnapshot(
     message:
       'Usage appears here when your Spockify server exposes the account quota API. Admins can use the chat Usage dashboard today.',
   };
-  if (!apiKey?.trim()) {
+  const token = normalizeApiKey(apiKey);
+  if (!token) {
     return {
       ...placeholder,
       message: 'Sign in to load usage when the account quota endpoint is ready.',
@@ -65,7 +73,7 @@ export async function fetchUsageSnapshot(
       method: 'GET',
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${apiKey.trim()}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     if (!res.ok) {
