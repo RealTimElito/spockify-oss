@@ -1,0 +1,106 @@
+{
+  "pack": "route-v1",
+  "n": 108,
+  "policies": {
+    "always-20b": {
+      "family_accuracy": 0.8981,
+      "regret_cost_units": -55.5,
+      "violations": 0,
+      "escalation_precision": 1.0,
+      "escalation_recall": 0.0,
+      "buckets": {
+        "easy": {
+          "n": 66,
+          "oracle_model_match_rate": 0.9848
+        },
+        "hard": {
+          "n": 17,
+          "oracle_model_match_rate": 0.4118
+        },
+        "policy": {
+          "n": 15,
+          "oracle_model_match_rate": 1.0
+        },
+        "tab": {
+          "n": 10,
+          "oracle_model_match_rate": 0.0
+        }
+      }
+    },
+    "always-120b-high": {
+      "family_accuracy": 0.8981,
+      "regret_cost_units": 484.5,
+      "violations": 0,
+      "escalation_precision": 0.0926,
+      "escalation_recall": 1.0,
+      "buckets": {
+        "easy": {
+          "n": 66,
+          "oracle_model_match_rate": 0.0
+        },
+        "hard": {
+          "n": 17,
+          "oracle_model_match_rate": 0.5882
+        },
+        "policy": {
+          "n": 15,
+          "oracle_model_match_rate": 0.0
+        },
+        "tab": {
+          "n": 10,
+          "oracle_model_match_rate": 0.0
+        }
+      }
+    },
+    "auto": {
+      "family_accuracy": 1.0,
+      "regret_cost_units": 35.0,
+      "violations": 0,
+      "escalation_precision": 0.5882,
+      "escalation_recall": 1.0,
+      "buckets": {
+        "easy": {
+          "n": 66,
+          "oracle_model_match_rate": 1.0
+        },
+        "hard": {
+          "n": 17,
+          "oracle_model_match_rate": 0.5882
+        },
+        "policy": {
+          "n": 15,
+          "oracle_model_match_rate": 1.0
+        },
+        "tab": {
+          "n": 10,
+          "oracle_model_match_rate": 1.0
+        }
+      }
+    },
+    "lab-orch-default": {
+      "family_accuracy": 0.8981,
+      "regret_cost_units": 29.5,
+      "violations": 0,
+      "escalation_precision": 0.5882,
+      "escalation_recall": 1.0,
+      "buckets": {
+        "easy": {
+          "n": 66,
+          "oracle_model_match_rate": 0.9848
+        },
+        "hard": {
+          "n": 17,
+          "oracle_model_match_rate": 0.5882
+        },
+        "policy": {
+          "n": 15,
+          "oracle_model_match_rate": 1.0
+        },
+        "tab": {
+          "n": 10,
+          "oracle_model_match_rate": 0.0
+        }
+      }
+    }
+  }
+}

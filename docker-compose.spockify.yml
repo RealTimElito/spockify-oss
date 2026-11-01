@@ -1,0 +1,4 @@
+# Back-compat name for older docs. Same stack as docker-compose.yml:
+#   docker compose up -d --build
+include:
+  - path: docker-compose.yml

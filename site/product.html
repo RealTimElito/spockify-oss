@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spockify product — runHarness + plugin v0</title>
+  <meta name="description" content="One kernel: runHarness. Optional plugin harness profile v0." />
+  <link rel="icon" type="image/png" href="/ide/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <div class="grid-drift" aria-hidden="true"></div>
+
+  <header class="top">
+    <a class="brand-mark" href="./">
+      <img src="/ide/logo-128.png" width="36" height="36" alt="" />
+      <span>Spockify</span>
+    </a>
+    <nav>
+      <a href="/ide">IDE</a>
+      <a href="/self-host">Self-host</a>
+      <a class="nav-cta" href="/chat">Sign in</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>One kernel. Optional plugins.</h1>
+      <p class="lede">
+        CLI, IDE, and lab share <code>@spockify/harness</code> <strong>runHarness</strong>.
+        That is the product loop — not a second Python tool runtime.
+      </p>
+    </section>
+
+    <section class="pools" aria-label="Product">
+      <h2>runHarness</h2>
+      <ul>
+        <li><strong>Default</strong> — in-process Spockify kernel for read / shell / edit.</li>
+        <li><strong>Clients</strong> — <code>spockify</code> CLI, desktop IDE, and lab all call the same loop.</li>
+        <li><strong>Phase 4</strong> — Done. Phase 5 eval stays Partial until scored SWE rides this kernel.</li>
+      </ul>
+      <h2>Plugin profile v0</h2>
+      <ul>
+        <li><strong>Opt-in</strong> — yaml under <code>~/.spockify/harnesses/</code> or project <code>.spockify/harness.yaml</code>.</li>
+        <li><strong>P4</strong> — Done. Missing or broken plugin command falls back to the Spockify kernel.</li>
+        <li><strong>Default stays kernel</strong> — plugins do not replace runHarness unless you select one.</li>
+      </ul>
+      <p>More GPUs add sessions. They do not raise pass@1. Quality is model × harness × slice.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="/self-host">Self-host</a>
+        <a class="btn ghost" href="/chat">Sign in</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><a href="./">Home</a> · <a href="/self-host">Self-host</a> · <a href="/chat">Sign in</a></p>
+  </footer>
+</body>
+</html>

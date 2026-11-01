@@ -1,0 +1,314 @@
+{
+	"nameShort": "Spockify IDE",
+	"nameLong": "Spockify IDE",
+	"applicationName": "spockify-ide",
+	"dataFolderName": ".spockify-ide",
+	"sharedDataFolderName": ".spockify-ide-shared",
+	"win32MutexName": "spockifyide",
+	"licenseName": "MIT",
+	"licenseUrl": "https://github.com/microsoft/vscode/blob/main/LICENSE.txt",
+	"serverLicenseUrl": "https://github.com/microsoft/vscode/blob/main/LICENSE.txt",
+	"serverGreeting": [],
+	"serverLicense": [],
+	"serverLicensePrompt": "",
+	"serverApplicationName": "spockify-ide-server",
+	"serverDataFolderName": ".spockify-ide-server",
+	"tunnelApplicationName": "spockify-ide-tunnel",
+	"win32DirName": "Spockify IDE",
+	"win32NameVersion": "Spockify IDE",
+	"win32RegValueName": "SpockifyIDE",
+	"win32x64AppId": "{{D77B7E06-80BA-4137-BCF4-654B95CCEBC5}",
+	"win32arm64AppId": "{{D1ACE434-89C5-48D1-88D3-E2991DF85475}",
+	"win32x64UserAppId": "{{CC6B787D-37A0-49E8-AE24-8559A032BE0C}",
+	"win32arm64UserAppId": "{{3AEBF0C8-F733-4AD4-BADE-FDB816D53D7B}",
+	"win32AppUserModelId": "eu.spockify.ide",
+	"win32ShellNameShort": "S&pockify IDE",
+	"win32TunnelServiceMutex": "vscodeoss-tunnelservice",
+	"win32TunnelMutex": "vscodeoss-tunnel",
+	"darwinBundleIdentifier": "eu.spockify.ide",
+	"darwinProfileUUID": "47827DD9-4734-49A0-AF80-7E19B11495CC",
+	"darwinProfilePayloadUUID": "CF808BE7-53F3-46C6-A7E2-7EDB98A5E959",
+	"linuxIconName": "spockify-ide",
+	"licenseFileName": "LICENSE.txt",
+	"reportIssueUrl": "https://github.com/microsoft/vscode/issues/new",
+	"nodejsArtifactFeed": "",
+	"electronArtifactFeed": "",
+	"urlProtocol": "spockify-ide",
+	"agentsTelemetryAppName": "agents",
+	"webviewContentExternalBaseUrlTemplate": "https://{{uuid}}.vscode-cdn.net/insider/ef65ac1ba57f57f2a3961bfe94aa20481caca4c6/out/vs/workbench/contrib/webview/browser/pre/",
+	"builtInExtensions": [
+		{
+			"name": "ms-vscode.js-debug-companion",
+			"version": "1.1.3",
+			"sha256": "7380a890787452f14b2db7835dfa94de538caf358ebc263f9d46dd68ac52de93",
+			"repo": "https://github.com/microsoft/vscode-js-debug-companion",
+			"metadata": {
+				"id": "99cb0b7f-7354-4278-b8da-6cc79972169d",
+				"publisherId": {
+					"publisherId": "5f5636e7-69ed-4afe-b5d6-8d231fb3d3ee",
+					"publisherName": "ms-vscode",
+					"displayName": "Microsoft",
+					"flags": "verified"
+				},
+				"publisherDisplayName": "Microsoft"
+			}
+		},
+		{
+			"name": "ms-vscode.js-debug",
+			"version": "1.117.0",
+			"sha256": "854eeb8a785b1f41ba2bd02d7ccd4fdbe10021b61473293973c7e96d036c7fb8",
+			"repo": "https://github.com/microsoft/vscode-js-debug",
+			"metadata": {
+				"id": "25629058-ddac-4e17-abba-74678e126c5d",
+				"publisherId": {
+					"publisherId": "5f5636e7-69ed-4afe-b5d6-8d231fb3d3ee",
+					"publisherName": "ms-vscode",
+					"displayName": "Microsoft",
+					"flags": "verified"
+				},
+				"publisherDisplayName": "Microsoft"
+			}
+		},
+		{
+			"name": "ms-vscode.vscode-js-profile-table",
+			"version": "1.0.10",
+			"sha256": "7361748ddf9fd09d8a2ed1f2a2d7376a2cf9aae708692820b799708385c38e08",
+			"repo": "https://github.com/microsoft/vscode-js-profile-visualizer",
+			"metadata": {
+				"id": "7e52b41b-71ad-457b-ab7e-0620f1fc4feb",
+				"publisherId": {
+					"publisherId": "5f5636e7-69ed-4afe-b5d6-8d231fb3d3ee",
+					"publisherName": "ms-vscode",
+					"displayName": "Microsoft",
+					"flags": "verified"
+				},
+				"publisherDisplayName": "Microsoft"
+			}
+		}
+	],
+	"defaultChatAgent": {
+		"extensionId": "GitHub.copilot",
+		"chatExtensionId": "GitHub.copilot-chat",
+		"chatExtensionOutputId": "",
+		"chatExtensionOutputExtensionStateCommand": "",
+		"documentationUrl": "",
+		"termsStatementUrl": "",
+		"privacyStatementUrl": "",
+		"skusDocumentationUrl": "",
+		"optimizeUsageDocumentationUrl": "",
+		"publicCodeMatchesUrl": "",
+		"managePlanUrl": "",
+		"upgradePlanUrl": "",
+		"signUpUrl": "",
+		"provider": {
+			"default": {
+				"id": "github",
+				"name": ""
+			},
+			"enterprise": {
+				"id": "github-enterprise",
+				"name": ""
+			},
+			"google": {
+				"id": "google",
+				"name": ""
+			},
+			"apple": {
+				"id": "apple",
+				"name": ""
+			}
+		},
+		"providerExtensionId": "vscode.github-authentication",
+		"providerUriSetting": "github-enterprise.uri",
+		"providerScopes": [
+			[
+				"read:user",
+				"user:email",
+				"repo",
+				"workflow"
+			],
+			[
+				"user:email"
+			],
+			[
+				"read:user"
+			]
+		],
+		"entitlementUrl": "",
+		"entitlementSignupLimitedUrl": "",
+		"chatQuotaExceededContext": "github.copilot.chat.quotaExceeded",
+		"completionsQuotaExceededContext": "github.copilot.completions.quotaExceeded",
+		"walkthroughCommand": "",
+		"completionsMenuCommand": "",
+		"chatRefreshTokenCommand": "",
+		"generateCommitMessageCommand": "",
+		"resolveMergeConflictsCommand": "",
+		"completionsAdvancedSetting": "github.copilot.advanced",
+		"completionsEnablementSetting": "github.copilot.enable",
+		"nextEditSuggestionsSetting": "github.copilot.nextEditSuggestions.enabled",
+		"tokenEntitlementUrl": "",
+		"mcpRegistryDataUrl": "",
+		"managedSettingsUrl": ""
+	},
+	"trustedExtensionAuthAccess": {
+		"github": [],
+		"github-enterprise": []
+	},
+	"onboardingKeymaps": [
+		{
+			"id": "vscode",
+			"label": "VS Code",
+			"description": "Default keyboard mapping"
+		},
+		{
+			"id": "sublime",
+			"label": "Sublime Text",
+			"extensionId": "ms-vscode.sublime-keybindings",
+			"description": "Keyboard mapping from Sublime Text"
+		},
+		{
+			"id": "intellij",
+			"label": "IntelliJ / JetBrains",
+			"extensionId": "k--kato.intellij-idea-keybindings",
+			"description": "Keyboard mapping from IntelliJ IDEA"
+		},
+		{
+			"id": "vim",
+			"label": "Vim",
+			"extensionId": "vscodevim.vim",
+			"description": "Vim modal editing"
+		},
+		{
+			"id": "eclipse",
+			"label": "Eclipse",
+			"extensionId": "alphabotsec.vscode-eclipse-keybindings",
+			"description": "Keyboard mapping from Eclipse"
+		},
+		{
+			"id": "notepadpp",
+			"label": "Notepad++",
+			"extensionId": "ms-vscode.notepadplusplus-keybindings",
+			"description": "Keyboard mapping from Notepad++"
+		}
+	],
+	"onboardingThemes": [
+		{
+			"id": "dark-2026",
+			"label": "Dark 2026",
+			"themeId": "Dark 2026",
+			"type": "dark"
+		},
+		{
+			"id": "hc-dark",
+			"label": "Dark High Contrast",
+			"themeId": "Default High Contrast",
+			"type": "hcDark"
+		},
+		{
+			"id": "solarized-dark",
+			"label": "Solarized Dark",
+			"themeId": "Solarized Dark",
+			"type": "dark"
+		},
+		{
+			"id": "light-2026",
+			"label": "Light 2026",
+			"themeId": "Light 2026",
+			"type": "light"
+		},
+		{
+			"id": "hc-light",
+			"label": "Light High Contrast",
+			"themeId": "Default High Contrast Light",
+			"type": "hcLight"
+		},
+		{
+			"id": "solarized-light",
+			"label": "Solarized Light",
+			"themeId": "Solarized Light",
+			"type": "light"
+		}
+	],
+	"builtInExtensionsEnabledWithAutoUpdates": [],
+	"sessionsWindowAllowedExtensions": [],
+	"voiceWsUrl": "wss://falcon-caas.mai.microsoft.com/voice-code/api/v1/realtime/voice",
+	"quality": "stable",
+	"serverDownloadUrlTemplate": "https://spockify.eu/downloads/spockify-ide-reh-${os}-${arch}-${commit}.tar.gz",
+	"extensionsGallery": {
+		"serviceUrl": "https://open-vsx.org/vscode/gallery",
+		"itemUrl": "https://open-vsx.org/vscode/item",
+		"latestUrlTemplate": "https://open-vsx.org/vscode/gallery/{publisher}/{name}/latest",
+		"controlUrl": "https://raw.githubusercontent.com/EclipseFdn/publish-extensions/refs/heads/master/extension-control/extensions.json"
+	},
+	"linkProtectionTrustedDomains": [
+		"https://open-vsx.org"
+	],
+	"extensionEnabledApiProposals": {
+		"jeanp413.open-remote-ssh": [
+			"resolvers",
+			"contribViewsRemote"
+		]
+	},
+	"configurationDefaults": {
+		"chat.disableAIFeatures": true,
+		"chat.agentHost.enabled": false,
+		"workbench.secondarySideBar.defaultVisibility": "visible",
+		"spockify.agent.mode": "agent",
+		"update.mode": "none",
+		"workbench.colorTheme": "Spockify Dark",
+		"workbench.iconTheme": "vs-seti",
+		"window.density.editorTabHeight": "compact",
+		"workbench.tree.indent": 6,
+		"workbench.editor.tabSizing": "shrink",
+		"workbench.activityBar.compact": true,
+		"window.menuBarVisibility": "compact",
+		"editor.minimap.enabled": false,
+		"editor.fontSize": 13,
+		"editor.lineHeight": 18,
+		"editor.stickyScroll.enabled": true,
+		"editor.stickyScroll.maxLineCount": 3,
+		"breadcrumbs.enabled": true,
+		"breadcrumbs.filePath": "on",
+		"workbench.editor.tabCloseButton": "left",
+		"workbench.editor.showTabs": "multiple",
+		"workbench.editor.wrapTabs": false,
+		"workbench.editor.highlightModifiedTabs": true,
+		"workbench.editor.limit.enabled": true,
+		"workbench.editor.limit.value": 10,
+		"workbench.editor.limit.perEditorGroup": true,
+		"workbench.tree.renderIndentGuides": "onHover",
+		"workbench.list.smoothScrolling": true,
+		"workbench.layoutControl.enabled": false,
+		"window.commandCenter": true,
+		"window.title": "${dirty}${activeEditorShort}${separator}${rootName}${separator}${appName}${separator}${remoteName}",
+		"explorer.compactFolders": true,
+		"explorer.autoReveal": true,
+		"explorer.excludeGitIgnore": false,
+		"explorer.decorations.colors": true,
+		"explorer.decorations.badges": true,
+		"git.decorations.enabled": true,
+		"remote.extensionKind": {
+			"spockify.spockify": [
+				"ui"
+			]
+		},
+		"editor.bracketPairColorization.enabled": true,
+		"editor.guides.bracketPairs": "active",
+		"editor.linkedEditing": true,
+		"editor.renderLineHighlight": "line",
+		"editor.smoothScrolling": true,
+		"editor.scrollbar.verticalScrollbarSize": 8,
+		"editor.scrollbar.horizontalScrollbarSize": 8,
+		"terminal.integrated.fontSize": 12,
+		"terminal.integrated.allowChords": false,
+		"terminal.integrated.commandsToSkipShell": [
+			"spockify.chat",
+			"spockify.inlineEdit.terminal"
+		],
+		"workbench.startupEditor": "none",
+		"npm.packageManager": "npm"
+	},
+	"commit": "8a7abeba6e03ea3af87bfbce9a1b7e48fed567b8",
+	"date": "2026-07-17T15:35:09Z",
+	"version": "1.129.1"
+}
