@@ -1,0 +1,7 @@
+{
+  "sympy__sympy-12454": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "sympy__sympy-12454",
+    "model_patch": "diff --git a/sympy/abc.py b/sympy/abc.py\nindex 15cf2c91bb..e3727bea23 100644\n--- a/sympy/abc.py\n+++ b/sympy/abc.py\n@@ -42,7 +42,7 @@\n # Implementation note: The easiest way to avoid typos in the symbols()\n # parameter is to copy it from the left-hand side of the assignment.\n \n-a, b, c, d, e, f, g, h, i, j = symbols('a, b, c, d, e, f, g, h, i, j')\n+a, b, c, d, e, f, g, h, i, j = symbols('a b c d e f g h i j')\n k, l, m, n, o, p, q, r, s, t = symbols('k, l, m, n, o, p, q, r, s, t')\n u, v, w, x, y, z = symbols('u, v, w, x, y, z')\n \n"
+  }
+}

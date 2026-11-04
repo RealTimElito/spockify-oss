@@ -1,0 +1,29 @@
+[
+  {
+    "fixture": "rate_write_gate",
+    "resolved": "Y",
+    "before_rc": 0,
+    "after_rc": 0,
+    "wall_s": 48,
+    "wichy_rc": 0,
+    "notes": "before_green=True after_green=True"
+  },
+  {
+    "fixture": "ws_cascade",
+    "resolved": "N",
+    "before_rc": 1,
+    "after_rc": 1,
+    "wall_s": 65,
+    "wichy_rc": 0,
+    "notes": "before_green=False after_green=False; hello=False"
+  },
+  {
+    "fixture": "fence_repair",
+    "resolved": "Y",
+    "before_rc": 0,
+    "after_rc": 0,
+    "wall_s": 19,
+    "wichy_rc": 0,
+    "notes": "before_green=True after_green=True"
+  }
+]

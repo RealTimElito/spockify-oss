@@ -1,0 +1,7 @@
+{
+  "django__django-15347": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-15347",
+    "model_patch": "diff --git a/django/contrib/messages/storage/cookie.py b/django/contrib/messages/storage/cookie.py\nindex 1d390c71dd..86f32a06e3 100644\n--- a/django/contrib/messages/storage/cookie.py\n+++ b/django/contrib/messages/storage/cookie.py\n@@ -19,8 +19,13 @@ class MessageEncoder(json.JSONEncoder):\n             # Using 0/1 here instead of False/True to produce more compact json\n             is_safedata = 1 if isinstance(obj.message, SafeData) else 0\n             message = [self.message_key, is_safedata, obj.level, obj.message]\n-            if obj.extra_tags:\n-                message.append(obj.extra_tags)\n+            # Always append the ``extra_tags`` attribute, even if it is an empty\n+            # string or ``None``.  The original implementation only appended the\n+            # value when it was truthy, which caused empty strings to be omitted\n+            # from the serialized form.  Upon deserialization, a missing\n+            # element was interpreted as ``None``, breaking logic that expects an\n+            # empty string to be preserved.\n+            message.append(obj.extra_tags)\n             return message\n         return super().default(obj)\n \n"
+  }
+}

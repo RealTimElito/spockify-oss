@@ -1,0 +1,15 @@
+{
+  "instance_id": "sympy__sympy-14774",
+  "model": "gpt-oss-20b",
+  "model_digest_sha256_16": "e6c93479b976c181",
+  "harness": "@spockify/harness",
+  "harness_version": "0.1.0",
+  "commit": "d51caf612c347060b4f001702fff36c045eb5a08",
+  "max_turns": 48,
+  "prompt_dataset": "SWE-bench/SWE-bench_Lite",
+  "prompt_split": "test",
+  "eval_dataset": "SWE-bench/SWE-bench_Lite",
+  "eval_split": "test",
+  "driver": "runHarness",
+  "workers": 1
+}

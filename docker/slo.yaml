@@ -1,0 +1,6 @@
+# Human pointer for G6. Machine spec is docker/slo.json (do not drift).
+# Window start: 2026-10-17T16:00:00+02:00. history_days_available: 0.
+# Scrape: ./docker/slo-scrape.sh --offline --record DIR
+# Schedule: scripts/systemd/spockify-slo-scrape.timer (daily 16:00 local).
+version: 1
+spec: docker/slo.json

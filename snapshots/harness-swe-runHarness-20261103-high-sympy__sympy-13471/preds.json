@@ -1,0 +1,7 @@
+{
+  "sympy__sympy-13471": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "sympy__sympy-13471",
+    "model_patch": "diff --git a/sympy/__init__.py b/sympy/__init__.py\nindex b5246e252e..844bf586a2 100644\n--- a/sympy/__init__.py\n+++ b/sympy/__init__.py\n@@ -58,7 +58,7 @@ def __sympy_debug():\n from .core import *\n from .logic import *\n from .assumptions import *\n-from .polys import *\n+# from .polys import *\n from .series import *\n from .functions import *\n from .ntheory import *\n"
+  }
+}
