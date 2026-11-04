@@ -1,6 +1,6 @@
 # agentHub (Spockify)
 
-Self-hosted coding stack for open-weight models. One kernel. Your GPUs.
+Self-hosted coding stack for open-weight models. One kernel. Your GPUs. Easy to setup.
 
 Chat, IDE, and CLI on LiteLLM. Default harness is Spockify. Wichy-class tool loops and OpenHands-class SWE sandboxes are optional backends — not the product.
 
