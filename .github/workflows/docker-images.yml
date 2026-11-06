@@ -76,7 +76,7 @@ jobs:
 
       - name: Build and push router
         if: github.event_name == 'push' || github.event.inputs.push_images != 'false'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: services/router
           file: services/router/Dockerfile
@@ -103,7 +103,7 @@ jobs:
 
       - name: Build and push Open WebUI
         if: github.event_name == 'push' || github.event.inputs.push_images != 'false'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: services/openwebui
           file: services/openwebui/Dockerfile
