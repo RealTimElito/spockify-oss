@@ -1,0 +1,7 @@
+{
+  "sympy__sympy-13971": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "sympy__sympy-13971",
+    "model_patch": "diff --git a/sympy/__init__.py b/sympy/__init__.py\nindex 21936f61b9..b9a9874b8f 100644\n--- a/sympy/__init__.py\n+++ b/sympy/__init__.py\n@@ -13,6 +13,7 @@\n \n \n from __future__ import absolute_import, print_function\n+# Added comment for test\n del absolute_import, print_function\n \n try:\n"
+  }
+}

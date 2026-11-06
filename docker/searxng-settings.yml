@@ -1,0 +1,13 @@
+use_default_settings: true
+general:
+  instance_name: "Spockify Search"
+search:
+  safe_search: 1
+  formats: [html, json]
+# Fail fast when upstream engines are unreachable (air-gapped / captive portals).
+outgoing:
+  request_timeout: 3.0
+  max_request_timeout: 5.0
+server:
+  limiter: false
+  secret_key: "change-me-searxng-secret"

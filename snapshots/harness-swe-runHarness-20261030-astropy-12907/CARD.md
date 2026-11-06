@@ -1,0 +1,23 @@
+# runHarness SWE — astropy__astropy-12907
+
+- Outcome: **resolved**
+- Detail: swebench report resolved (official `SWE-bench/SWE-bench_Lite` test)
+- Driver: `@spockify/harness` `runHarness` via `lab-kernel-stdio` (not mini-SWE)
+- Harness version: `0.1.0`
+- Model: `gpt-oss-20b`
+- Model digest (sha256/16 of /v1/models row): `e6c93479b976c181`
+- Workers: 1
+- Max turns: 48
+- Prompt dataset: `SWE-bench/SWE-bench_Lite` split `test`
+- Eval dataset: `SWE-bench/SWE-bench_Lite` split `test`
+- Host: spock (twin down; Spark LiteLLM `:24001`)
+- Commit: `88e3447f021b56963898e2f7abe6d664055fc563`
+- Traces: `bench-out/harness-swe-runHarness-20261030-astropy-12907/events.jsonl`
+- Preds: `bench-out/harness-swe-runHarness-20261030-astropy-12907/preds.json`
+- Wall s: 913
+- Events: 21086
+- Patch bytes: 2529 (nonempty)
+- Tools (approx): apply_patch×3, read×8, run_tests×13
+- Scored path: default `spockify bench swe --driver harness`
+- N=1 freeze — **not** a Lite board pass@1 %
+- Historical sqlfluff Lite pass@1=0 row is **unchanged** (different instance)

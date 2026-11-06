@@ -1,0 +1,16 @@
+{
+  "id": "harness-l0-extra",
+  "kind": "offline-kernel-fixtures",
+  "note": "Additional deterministic L0 checks beyond SCORECARD-10. Not SWE, not G2, no model load, no pass@1. Phase 5 stays Partial.",
+  "tasks": [
+    { "id": "isolate-no-docker-socket", "family": "iso", "file": "test/isolate.test.ts" },
+    { "id": "isolate-cap-drop", "family": "iso", "file": "test/isolate.test.ts" },
+    { "id": "isolate-job-id", "family": "iso", "file": "test/isolate.test.ts" },
+    { "id": "isolate-clearenv", "family": "iso", "file": "test/isolate.test.ts" },
+    { "id": "isolate-explicit-backend", "family": "iso", "file": "test/isolate.test.ts" },
+    { "id": "isolate-egress", "family": "iso", "file": "test/isolate.test.ts", "live": "bwrap" },
+    { "id": "job-admission-cap", "family": "iso", "file": "test/job.test.ts" },
+    { "id": "interrupt-resume", "family": "rel", "file": "test/resume.test.ts" },
+    { "id": "cli-ide-parity", "family": "client", "file": "test/cliIdeParity.test.ts" }
+  ]
+}

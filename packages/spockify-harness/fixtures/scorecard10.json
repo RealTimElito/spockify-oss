@@ -1,0 +1,17 @@
+{
+  "id": "harness-scorecard10",
+  "kind": "offline-kernel-fixtures",
+  "note": "Deterministic kernel checks. Not SWE, not G2, no model load, no pass@1. See scorecard-l0-extra.json for isolation/parity extras. Phase 5 stays Partial.",
+  "tasks": [
+    { "id": "parse-sr", "family": "edit" },
+    { "id": "parse-sr-malformed", "family": "edit" },
+    { "id": "path-symlink", "family": "sec" },
+    { "id": "grant-host-only", "family": "sec" },
+    { "id": "run-tests-metachar", "family": "sec" },
+    { "id": "done-reason", "family": "rel" },
+    { "id": "isolate-workstation", "family": "iso" },
+    { "id": "isolate-production-fail-closed", "family": "iso" },
+    { "id": "bwrap-unshare-pid", "family": "iso" },
+    { "id": "session-corrupt", "family": "rel" }
+  ]
+}
