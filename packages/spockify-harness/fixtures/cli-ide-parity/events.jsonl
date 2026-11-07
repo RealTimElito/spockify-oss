@@ -1,0 +1,12 @@
+{"type":"status","text":"cli-ide parity fixture"}
+{"type":"model","requested":"gpt-oss-20b","resolved":"gpt-oss-20b"}
+{"type":"text","content":"shared kernel evidence"}
+{"type":"toolStart","id":"t1","name":"read_file","arguments":{"path":"greet.py"}}
+{"type":"toolResult","id":"t1","name":"read_file","ok":true,"content":"def greet(name):\n    return f\"hello {name}\"\n"}
+{"type":"done","reason":"unverified"}
+{"type":"done","reason":"verified"}
+{"type":"done","reason":"cancelled","cancelled":true}
+{"type":"done","reason":"exhausted"}
+{"type":"done","reason":"failed"}
+{"type":"done","reason":"blocked"}
+{"type":"done","cancelled":true}

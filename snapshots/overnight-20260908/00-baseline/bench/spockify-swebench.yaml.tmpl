@@ -1,0 +1,25 @@
+# Generated for mini-SWE-agent → Spockify LiteLLM (local models only).
+# See docs/BENCH.md
+
+agent:
+  system_template: |
+    You are a software engineer working on a repository inside a sandbox.
+    Solve the issue using bash. Prefer small, correct patches. Do not use cloud APIs.
+  instance_template: |
+    <pr_description>
+    {{problem_statement}}
+    </pr_description>
+    Work in the repo at {{working_dir}}. Submit a patch that fixes the issue.
+
+model:
+  model_name: "{{MODEL_NAME}}"
+  model_kwargs:
+    custom_llm_provider: openai
+    api_base: "{{API_BASE}}"
+    api_key: "{{API_KEY}}"
+    temperature: 0.0
+
+environment:
+  environment_class: docker
+  image: "{{DOCKER_IMAGE}}"
+  cwd: "/testbed"

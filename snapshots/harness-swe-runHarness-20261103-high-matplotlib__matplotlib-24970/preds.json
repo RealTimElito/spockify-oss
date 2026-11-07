@@ -1,0 +1,7 @@
+{
+  "matplotlib__matplotlib-24970": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "matplotlib__matplotlib-24970",
+    "model_patch": "diff --git a/lib/matplotlib/pylab.py b/lib/matplotlib/pylab.py\nindex 289aa9050e..6949e25693 100644\n--- a/lib/matplotlib/pylab.py\n+++ b/lib/matplotlib/pylab.py\n@@ -25,7 +25,7 @@ from matplotlib.dates import (\n # bring all the symbols in so folks can import them from\n # pylab in one fell swoop\n \n-## We are still importing too many things from mlab; more cleanup is needed.\n+# Importing many things from mlab; cleanup needed.\n \n from matplotlib.mlab import (\n     detrend, detrend_linear, detrend_mean, detrend_none, window_hanning,\n"
+  }
+}

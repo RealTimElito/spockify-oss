@@ -1,0 +1,33 @@
+# Tiny Phase-7 vuln/update stub: keep Actions (and core npm packages) current.
+# Does not replace signed SBOM (docs/G7-SBOM.md) or an independent audit.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /packages/spockify-harness
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: npm
+    directory: /packages/spockify-cli
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: npm
+    directory: /packages/spockify-harness-host
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: npm
+    directory: /packages/spockify-ide-client
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

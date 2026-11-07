@@ -1,0 +1,7 @@
+{
+  "sympy__sympy-14396": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "sympy__sympy-14396",
+    "model_patch": "diff --git a/sympy/polys/polyoptions.py b/sympy/polys/polyoptions.py\nindex 6e504a3057..9817743d25 100644\n--- a/sympy/polys/polyoptions.py\n+++ b/sympy/polys/polyoptions.py\n@@ -406,7 +406,11 @@ class Domain(with_metaclass(OptionType, Option)):\n     _re_complexfield = re.compile(r\"^(C|CC)(_(\\d+))?$\")\n     _re_finitefield = re.compile(r\"^(FF|GF)\\((\\d+)\\)$\")\n     _re_polynomial = re.compile(r\"^(Z|ZZ|Q|QQ)\\[(.+)\\]$\")\n+    _re_realpolynomial = re.compile(r\"^(R|RR)\\[(.+)\\]$\")\n     _re_fraction = re.compile(r\"^(Z|ZZ|Q|QQ)\\((.+)\\)$\")\n+\n+        # Added to support real polynomial domains like RR[y,z]\n+        _re_realpolynomial = re.compile(r\"^(R|RR)\\[(.+)\\]$\")\n     _re_algebraic = re.compile(r\"^(Q|QQ)\\<(.+)\\>$\")\n \n     @classmethod\n"
+  }
+}

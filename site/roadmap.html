@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spockify roadmap — proposed direction</title>
+  <meta name="description" content="Proposed strategic direction for Spockify. Not a release schedule. No benchmark claims." />
+  <link rel="icon" type="image/png" href="/ide/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <div class="grid-drift" aria-hidden="true"></div>
+
+  <header class="top">
+    <a class="brand-mark" href="./">
+      <img src="/ide/logo-128.png" width="36" height="36" alt="" />
+      <span>Spockify</span>
+    </a>
+    <nav>
+      <a href="/ide">IDE</a>
+      <a href="/self-host">Self-host</a>
+      <a href="/product">Product</a>
+      <a class="nav-cta" href="/chat">Sign in</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Proposed roadmap</h1>
+      <p class="lede">
+        Strategic direction for a self-hosted coding stack — IDE, agents, models,
+        and ops working as one product. <strong>Proposed only</strong>, not a
+        committed release schedule. No dates. No SWE percentages. No “beats”
+        claims.
+      </p>
+    </section>
+
+    <section class="pools" aria-label="Priorities">
+      <h2>Ordered priorities</h2>
+      <ul>
+        <li><strong>1 — Coding agent quality</strong> — Prove the agent with scored, reproducible evaluations before expanding the feature surface.</li>
+        <li><strong>2 — Developer experience</strong> — Indexing, parallel agents, diffs, autocomplete, remote polish.</li>
+        <li><strong>3 — Model infrastructure</strong> — Routing, hardware-aware scheduling, local-first hybrid options, usage insight.</li>
+        <li><strong>4 — Team readiness</strong> — Access control, audit logging, recovery, reproducible deploys (substantial new work).</li>
+        <li><strong>5 — Ecosystem</strong> — Plugins, MCP, community packs, forge integrations, public roadmap governance.</li>
+      </ul>
+
+      <h2>Focus when resources are limited</h2>
+      <ul>
+        <li>Autonomous verified development (tests + human approval, not just codegen)</li>
+        <li>Intelligent local model and GPU orchestration</li>
+        <li>Persistent project intelligence</li>
+        <li>Isolated multi-agent worktrees</li>
+        <li>Self-host administration you can trust</li>
+      </ul>
+
+      <h2>Architecture stance</h2>
+      <p>
+        Keep IDE, Agents, and Platform modular with clear APIs. Support optional
+        agent backends while the Spockify experience stays consistent. Default
+        loop is one kernel: <code>runHarness</code>.
+      </p>
+
+      <h2>Git intelligence</h2>
+      <p>
+        Treat AI Git collaboration as a first-class capability: intelligent
+        commits, branches, PRs, and review — with human approval and transparent
+        AI attribution. Agents must not silently impersonate human authors.
+      </p>
+
+      <h2>Honesty bar</h2>
+      <ul>
+        <li>Do not claim superiority until evaluation gates are closed with full reproducibility.</li>
+        <li>Single-tenant operator production is not enterprise or shared SaaS.</li>
+        <li>Signed SBOM exists; independent audit and legal sign-off do not.</li>
+      </ul>
+
+      <div class="cta-row">
+        <a class="btn primary" href="/self-host">Self-host</a>
+        <a class="btn ghost" href="/product">Product</a>
+        <a class="btn ghost" href="https://github.com/Spockify/spockify-oss">Public source</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><a href="./">Home</a> · <a href="/product">Product</a> · <a href="/self-host">Self-host</a> · <a href="/chat">Sign in</a></p>
+  </footer>
+</body>
+</html>

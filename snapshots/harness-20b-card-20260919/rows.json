@@ -1,0 +1,32 @@
+[
+  {
+    "fixture": "rate_write_gate",
+    "resolved": "Y",
+    "repair_turn_used": "N",
+    "read_required_hits": 0,
+    "cascade_layer": null,
+    "wall_s": 129,
+    "commit_sha": "8065ff9",
+    "notes": "before_green=true after_green=true"
+  },
+  {
+    "fixture": "ws_cascade",
+    "resolved": "Y",
+    "repair_turn_used": "N",
+    "read_required_hits": 0,
+    "cascade_layer": 2,
+    "wall_s": 87,
+    "commit_sha": "8065ff9",
+    "notes": "before_green=false after_green=true; cascade_L2; edit_applied; SCRIPTED_EDIT"
+  },
+  {
+    "fixture": "fence_repair",
+    "resolved": "Y",
+    "repair_turn_used": "Y",
+    "read_required_hits": 0,
+    "cascade_layer": null,
+    "wall_s": 114,
+    "commit_sha": "8065ff9",
+    "notes": "before_green=true after_green=true; REPAIR_TURN"
+  }
+]

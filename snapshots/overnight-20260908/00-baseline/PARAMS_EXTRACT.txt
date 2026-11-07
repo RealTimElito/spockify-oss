@@ -1,0 +1,127 @@
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:3:Handoff protocol (lab ↔ future High mid-thought SPAWN):
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:136:    elapsed_s: float = 0.0
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:295:        temperature: float,
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:299:        thinking_open = False
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:303:            nonlocal thinking_open, content_open
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:309:                if not thinking_open:
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:310:                    sys.stdout.write(f"  [{role} thinking]\n")
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:311:                    thinking_open = True
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:316:            nonlocal thinking_open, content_open
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:318:                if thinking_open:
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:321:                    thinking_open = False
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:331:            temperature=temperature,
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:337:            if thinking_open or content_open:
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:410:                    temperature=0.2,
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:416:                    f"  plan finished · {time.monotonic() - t0:0.1f}s · "
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:443:                f"{sum(r.elapsed_s for r in results):0.1f}s wall-ish"
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:492:                temperature=0.2,
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:498:                f"  review finished · {time.monotonic() - t1:0.1f}s · "
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:544:                    elapsed_s=0.0,
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:565:                thinking_open = False
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:570:                    nonlocal thinking_open, content_open
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:578:                        if not thinking_open:
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:579:                            sys.stdout.write(f"  [{role} thinking]\n")
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:580:                            thinking_open = True
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:585:                    nonlocal thinking_open, content_open
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:590:                        if thinking_open:
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:592:                            thinking_open = False
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:602:                    temperature=0.15,
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:619:                    if thinking_open or content_open:
+packages/spockify-lab-agents/spockify_lab_agents/loop.py:624:                        f"({time.monotonic() - t0:0.1f}s)"
+services/router/midthought_spawn.py:1:"""Mid-thought SPAWN (phases A–D) — parent handoff → children → merge.
+services/router/midthought_spawn.py:11:4. Phase B: accept segmented think (don't wait on upstream Ollama in-think pause).
+services/router/midthought_spawn.py:29:MIDTHOUGHT_SPAWN_ENABLED = os.getenv(
+services/router/midthought_spawn.py:30:    "MIDTHOUGHT_SPAWN_ENABLED", "1"
+services/router/midthought_spawn.py:36:_SPAWN_MAX_SPARK = int(os.getenv("MIDTHOUGHT_SPAWN_MAX_SPARK", "3"))
+services/router/midthought_spawn.py:37:_SPAWN_MAX_COMPOSE = int(os.getenv("MIDTHOUGHT_SPAWN_MAX_COMPOSE", "2"))
+services/router/midthought_spawn.py:39:_SPAWN_MAX_OVERRIDE = os.getenv("MIDTHOUGHT_SPAWN_MAX", "").strip()
+services/router/midthought_spawn.py:41:# One spawn round per user turn in A/B (no nested SPAWN from merge pass).
+services/router/midthought_spawn.py:42:MIDTHOUGHT_MAX_ROUNDS = int(os.getenv("MIDTHOUGHT_SPAWN_MAX_ROUNDS", "1"))
+services/router/midthought_spawn.py:44:# Reject spammy / empty SPAWN rows.
+services/router/midthought_spawn.py:45:_MIN_PROMPT_CHARS = int(os.getenv("MIDTHOUGHT_SPAWN_MIN_PROMPT", "24"))
+services/router/midthought_spawn.py:48:# Accept SPAWN_CHILDREN:[...] or SPAWN:[...] (latter must be a JSON array).
+services/router/midthought_spawn.py:49:_PARENT_SPAWN_RE = re.compile(
+services/router/midthought_spawn.py:50:    r"(?:SPAWN_CHILDREN|SPAWN)\s*:\s*(\[[\s\S]*?\])",
+services/router/midthought_spawn.py:54:# Modes that may SPAWN. Heavy stays the fixed ensemble.
+services/router/midthought_spawn.py:84:    if _SPAWN_MAX_OVERRIDE:
+services/router/midthought_spawn.py:86:            return max(1, min(8, int(_SPAWN_MAX_OVERRIDE)))
+services/router/midthought_spawn.py:91:        return max(1, min(8, _SPAWN_MAX_SPARK))
+services/router/midthought_spawn.py:92:    return max(1, min(8, _SPAWN_MAX_COMPOSE))
+services/router/midthought_spawn.py:96:    return MIDTHOUGHT_SPAWN_ENABLED
+services/router/midthought_spawn.py:100:    thinking_mode: str,
+services/router/midthought_spawn.py:107:    """Whether this turn may honor a structured SPAWN (High / Medium/Auto)."""
+services/router/midthought_spawn.py:112:    mode = (thinking_mode or "").strip().lower()
+services/router/midthought_spawn.py:118:def parent_spawn_hint(thinking_mode: str, *, max_children: Optional[int] = None) -> str:
+services/router/midthought_spawn.py:119:    """System hint — High encourages SPAWN; Medium only when args are clear."""
+services/router/midthought_spawn.py:121:    mode = (thinking_mode or "").strip().lower()
+services/router/midthought_spawn.py:132:            "prompts are concrete. If unsure, answer yourself — do not SPAWN."
+services/router/midthought_spawn.py:139:        'SPAWN_CHILDREN:[{"name":"…","prompt":"…"}]\n'
+services/router/midthought_spawn.py:140:        "Do not invent SPAWN for greetings or single-step asks. "
+services/router/midthought_spawn.py:164:    """Parse SPAWN / SPAWN_CHILDREN; keep only clear, high-quality args."""
+services/router/midthought_spawn.py:166:    match = _PARENT_SPAWN_RE.search(text or "")
+services/router/midthought_spawn.py:183:            LOG.info("midthought skip weak SPAWN row name=%r prompt_len=%s", name, len(prompt))
+services/router/midthought_spawn.py:210:    """True when structured SPAWN is worth launching (not spammy)."""
+services/router/midthought_spawn.py:217:    cleaned = _PARENT_SPAWN_RE.sub("", text or "")
+services/router/midthought_spawn.py:224:    """True once a well-formed SPAWN JSON array is present (Phase B segment break)."""
+services/router/midthought_spawn.py:225:    match = _PARENT_SPAWN_RE.search(text or "")
+services/router/midthought_spawn.py:282:        "Do not emit SPAWN_CHILDREN or SPAWN markers in this merge pass."
+services/router/midthought_spawn.py:319:    thinking_mode: str,
+services/router/midthought_spawn.py:322:    hint = parent_spawn_hint(thinking_mode)
+services/router/midthought_spawn.py:336:        "phase_b": "segmented_think",
+services/router/parallel_agents.py:28:AGENTS_MAX_WORKERS = int(os.getenv("AGENTS_MAX_WORKERS", "4"))
+services/router/parallel_agents.py:31:AGENTS_MAX_TOKENS = int(os.getenv("AGENTS_MAX_TOKENS", "1024"))
+services/router/parallel_agents.py:34:# Heavy thinking profile: strong models, higher budgets, always 4 roles.
+services/router/parallel_agents.py:47:AGENTS_MAX_DEPTH = int(os.getenv("AGENTS_MAX_DEPTH", "2"))
+services/router/parallel_agents.py:48:AGENTS_MAX_NESTED_PER_WORKER = int(os.getenv("AGENTS_MAX_NESTED_PER_WORKER", "2"))
+services/router/parallel_agents.py:100:_SPAWN_JSON_RE = re.compile(
+services/router/parallel_agents.py:101:    r"(?:SPAWN_CHILDREN|SPAWN)\s*:\s*(\[[\s\S]*?\])",
+services/router/parallel_agents.py:106:SPAWN_PROFILE = "midthought"
+services/router/parallel_agents.py:134:    # Optional profile label + per-run budget overrides (used by Heavy thinking).
+services/router/parallel_agents.py:142:    think: Optional[Union[bool, str]] = None
+services/router/parallel_agents.py:163:def _run_think_mode(run: dict[str, Any]) -> str:
+services/router/parallel_agents.py:164:    raw = run.get("think")
+services/router/parallel_agents.py:172:def _run_think_value(run: dict[str, Any], model: str) -> Any:
+services/router/parallel_agents.py:173:    return model_catalog.ollama_think_value(model, _run_think_mode(run))
+services/router/parallel_agents.py:181:    return int(run.get("max_tokens") or AGENTS_MAX_TOKENS)
+services/router/parallel_agents.py:189:    return int(run.get("synth_max_tokens") or (AGENTS_MAX_TOKENS * 2))
+services/router/parallel_agents.py:300:        f"{AGENTS_MAX_NESTED_PER_WORKER} child workers (depth-capped), "
+services/router/parallel_agents.py:301:        'end with SPAWN_CHILDREN:[{"name":"...","prompt":"..."}]'
+services/router/parallel_agents.py:408:    n = min(n, AGENTS_MAX_WORKERS, len(_ROLE_TEMPLATES))
+services/router/parallel_agents.py:445:    n = min(len(_ROLE_TEMPLATES), max(1, AGENTS_MAX_WORKERS))
+services/router/parallel_agents.py:510:    for i, spec in enumerate(specs[:AGENTS_MAX_WORKERS]):
+services/router/parallel_agents.py:519:        if spec.children and depth + 1 < AGENTS_MAX_DEPTH:
+services/router/parallel_agents.py:521:                spec.children[:AGENTS_MAX_NESTED_PER_WORKER],
+services/router/parallel_agents.py:837:        cost_usd = round((total_tok / 1000.0) * 0.0002, 6)
+services/router/parallel_agents.py:887:def agents_meta_sse(run: dict[str, Any], *, thinking: str = "") -> bytes:
+services/router/parallel_agents.py:895:    thinking_mode = thinking or (
+services/router/parallel_agents.py:896:        "heavy" if profile == "heavy" else ("high" if profile == SPAWN_PROFILE else "")
+services/router/parallel_agents.py:900:    elif profile == SPAWN_PROFILE:
+services/router/parallel_agents.py:909:    if profile == SPAWN_PROFILE:
+services/router/parallel_agents.py:945:    if thinking_mode:
+services/router/parallel_agents.py:946:        payload["spockify_thinking"] = thinking_mode
+services/router/parallel_agents.py:953:    depth = max(0, min(int(body.depth or 0), AGENTS_MAX_DEPTH - 1))
+services/router/parallel_agents.py:975:        "think": body.think,
+services/router/parallel_agents.py:1011:    """Time-travel fork: new run from a worker mid-state (Wave 10.4).
+services/router/parallel_agents.py:1086:    match = _SPAWN_JSON_RE.search(text or "")
+services/router/parallel_agents.py:1096:    for i, item in enumerate(raw[:AGENTS_MAX_NESTED_PER_WORKER]):
+services/router/parallel_agents.py:1119:    return _SPAWN_JSON_RE.sub("", text or "").rstrip()
+services/router/parallel_agents.py:1155:                blob = await asyncio.wait_for(search_tool(client, q[:400]), timeout=20.0)
+services/router/parallel_agents.py:1272:    sem = asyncio.Semaphore(min(AGENTS_MAX_NESTED_PER_WORKER, AGENTS_MAX_WORKERS))
+services/router/parallel_agents.py:1336:                        temperature=0.4,
+services/router/parallel_agents.py:1337:                        max_tokens=AGENTS_MAX_TOKENS,
+services/router/parallel_agents.py:1454:        if depth + 1 < AGENTS_MAX_DEPTH:
+services/router/parallel_agents.py:1456:                f"\nYou may spawn up to {AGENTS_MAX_NESTED_PER_WORKER} child workers "
+services/router/parallel_agents.py:1457:                'by ending with SPAWN_CHILDREN:[{"name":"...","prompt":"..."}]'
+services/router/parallel_agents.py:1475:                "temperature": 0.4,
+services/router/parallel_agents.py:1478:            think_val = _run_think_value(run, spec["model"])
+services/router/parallel_agents.py:1479:            if think_val is not None:
+services/router/parallel_agents.py:1480:                chat_kwargs["think"] = think_val
+services/router/parallel_agents.py:1508:                # Nested: explicit children on spec, or SPAWN_CHILDREN marker.
+services/router/parallel_agents.py:1510:                if not child_specs and depth + 1 < AGENTS_MAX_DEPTH:
+services/router/parallel_agents.py:1514:                if child_specs and depth + 1 < AGENTS_MAX_DEPTH:
+services/router/parallel_agents.py:1523:                        child_specs=child_specs[:AGENTS_MAX_NESTED_PER_WORKER],
+services/router/parallel_agents.py:1630:        "temperature": 0.3,
+services/router/parallel_agents.py:1633:    think_val = _run_think_value(run, model)
+services/router/parallel_agents.py:1634:    if think_val is not None:
+services/router/parallel_agents.py:1635:        synth_kwargs["think"] = think_val
+services/router/parallel_agents.py:1716:            int(run.get("midthought_cap") or run.get("max_workers") or AGENTS_MAX_WORKERS)

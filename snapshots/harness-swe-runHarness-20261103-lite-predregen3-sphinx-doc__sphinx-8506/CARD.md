@@ -1,0 +1,21 @@
+# runHarness SWE — sphinx-doc__sphinx-8506
+
+- Outcome: **resolved**
+- Detail: swebench report resolved
+- Driver: `@spockify/harness` `runHarness` via `lab-kernel-stdio` (not mini-SWE)
+- Harness version: `0.1.0`
+- Model: `gpt-oss-20b`
+- Model digest (sha256/16 of /v1/models row): `e6c93479b976c181`
+- Workers: 1
+- Max turns: 48
+- Prompt dataset: `SWE-bench/SWE-bench_Lite` split `test`
+- Eval dataset: `SWE-bench/SWE-bench_Lite` split `test`
+- Host: spock
+- Commit: `b8714ab35343bdbdd1cd7f57d24a447bfc984169`
+- Traces: `/workspace/spockify/bench-out/lite-predregen3-20261103-lite-predregen3/sphinx-doc__sphinx-8506/events.jsonl`
+- Wall s: 566
+- Events: 10230
+- Scored path: default `spockify bench swe --driver harness`.
+- N=1 freeze instance — not a Lite board pass@1 %.
+- Historical Lite pass@1=0 row is unchanged.
+- May use one FAIL_TO_PASS local-smoke continue (no gold patch).
