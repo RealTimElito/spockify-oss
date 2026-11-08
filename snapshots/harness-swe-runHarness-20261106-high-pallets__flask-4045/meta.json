@@ -1,0 +1,15 @@
+{
+  "instance_id": "pallets__flask-4045",
+  "model": "gpt-oss-20b",
+  "model_digest_sha256_16": "",
+  "harness": "@spockify/harness",
+  "harness_version": "0.1.0",
+  "commit": "20d8d1cfc69a585e2ca4930e81bfccab2c869a02",
+  "max_turns": 48,
+  "prompt_dataset": "SWE-bench/SWE-bench_Lite",
+  "prompt_split": "test",
+  "eval_dataset": "SWE-bench/SWE-bench_Lite",
+  "eval_split": "test",
+  "driver": "runHarness",
+  "workers": 1
+}

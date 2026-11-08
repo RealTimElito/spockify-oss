@@ -1,0 +1,7 @@
+{
+  "django__django-14016": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-14016",
+    "model_patch": "diff --git a/django/db/models/query_utils.py b/django/db/models/query_utils.py\nindex c2623f099f..1a6c075bd4 100644\n--- a/django/db/models/query_utils.py\n+++ b/django/db/models/query_utils.py\n@@ -45,11 +45,14 @@ class Q(tree.Node):\n             raise TypeError(other)\n \n         # If the other Q() is empty, ignore it and just use `self`.\n+        # The original implementation deep\u2011copied the operands, which caused\n+        # pickling errors for non\u2011picklable values.  Returning the operand\n+        # directly is safe and preserves semantics.\n         if not other:\n-            return copy.deepcopy(self)\n-        # Or if this Q is empty, ignore it and just use `other`.\n+            return self\n+        # If this Q is empty, ignore it and just use `other`.\n         elif not self:\n-            return copy.deepcopy(other)\n+            return other\n \n         obj = type(self)()\n         obj.connector = conn\n"
+  }
+}

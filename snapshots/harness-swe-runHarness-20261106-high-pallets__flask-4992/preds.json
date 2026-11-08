@@ -1,0 +1,7 @@
+{
+  "pallets__flask-4992": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "pallets__flask-4992",
+    "model_patch": ""
+  }
+}

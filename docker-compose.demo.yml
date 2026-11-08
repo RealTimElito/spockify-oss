@@ -1,0 +1,14 @@
+# Authorized scoped security-demo overlay (NOT unfiltered / jailbreak mode).
+#   make demo-gpu
+#   ./docker/run.sh --gpu --demo security
+#
+# Injects SPOCKIFY_DEMO_PROFILE + a short system prompt for spockify-auto workers.
+# Does not disable safety, laws, or product refusal behavior.
+
+services:
+  router:
+    environment:
+      SPOCKIFY_DEMO_PROFILE: ${SPOCKIFY_DEMO_PROFILE:-security}
+      DEMO_SYSTEM_PROMPT_PATH: /config/demo-system-prompt.md
+    volumes:
+      - ${DEMO_SYSTEM_PROMPT:-./docker/security-demo-prompt.md}:/config/demo-system-prompt.md:ro,z

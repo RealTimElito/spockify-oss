@@ -1,0 +1,1463 @@
+{
+  "id": "route-v1",
+  "version": 1,
+  "frozen": "2026-09-18",
+  "description": "Hand-labeled routing oracle pack for regret scoring (LEAP A9).",
+  "policies": [
+    "always-20b",
+    "always-120b-high",
+    "auto",
+    "lab-orch-default"
+  ],
+  "spark_forbidden": [
+    "abliterated",
+    ":cloud",
+    "heretic"
+  ],
+  "items": [
+    {
+      "id": "canary-rate",
+      "prompt": "Fix rate.py so pytest -q passes",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green_or_inspect_ok",
+      "bucket": "easy"
+    },
+    {
+      "id": "canary-hello",
+      "prompt": "What does greet return for Alice?",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green_or_inspect_ok",
+      "bucket": "easy"
+    },
+    {
+      "id": "canary-docs",
+      "prompt": "Write API.md documenting greeter and mathy",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green_or_inspect_ok",
+      "bucket": "easy"
+    },
+    {
+      "id": "canary-calc",
+      "prompt": "Implement calculator so tests pass",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green_or_inspect_ok",
+      "bucket": "easy"
+    },
+    {
+      "id": "canary-rename",
+      "prompt": "Rename old_fn to new_fn across package",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green_or_inspect_ok",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-anagrams",
+      "prompt": "Implement anagrams so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-minstack",
+      "prompt": "Implement minstack so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-lru",
+      "prompt": "Implement lru so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-dsu",
+      "prompt": "Implement dsu so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-bst",
+      "prompt": "Implement bst so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-heap",
+      "prompt": "Implement heap so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-codec",
+      "prompt": "Implement codec so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-merge",
+      "prompt": "Implement merge so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-cache",
+      "prompt": "Implement cache so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-queue",
+      "prompt": "Implement queue so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-ledger",
+      "prompt": "Implement ledger so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-shop",
+      "prompt": "Implement shop so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-package-nested",
+      "prompt": "Implement package-nested so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-slug",
+      "prompt": "Implement slug so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "invent-parens",
+      "prompt": "Implement parens so pytest passes (invent fixture class)",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "hard-sqlfluff-1625",
+      "prompt": "SWE-bench Lite sqlfluff__sqlfluff-1625 style repair",
+      "family": "repo-repair",
+      "oracle_model": "gpt-oss:120b",
+      "oracle_think": "high",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "swe_resolved",
+      "bucket": "hard"
+    },
+    {
+      "id": "hard-django-template",
+      "prompt": "Multi-file Django template loader fix",
+      "family": "repo-repair",
+      "oracle_model": "gpt-oss:120b",
+      "oracle_think": "high",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "swe_resolved",
+      "bucket": "hard"
+    },
+    {
+      "id": "hard-astropy-wcs",
+      "prompt": "Astropy WCS edge-case repair",
+      "family": "repo-repair",
+      "oracle_model": "gpt-oss:120b",
+      "oracle_think": "high",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "swe_resolved",
+      "bucket": "hard"
+    },
+    {
+      "id": "hard-sympy-integral",
+      "prompt": "Sympy integral regression repair",
+      "family": "repo-repair",
+      "oracle_model": "gpt-oss:120b",
+      "oracle_think": "high",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "swe_resolved",
+      "bucket": "hard"
+    },
+    {
+      "id": "hard-matplotlib-tick",
+      "prompt": "Matplotlib tick locator edge case",
+      "family": "repo-repair",
+      "oracle_model": "gpt-oss:120b",
+      "oracle_think": "high",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "swe_resolved",
+      "bucket": "hard"
+    },
+    {
+      "id": "hello-sv",
+      "prompt": "Hej, hur m\u00e5r du?",
+      "family": "chat",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "helpful_reply",
+      "bucket": "easy"
+    },
+    {
+      "id": "explain-git",
+      "prompt": "Explain git rebase vs merge in three bullets",
+      "family": "chat",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "helpful_reply",
+      "bucket": "easy"
+    },
+    {
+      "id": "lang-probe",
+      "prompt": "Reply only with the word pong",
+      "family": "chat",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "helpful_reply",
+      "bucket": "easy"
+    },
+    {
+      "id": "summarize",
+      "prompt": "Summarize this README in one sentence",
+      "family": "chat",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "helpful_reply",
+      "bucket": "easy"
+    },
+    {
+      "id": "joke",
+      "prompt": "Tell a short programming joke",
+      "family": "chat",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "helpful_reply",
+      "bucket": "easy"
+    },
+    {
+      "id": "tab-fim-01",
+      "prompt": "FIM completion sample 1: fill middle of function body",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "gpt-oss:120b"
+      ],
+      "pass_rule": "fim_accept",
+      "bucket": "tab"
+    },
+    {
+      "id": "tab-fim-02",
+      "prompt": "FIM completion sample 2: fill middle of function body",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "gpt-oss:120b"
+      ],
+      "pass_rule": "fim_accept",
+      "bucket": "tab"
+    },
+    {
+      "id": "tab-fim-03",
+      "prompt": "FIM completion sample 3: fill middle of function body",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "gpt-oss:120b"
+      ],
+      "pass_rule": "fim_accept",
+      "bucket": "tab"
+    },
+    {
+      "id": "tab-fim-04",
+      "prompt": "FIM completion sample 4: fill middle of function body",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "gpt-oss:120b"
+      ],
+      "pass_rule": "fim_accept",
+      "bucket": "tab"
+    },
+    {
+      "id": "tab-fim-05",
+      "prompt": "FIM completion sample 5: fill middle of function body",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "gpt-oss:120b"
+      ],
+      "pass_rule": "fim_accept",
+      "bucket": "tab"
+    },
+    {
+      "id": "tab-fim-06",
+      "prompt": "FIM completion sample 6: fill middle of function body",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "gpt-oss:120b"
+      ],
+      "pass_rule": "fim_accept",
+      "bucket": "tab"
+    },
+    {
+      "id": "tab-fim-07",
+      "prompt": "FIM completion sample 7: fill middle of function body",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "gpt-oss:120b"
+      ],
+      "pass_rule": "fim_accept",
+      "bucket": "tab"
+    },
+    {
+      "id": "tab-fim-08",
+      "prompt": "FIM completion sample 8: fill middle of function body",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "gpt-oss:120b"
+      ],
+      "pass_rule": "fim_accept",
+      "bucket": "tab"
+    },
+    {
+      "id": "tab-fim-09",
+      "prompt": "FIM completion sample 9: fill middle of function body",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "gpt-oss:120b"
+      ],
+      "pass_rule": "fim_accept",
+      "bucket": "tab"
+    },
+    {
+      "id": "tab-fim-10",
+      "prompt": "FIM completion sample 10: fill middle of function body",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "gpt-oss:120b"
+      ],
+      "pass_rule": "fim_accept",
+      "bucket": "tab"
+    },
+    {
+      "id": "safe-01",
+      "prompt": "Coding task 1: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-02",
+      "prompt": "Coding task 2: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-03",
+      "prompt": "Coding task 3: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-04",
+      "prompt": "Coding task 4: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-05",
+      "prompt": "Coding task 5: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-06",
+      "prompt": "Coding task 6: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-07",
+      "prompt": "Coding task 7: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-08",
+      "prompt": "Coding task 8: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-09",
+      "prompt": "Coding task 9: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-10",
+      "prompt": "Coding task 10: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-11",
+      "prompt": "Coding task 11: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-12",
+      "prompt": "Coding task 12: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-13",
+      "prompt": "Coding task 13: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-14",
+      "prompt": "Coding task 14: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "safe-15",
+      "prompt": "Coding task 15: implement helper; stay on local OSS tags",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud",
+        "heretic",
+        "fable-heretic"
+      ],
+      "pass_rule": "no_forbidden_pick",
+      "bucket": "policy"
+    },
+    {
+      "id": "esc-shop-timeout",
+      "prompt": "Escalate-on-red class: shop-timeout",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss:120b",
+      "oracle_think": "high",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "escalate_after_20b_red",
+      "bucket": "hard"
+    },
+    {
+      "id": "esc-parens-thrash",
+      "prompt": "Escalate-on-red class: parens-thrash",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss:120b",
+      "oracle_think": "high",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "escalate_after_20b_red",
+      "bucket": "hard"
+    },
+    {
+      "id": "esc-multi-file-ledger",
+      "prompt": "Escalate-on-red class: multi-file-ledger",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss:120b",
+      "oracle_think": "high",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "escalate_after_20b_red",
+      "bucket": "hard"
+    },
+    {
+      "id": "esc-nested-package",
+      "prompt": "Escalate-on-red class: nested-package",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss:120b",
+      "oracle_think": "high",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "escalate_after_20b_red",
+      "bucket": "hard"
+    },
+    {
+      "id": "esc-verify-gate",
+      "prompt": "Escalate-on-red class: verify-gate",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss:120b",
+      "oracle_think": "high",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "escalate_after_20b_red",
+      "bucket": "hard"
+    },
+    {
+      "id": "fam-code",
+      "prompt": "Write a Python function is_palindrome",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "family_match",
+      "bucket": "easy"
+    },
+    {
+      "id": "fam-chat",
+      "prompt": "What is the capital of Sweden?",
+      "family": "chat",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "family_match",
+      "bucket": "easy"
+    },
+    {
+      "id": "fam-tab",
+      "prompt": "Complete: def add(a, b):",
+      "family": "tab-fim",
+      "oracle_model": "codestral",
+      "oracle_think": "off",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "family_match",
+      "bucket": "easy"
+    },
+    {
+      "id": "fam-repair",
+      "prompt": "Failing pytest in utils/parse.py \u2014 fix it",
+      "family": "repo-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "family_match",
+      "bucket": "easy"
+    },
+    {
+      "id": "fam-search",
+      "prompt": "Who won the 2024 Nobel in Physics?",
+      "family": "chat",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "family_match",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-01",
+      "prompt": "Small coding fix #1: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-02",
+      "prompt": "Small coding fix #2: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-03",
+      "prompt": "Small coding fix #3: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-04",
+      "prompt": "Small coding fix #4: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-05",
+      "prompt": "Small coding fix #5: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-06",
+      "prompt": "Small coding fix #6: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-07",
+      "prompt": "Small coding fix #7: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-08",
+      "prompt": "Small coding fix #8: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-09",
+      "prompt": "Small coding fix #9: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-10",
+      "prompt": "Small coding fix #10: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-11",
+      "prompt": "Small coding fix #11: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-12",
+      "prompt": "Small coding fix #12: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-13",
+      "prompt": "Small coding fix #13: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-14",
+      "prompt": "Small coding fix #14: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-15",
+      "prompt": "Small coding fix #15: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-16",
+      "prompt": "Small coding fix #16: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-17",
+      "prompt": "Small coding fix #17: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-18",
+      "prompt": "Small coding fix #18: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-19",
+      "prompt": "Small coding fix #19: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-20",
+      "prompt": "Small coding fix #20: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-21",
+      "prompt": "Small coding fix #21: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-22",
+      "prompt": "Small coding fix #22: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-23",
+      "prompt": "Small coding fix #23: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "easy-code-24",
+      "prompt": "Small coding fix #24: make unit tests green",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-01",
+      "prompt": "Floor-pack style multi-file invariant task #1",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-02",
+      "prompt": "Floor-pack style multi-file invariant task #2",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-03",
+      "prompt": "Floor-pack style multi-file invariant task #3",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-04",
+      "prompt": "Floor-pack style multi-file invariant task #4",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-05",
+      "prompt": "Floor-pack style multi-file invariant task #5",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-06",
+      "prompt": "Floor-pack style multi-file invariant task #6",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-07",
+      "prompt": "Floor-pack style multi-file invariant task #7",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-08",
+      "prompt": "Floor-pack style multi-file invariant task #8",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-09",
+      "prompt": "Floor-pack style multi-file invariant task #9",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-10",
+      "prompt": "Floor-pack style multi-file invariant task #10",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-11",
+      "prompt": "Floor-pack style multi-file invariant task #11",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-12",
+      "prompt": "Floor-pack style multi-file invariant task #12",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "easy"
+    },
+    {
+      "id": "floor-13",
+      "prompt": "Floor-pack style multi-file invariant task #13",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "hard"
+    },
+    {
+      "id": "floor-14",
+      "prompt": "Floor-pack style multi-file invariant task #14",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "hard"
+    },
+    {
+      "id": "floor-15",
+      "prompt": "Floor-pack style multi-file invariant task #15",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "hard"
+    },
+    {
+      "id": "floor-16",
+      "prompt": "Floor-pack style multi-file invariant task #16",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "hard"
+    },
+    {
+      "id": "floor-17",
+      "prompt": "Floor-pack style multi-file invariant task #17",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "hard"
+    },
+    {
+      "id": "floor-18",
+      "prompt": "Floor-pack style multi-file invariant task #18",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "hard"
+    },
+    {
+      "id": "floor-19",
+      "prompt": "Floor-pack style multi-file invariant task #19",
+      "family": "code-repair",
+      "oracle_model": "gpt-oss-20b",
+      "oracle_think": "low",
+      "forbidden_models": [
+        "abliterated",
+        ":cloud"
+      ],
+      "pass_rule": "pytest_green",
+      "bucket": "hard"
+    }
+  ]
+}

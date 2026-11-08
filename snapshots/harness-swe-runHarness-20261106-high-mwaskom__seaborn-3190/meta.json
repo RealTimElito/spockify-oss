@@ -1,0 +1,15 @@
+{
+  "instance_id": "mwaskom__seaborn-3190",
+  "model": "gpt-oss-20b",
+  "model_digest_sha256_16": "",
+  "harness": "@spockify/harness",
+  "harness_version": "0.1.0",
+  "commit": "de5e1728396ce863377ba1e0ef28aeaf97756f06",
+  "max_turns": 48,
+  "prompt_dataset": "SWE-bench/SWE-bench_Lite",
+  "prompt_split": "test",
+  "eval_dataset": "SWE-bench/SWE-bench_Lite",
+  "eval_split": "test",
+  "driver": "runHarness",
+  "workers": 1
+}

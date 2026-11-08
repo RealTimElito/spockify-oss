@@ -1,0 +1,7 @@
+{
+  "django__django-14580": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-14580",
+    "model_patch": "diff --git a/tests/migration_test_data_persistence/migrations/0001_initial.py b/tests/migration_test_data_persistence/migrations/0001_initial.py\nindex 0f455ed43b..370f9e1a3c 100644\n--- a/tests/migration_test_data_persistence/migrations/0001_initial.py\n+++ b/tests/migration_test_data_persistence/migrations/0001_initial.py\n@@ -1,6 +1,7 @@\n from django.db import migrations, models\n \n \n+\n class Migration(migrations.Migration):\n \n     dependencies = [\n"
+  }
+}

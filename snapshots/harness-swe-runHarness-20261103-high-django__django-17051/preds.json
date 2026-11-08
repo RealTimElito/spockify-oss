@@ -1,0 +1,7 @@
+{
+  "django__django-17051": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-17051",
+    "model_patch": "diff --git a/django/utils/encoding.py b/django/utils/encoding.py\nindex 5b618e74a3..42c3b927ef 100644\n--- a/django/utils/encoding.py\n+++ b/django/utils/encoding.py\n@@ -1,4 +1,4 @@\n-import codecs\n+import codecs  # noop\n import datetime\n import locale\n from decimal import Decimal\n"
+  }
+}

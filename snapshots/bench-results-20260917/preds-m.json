@@ -1,0 +1,7 @@
+{
+  "sqlfluff__sqlfluff-1625": {
+    "model_name_or_path": "openai/gpt-oss-20b",
+    "instance_id": "sqlfluff__sqlfluff-1625",
+    "model_patch": "diff --git a/src/sqlfluff/rules/L031.py b/src/sqlfluff/rules/L031.py\nindex 838c6ce5d..36324d3ed 100644\n--- a/src/sqlfluff/rules/L031.py\n+++ b/src/sqlfluff/rules/L031.py\n@@ -142,6 +142,10 @@ class Rule_L031(BaseRule):\n                 continue\n \n             alias_identifier_ref = alias_exp_ref.get_child(\"identifier\")\n+            if alias_identifier_ref is None:\n+                continue\n+\n+            if alias_identifier_ref is None:\\n                continue\n             yield cls.TableAliasInfo(\n                 table_ref, whitespace_ref, alias_exp_ref, alias_identifier_ref\n             )\n"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "django__django-15790": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-15790",
+    "model_patch": "diff --git a/django/core/checks/templates.py b/django/core/checks/templates.py\nindex 5214276987..2e1e5e7e25 100644\n--- a/django/core/checks/templates.py\n+++ b/django/core/checks/templates.py\n@@ -55,7 +55,9 @@ def check_for_template_tags_with_the_same_name(app_configs, **kwargs):\n     for conf in settings.TEMPLATES:\n         custom_libraries = conf.get(\"OPTIONS\", {}).get(\"libraries\", {})\n         for module_name, module_path in custom_libraries.items():\n-            libraries[module_name].append(module_path)\n+            # Avoid duplicate entries of the same module path\n+            if module_path not in libraries[module_name]:\n+                libraries[module_name].append(module_path)\n \n     for module_name, module_path in get_template_tag_modules():\n         libraries[module_name].append(module_path)\n"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "instance_id": "pydata__xarray-4248",
+  "model": "gpt-oss-20b",
+  "model_digest_sha256_16": "",
+  "harness": "@spockify/harness",
+  "harness_version": "0.1.0",
+  "commit": "588ec77c59912b4502a58b18e94ca2d76365146a",
+  "max_turns": 48,
+  "prompt_dataset": "SWE-bench/SWE-bench_Lite",
+  "prompt_split": "test",
+  "eval_dataset": "SWE-bench/SWE-bench_Lite",
+  "eval_split": "test",
+  "driver": "runHarness",
+  "workers": 1
+}
