@@ -122,7 +122,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=openwebui
 
       - name: GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: docker-v${{ steps.ver.outputs.version }}
           name: Docker kit ${{ steps.ver.outputs.version }}
