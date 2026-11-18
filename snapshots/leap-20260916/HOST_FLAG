@@ -1,0 +1,5 @@
+HOST-GREEN
+# LEAP-018 — written 2026-09-16T18:00Z
+# LiteLLM PF :24001 ok (Spark); docker amd64 ok (spock); mini-swe-agent==1.14.4
+# WARN: root disk ~93% used (~62G free). Prefer one SWE worker; do not wipe models.
+# Sandbox host: spock (x86_64). Inference: tim@example.local LiteLLM.

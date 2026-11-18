@@ -1,0 +1,7 @@
+{
+  "django__django-15996": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-15996",
+    "model_patch": "diff --git a/django/db/migrations/writer.py b/django/db/migrations/writer.py\nindex a59f0c8dcb..d7d96ec647 100644\n--- a/django/db/migrations/writer.py\n+++ b/django/db/migrations/writer.py\n@@ -15,7 +15,7 @@ from django.utils.module_loading import module_dir\n from django.utils.timezone import now\n \n \n-class OperationWriter:\n+class OperationWriter:  # noqa: E302\n     def __init__(self, operation, indentation=2):\n         self.operation = operation\n         self.buff = []\n"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "sympy__sympy-13895": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "sympy__sympy-13895",
+    "model_patch": "diff --git a/sympy/__init__.py b/sympy/__init__.py\nindex 21936f61b9..db0be59040 100644\n--- a/sympy/__init__.py\n+++ b/sympy/__init__.py\n@@ -1,14 +1,9 @@\n \"\"\"\n-SymPy is a Python library for symbolic mathematics. It aims to become a\n+SymPy is a library for symbolic math. It aims to become a\n full-featured computer algebra system (CAS) while keeping the code as simple\n as possible in order to be comprehensible and easily extensible.  SymPy is\n written entirely in Python. It depends on mpmath, and other external libraries\n may be optionally for things like plotting support.\n-\n-See the webpage for more information and documentation:\n-\n-    http://sympy.org\n-\n \"\"\"\n \n \n"
+  }
+}

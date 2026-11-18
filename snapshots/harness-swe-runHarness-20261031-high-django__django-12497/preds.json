@@ -1,0 +1,7 @@
+{
+  "django__django-12497": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-12497",
+    "model_patch": "diff --git a/django/utils/regex_helper.py b/django/utils/regex_helper.py\nindex 8612475b96..1328b42657 100644\n--- a/django/utils/regex_helper.py\n+++ b/django/utils/regex_helper.py\n@@ -39,6 +39,7 @@ class NonCapture(list):\n \n \n def normalize(pattern):\n+    # noqa: E501 - Preserve formatting for clarity\n     r\"\"\"\n     Given a reg-exp pattern, normalize it to an iterable of forms that\n     suffice for reverse matching. This does the following:\n"
+  }
+}

@@ -1,0 +1,21 @@
+# runHarness SWE — django__django-12453
+
+- Outcome: **not-resolved**
+- Detail: swebench report not resolved
+- Driver: `@spockify/harness` `runHarness` via `lab-kernel-stdio` (not mini-SWE)
+- Harness version: `0.1.0`
+- Model: `gpt-oss-20b`
+- Model digest (sha256/16 of /v1/models row): `e6c93479b976c181`
+- Workers: 1
+- Max turns: 48
+- Prompt dataset: `SWE-bench/SWE-bench_Lite` split `test`
+- Eval dataset: `SWE-bench/SWE-bench_Lite` split `test`
+- Host: spock
+- Commit: `5a8e2f45a5debfdb50675bd795794e531825c360`
+- Traces: `/workspace/spockify/bench-out/harness-swe-runHarness-20261031-high-django__django-12453/events.jsonl`
+- Wall s: 304
+- Events: 5141
+- Scored path: default `spockify bench swe --driver harness`.
+- N=1 freeze instance — not a Lite board pass@1 %.
+- Historical Lite pass@1=0 row is unchanged.
+- empty-diff continue → nonempty 2166 B; `swe_smoke.ok=null` (no smoke-continue); Unique **7/27**. Fail kept.

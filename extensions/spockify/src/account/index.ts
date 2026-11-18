@@ -1,0 +1,1 @@
+export { registerAccountCommands } from './register';

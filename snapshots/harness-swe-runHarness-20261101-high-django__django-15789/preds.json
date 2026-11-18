@@ -1,0 +1,7 @@
+{
+  "django__django-15789": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-15789",
+    "model_patch": "diff --git a/django/utils/html.py b/django/utils/html.py\nindex d0bc97be80..0f9a8e444b 100644\n--- a/django/utils/html.py\n+++ b/django/utils/html.py\n@@ -59,15 +59,18 @@ _json_script_escapes = {\n }\n \n \n-def json_script(value, element_id=None):\n+def json_script(value, element_id=None, encoder=None):\n     \"\"\"\n     Escape all the HTML/XML special characters with their unicode escapes, so\n     value is safe to be output anywhere except for inside a tag attribute. Wrap\n     the escaped JSON in a script tag.\n     \"\"\"\n+    # Import lazily to avoid unnecessary import when this helper is not used.\n     from django.core.serializers.json import DjangoJSONEncoder\n \n-    json_str = json.dumps(value, cls=DjangoJSONEncoder).translate(_json_script_escapes)\n+    # Use custom encoder if provided, otherwise fall back to the default.\n+    cls = encoder if encoder is not None else DjangoJSONEncoder\n+    json_str = json.dumps(value, cls=cls).translate(_json_script_escapes)\n     if element_id:\n         template = '<script id=\"{}\" type=\"application/json\">{}</script>'\n         args = (element_id, mark_safe(json_str))\n"
+  }
+}

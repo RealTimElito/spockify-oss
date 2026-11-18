@@ -1,0 +1,7 @@
+{
+  "psf__requests-863": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "psf__requests-863",
+    "model_patch": ""
+  }
+}

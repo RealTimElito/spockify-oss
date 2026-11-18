@@ -1,0 +1,14 @@
+# LiteLLM search_tools + websearch_interception fragment.
+# Merged into config/litellm.yaml (source of truth via k8s/litellm kustomize).
+
+search_tools:
+  - search_tool_name: spockify-searxng
+    litellm_params:
+      search_provider: searxng
+      api_base: http://searxng.spockify.svc.cluster.local:8080
+
+# Enable in litellm_settings:
+#   callbacks: ["websearch_interception"]
+#   websearch_interception_params:
+#     enabled_providers: [ollama]
+#     search_tool_name: spockify-searxng

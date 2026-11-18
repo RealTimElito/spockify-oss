@@ -1,0 +1,23 @@
+{
+  "name": "@spockify/oss-models",
+  "version": "0.0.1",
+  "description": "OSS-only model allow/deny filter for Spockify IDE",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && npx --yes tsx --test src/filter.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.6.0"
+  }
+}

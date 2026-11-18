@@ -1,0 +1,7 @@
+{
+  "sympy__sympy-21847": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "sympy__sympy-21847",
+    "model_patch": ""
+  }
+}

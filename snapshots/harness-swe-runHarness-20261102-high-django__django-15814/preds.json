@@ -1,0 +1,7 @@
+{
+  "django__django-15814": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-15814",
+    "model_patch": "diff --git a/tests/proxy_models/tests.py b/tests/proxy_models/tests.py\nindex 7caa43d489..e15cacfc9a 100644\n--- a/tests/proxy_models/tests.py\n+++ b/tests/proxy_models/tests.py\n@@ -6,7 +6,7 @@ from django.db import DEFAULT_DB_ALIAS, models\n from django.db.models import signals\n from django.test import TestCase, override_settings\n from django.test.utils import isolate_apps\n-from django.urls import reverse\n+from django.urls import reverse  # test\n \n from .admin import admin as force_admin_model_registration  # NOQA\n from .models import (\n"
+  }
+}

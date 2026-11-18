@@ -1,0 +1,10 @@
+Here is the change:
+
+```src/a.ts
+line1
+line2-new
+```
+
+```src/b.ts
+only
+```

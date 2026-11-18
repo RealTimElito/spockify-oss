@@ -1,0 +1,27 @@
+14:THINKING_API_EFFORT = "effort"
+59:    thinking_api: str = THINKING_API_NONE  # effort | boolean | none
+308:            "Mistral Magistral 24B reasoning. think=true|false (never effort "
+624:    """Ollama think= API: effort (low|medium|high), boolean, or none.
+626:    Catalog first. Unknown Gemma/Qwen/Nemotron/gpt-oss tags get effort.
+652:    """Whether this worker accepts any think= payload (effort or boolean)."""
+666:def user_effort_level(thinking_mode: str) -> Optional[str]:
+667:    """low|medium|high for Ollama effort, or None when the chip is Off."""
+678:def ollama_think_value(
+684:    disables default thinking). Low/Medium/High/Heavy: string effort when
+698:    effort = user_effort_level(mode) or "medium"
+700:        return effort
+707:    Accepts a chip mode string, an effort string, True/False, or None.
+714:        value = ollama_think_value(name, "off")
+723:            value = ollama_think_value(name, lowered)
+727:            value = ollama_think_value(name, "off")
+729:            value = ollama_think_value(name, "medium")
+903:        "think-api=effort accepts think=low|medium|high; boolean is on/off "
+930:            "Thinking effort cap is Low. Prefer a fast/cheap worker. "
+934:            "(or boolean true). Do not raise effort."
+938:            "Thinking effort cap is High (single worker, not the ensemble). "
+943:            "High unless it is a leftover specialist. You may LOWER effort "
+945:            "reasoning as effort=low|medium. Otherwise assume high. "
+950:            "Thinking is Heavy: high effort + 4-agent ensemble. Do not lower. "
+962:        "Thinking effort cap is Medium (default auto path). Prefer "
+969:        "effort to low for a simple greeting/ack — put that in reasoning "
+970:        "as effort=low. Do not raise above medium. "

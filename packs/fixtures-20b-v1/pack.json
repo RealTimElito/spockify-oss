@@ -1,0 +1,22 @@
+{
+  "id": "fixtures-20b-v1",
+  "version": 1,
+  "model": "gpt-oss-20b",
+  "think": "low",
+  "harness": "runHarness",
+  "note": "Small kernel cards. Do not retune sqlfluff. Phase 5 stays Partial.",
+  "cases": [
+    {
+      "id": "drifted_edit",
+      "oracle": "apply_patch SEARCH without trailing spaces still writes via cascade L1; pytest green"
+    },
+    {
+      "id": "missing_path",
+      "oracle": "apply_patch without path returns path required and does not write"
+    },
+    {
+      "id": "prose_instead",
+      "oracle": "zero-tool tutorial gets one doer continue inject, then stop"
+    }
+  ]
+}

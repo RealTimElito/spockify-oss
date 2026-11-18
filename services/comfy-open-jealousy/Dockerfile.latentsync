@@ -1,0 +1,32 @@
+# Thin LatentSync layer on top of the serving Open Jealousy Comfy image.
+ARG BASE=localhost:32000/spockify-comfyui-spark:open-jealousy-2
+FROM ${BASE}
+
+COPY zz_open_jealousy_paths.py /opt/ComfyUI/custom_nodes/zz_open_jealousy_paths.py
+COPY patch_latentsync_aarch64.py /tmp/patch_latentsync_aarch64.py
+
+# Skip decord/mediapipe (no reliable aarch64 wheels). Inference uses cv2 + librosa.
+RUN apt-get update && apt-get install -y --no-install-recommends git ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && git clone --depth 1 https://github.com/bytedance/LatentSync.git /opt/LatentSync \
+    && pip install --no-cache-dir \
+        "diffusers==0.32.2" \
+        "transformers==4.48.0" \
+        "accelerate==0.26.1" \
+        "einops==0.7.0" \
+        "omegaconf==2.3.0" \
+        "python_speech_features==0.6" \
+        "librosa==0.10.1" \
+        "soundfile==0.12.1" \
+        "ffmpeg-python==0.2.0" \
+        "imageio==2.31.1" \
+        "imageio-ffmpeg==0.5.1" \
+        "face-alignment==1.4.1" \
+        "kornia==0.8.0" \
+        "packaging" \
+        "tqdm" \
+    && python3 /tmp/patch_latentsync_aarch64.py \
+    && rm -f /tmp/patch_latentsync_aarch64.py
+
+ENV SPOCKIFY_LATENTSYNC_PY=/opt/LatentSync/scripts/inference.py
+ENV SPOCKIFY_LATENTSYNC_VAE=/opt/ComfyUI/models/loras/_oj/latentsync/sd-vae-ft-mse
