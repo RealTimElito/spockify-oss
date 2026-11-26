@@ -1,0 +1,7 @@
+{
+  "pydata__xarray-4248": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "pydata__xarray-4248",
+    "model_patch": ""
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "matplotlib__matplotlib-23562": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "matplotlib__matplotlib-23562",
+    "model_patch": "diff --git a/tests.py b/tests.py\nindex 335fa860fc..239d8e8dc4 100755\n--- a/tests.py\n+++ b/tests.py\n@@ -1,6 +1,6 @@\n #!/usr/bin/env python\n #\n-# This allows running the matplotlib tests from the command line: e.g.\n+# This allows running the matplotlib tests from the command line.: e.g.\n #\n #   $ python tests.py -v -d\n #\n"
+  }
+}

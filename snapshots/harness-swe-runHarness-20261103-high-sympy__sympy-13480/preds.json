@@ -1,0 +1,7 @@
+{
+  "sympy__sympy-13480": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "sympy__sympy-13480",
+    "model_patch": "diff --git a/sympy/__init__.py b/sympy/__init__.py\nindex b5246e252e..5a12591f60 100644\n--- a/sympy/__init__.py\n+++ b/sympy/__init__.py\n@@ -18,8 +18,10 @@\n try:\n     import mpmath\n except ImportError:\n-    raise ImportError(\"SymPy now depends on mpmath as an external library. \"\n-    \"See http://docs.sympy.org/latest/install.html#mpmath for more information.\")\n+    raise ImportError(\n+        \"SymPy now depends on mpmath as an external library. \"\n+        \"See http://docs.sympy.org/latest/install.html#mpmath for more information.\"\n+    )\n \n del mpmath\n \n"
+  }
+}

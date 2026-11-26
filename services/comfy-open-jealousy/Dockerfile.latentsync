@@ -1,0 +1,30 @@
+# Thin layer: LatentSync import shim + node. Weights stay on the PVC.
+# Does not pip-install into the Comfy venv and does not re-download the unet.
+# Build on Spark from the image that is already running, for example:
+#   docker build -f Dockerfile.latentsync \
+#     --build-arg BASE=localhost:32000/spockify-comfyui-spark:frank-lipsync-20261122 \
+#     -t localhost:32000/spockify-comfyui-spark:frank-delivery-20261122 .
+ARG BASE=localhost:32000/spockify-comfyui-spark:open-jealousy-4
+FROM ${BASE}
+
+COPY zz_open_jealousy_paths.py /opt/ComfyUI/custom_nodes/zz_open_jealousy_paths.py
+COPY latentsync_entry.py /opt/LatentSync/latentsync_entry.py
+COPY lipsync_support.py /opt/LatentSync/lipsync_support.py
+COPY lipsync_support.py /opt/ComfyUI/custom_nodes/lipsync_support.py
+
+# scikit-image 0.22 was built for NumPy 1. The Comfy venv is NumPy 2.4,
+# so insightface dies in skimage before inference.py opens the unet.
+# librosa still imports pkg_resources. Pin both. Do not upgrade torch.
+RUN /opt/venv/bin/pip install --no-cache-dir --upgrade-strategy only-if-needed \
+        'scikit-image==0.25.2' \
+        'setuptools==80.9.0' \
+    && /opt/venv/bin/python -c 'import numpy, skimage, pkg_resources; from skimage import transform; print(numpy.__version__, skimage.__version__)'
+
+# The PVC is mounted at /opt/ComfyUI/models after the container starts.
+# A symlink in the image survives pod restart. The custom node also
+# re-asserts this link every time Comfy loads it.
+RUN rm -rf /opt/LatentSync/checkpoints \
+    && ln -sfn /opt/ComfyUI/models/loras/_oj/latentsync /opt/LatentSync/checkpoints
+
+ENV SPOCKIFY_LATENTSYNC_PY=/opt/LatentSync/scripts/inference.py
+ENV SPOCKIFY_LATENTSYNC_VAE=/opt/ComfyUI/models/loras/_oj/latentsync/sd-vae-ft-mse

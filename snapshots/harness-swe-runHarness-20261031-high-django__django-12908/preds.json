@@ -1,0 +1,7 @@
+{
+  "django__django-12908": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-12908",
+    "model_patch": "diff --git a/django/db/models/query.py b/django/db/models/query.py\nindex e0eeccefa6..f3abce36c8 100644\n--- a/django/db/models/query.py\n+++ b/django/db/models/query.py\n@@ -1788,7 +1788,7 @@ def get_prefetcher(instance, through_attr, to_attr):\n                         is_fetched = hasattr(instance, to_attr)\n                 else:\n                     is_fetched = through_attr in instance._prefetched_objects_cache\n-    return prefetcher, rel_obj_descriptor, attr_found, is_fetched\n+    return (prefetcher, rel_obj_descriptor, attr_found, is_fetched)\n \n \n def prefetch_one_level(instances, prefetcher, lookup, level):\n"
+  }
+}

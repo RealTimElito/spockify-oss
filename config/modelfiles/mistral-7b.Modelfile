@@ -1,0 +1,15 @@
+# Spockify chat wrapper for Mistral 7B.
+# Base ollama/mistral is a completion model; in chat it may invent fake User:/Assistant: turns.
+# Create: ollama create spockify-mistral-7b -f /modelfiles/mistral-7b.Modelfile
+FROM mistral
+
+PARAMETER temperature 0.7
+PARAMETER num_ctx 8192
+PARAMETER stop "User:"
+PARAMETER stop "\nUser:"
+PARAMETER stop "Mistral AI:"
+PARAMETER stop "\nMistral AI:"
+
+SYSTEM """You are a helpful assistant. Reply only to the user's actual message.
+Do not invent, simulate, or continue with fake "User:" or "Assistant:" dialogue turns.
+Keep greetings short and natural."""

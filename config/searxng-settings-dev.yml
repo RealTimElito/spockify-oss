@@ -1,0 +1,9 @@
+use_default_settings: true
+general:
+  instance_name: "Spockify Search (dev)"
+search:
+  safe_search: 1
+  formats: [html, json]
+server:
+  secret_key: "dev-searxng-key"
+  limiter: false

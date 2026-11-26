@@ -1,0 +1,7 @@
+{
+  "django__django-11422": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-11422",
+    "model_patch": "diff --git a/tests/i18n/sampleproject/manage.py b/tests/i18n/sampleproject/manage.py\nindex 87a0ec369a..b3e5f9acae 100755\n--- a/tests/i18n/sampleproject/manage.py\n+++ b/tests/i18n/sampleproject/manage.py\n@@ -2,6 +2,10 @@\n import os\n import sys\n \n+# Watch this file for changes to trigger autoreload\n+from django.utils.autoreload import watch\n+watch(os.path.abspath(__file__))\n+\n sys.path.append(os.path.abspath(os.path.join('..', '..', '..')))\n \n if __name__ == \"__main__\":\n"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "astropy__astropy-14365": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "astropy__astropy-14365",
+    "model_patch": "diff --git a/astropy/io/ascii/qdp.py b/astropy/io/ascii/qdp.py\nindex 83a4f004aa..7b373e5c83 100644\n--- a/astropy/io/ascii/qdp.py\n+++ b/astropy/io/ascii/qdp.py\n@@ -306,7 +306,11 @@ def _get_tables_from_qdp_file(qdp_file, input_colnames=None, delimiter=None):\n \n             values = []\n             for v in line.split(delimiter):\n-                if v == \"NO\":\n+                # QDP uses the literal string \"NO\" to indicate missing values.\n+                # Some input files (e.g., after lowercasing) may contain\n+                # \"no\" in lower case. Treat any case-insensitive variant of\n+                # \"NO\" as a missing value.\n+                if v.upper() == \"NO\":\n                     values.append(np.ma.masked)\n                 else:\n                     # Understand if number is int or float\n"
+  }
+}

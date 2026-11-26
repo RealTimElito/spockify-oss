@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "note": "Auto pins: gpt-oss-20b / gpt-oss-120b only. qwen3.8-flash-next-ud-UD-Q3_K_XL is an explicit prod model (pool spark, not Auto, not lab). lab_models lists unpublished candidates (promoted:false). qwen3-coder-30b-a3b maps to Instruct Q4/Q8 (not fp16). Selecting devstral-2 evicts 120b-hot. Do not add lab candidates to the prod dropdown. num_ctx is derived metadata (Ollama gpt-oss.context_length / LiteLLM litellm_params.num_ctx), not a runtime inject except where LiteLLM already sets it.",
+  "models": [
+    {
+      "id": "gpt-oss-20b",
+      "role": "coder",
+      "pool": "spark",
+      "think_allowed": ["off", "low", "medium", "high"],
+      "promoted": true,
+      "num_ctx": 131072,
+      "num_ctx_source": "ollama /api/show model_info[\"gpt-oss.context_length\"]"
+    },
+    {
+      "id": "gpt-oss-120b",
+      "role": "coder",
+      "pool": "spark",
+      "think_allowed": ["off", "low", "medium", "high"],
+      "promoted": true,
+      "num_ctx": 131072,
+      "num_ctx_source": "ollama /api/show model_info[\"gpt-oss.context_length\"]"
+    },
+    {
+      "id": "qwen3.8-flash-next-ud-UD-Q3_K_XL",
+      "role": "coder",
+      "pool": "spark",
+      "think_allowed": ["off", "low", "medium", "high"],
+      "promoted": true,
+      "num_ctx": 262144,
+      "num_ctx_source": "config/litellm.yaml litellm_params.num_ctx (GGUF context_length)"
+    }
+  ],
+  "lab_models": [
+    {
+      "id": "devstral-small-2",
+      "role": "coder",
+      "pool": "lab",
+      "think_allowed": ["off"],
+      "promoted": false
+    },
+    {
+      "id": "devstral-2",
+      "role": "coder",
+      "pool": "lab",
+      "think_allowed": ["off"],
+      "promoted": false
+    },
+    {
+      "id": "qwen3-coder-30b-a3b",
+      "role": "coder",
+      "pool": "eval",
+      "think_allowed": ["off", "low", "medium", "high"],
+      "promoted": false,
+      "ollama_tag": "qwen3-coder:30b-a3b-q4_K_M"
+    }
+  ]
+}

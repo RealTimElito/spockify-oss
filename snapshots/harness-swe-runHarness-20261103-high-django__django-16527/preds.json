@@ -1,0 +1,7 @@
+{
+  "django__django-16527": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-16527",
+    "model_patch": "diff --git a/django/contrib/admin/templatetags/admin_modify.py b/django/contrib/admin/templatetags/admin_modify.py\nindex 9df4b7aadb..21829e3bd9 100644\n--- a/django/contrib/admin/templatetags/admin_modify.py\n+++ b/django/contrib/admin/templatetags/admin_modify.py\n@@ -99,10 +99,18 @@ def submit_row(context):\n                 and change\n                 and context.get(\"show_delete\", True)\n             ),\n-            \"show_save_as_new\": not is_popup\n-            and has_change_permission\n-            and change\n-            and save_as,\n+            # The \"Save as new\" button is available when the request is not a\n+            # popup, the user has both add and change permissions, the object\n+            # exists (i.e. change=True), and the save_as flag is set.  The\n+            # original implementation mistakenly duplicated the condition and\n+            # caused a syntax error.\n+            \"show_save_as_new\": (\n+                not is_popup\n+                and has_change_permission\n+                and has_add_permission\n+                and change\n+                and save_as\n+            ),\n             \"show_save_and_add_another\": can_save_and_add_another,\n             \"show_save_and_continue\": can_save_and_continue,\n             \"show_save\": show_save and can_save,\n"
+  }
+}

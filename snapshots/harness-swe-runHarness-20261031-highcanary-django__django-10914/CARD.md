@@ -1,0 +1,27 @@
+# runHarness SWE — django__django-10914
+
+- Outcome: **resolved**
+- Detail: swebench report resolved
+- Driver: `@spockify/harness` `runHarness` via `lab-kernel-stdio` (not mini-SWE)
+- Harness version: `0.1.0`
+- Model: `gpt-oss-20b`
+- Model digest (sha256/16 of /v1/models row): `e6c93479b976c181`
+- Workers: 1
+- Max turns: 48
+- Prompt dataset: `SWE-bench/SWE-bench_Lite` split `test`
+- Eval dataset: `SWE-bench/SWE-bench_Lite` split `test`
+- Host: spock
+- Commit: `8090e68d4e1e4b0664006d405830751b4ffd8f84`
+- Traces: `/workspace/spockify/bench-out/harness-swe-runHarness-20261031-highcanary-django__django-10914/events.jsonl`
+- Wall s: 387
+- Events: 3723
+- Scored path: default `spockify bench swe --driver harness`.
+- N=1 freeze instance — not a Lite board pass@1 %.
+- Historical Lite pass@1=0 row is unchanged.
+- May use one FAIL_TO_PASS local-smoke continue (no gold patch).
+
+## Fix context
+
+- High-think canary (`SPOCKIFY_HARNESS_THINKING=high` via lab-kernel-stdio).
+- Prior resolve for this id still stands; this is a regression/canary — not a new unique resolve.
+- Empty-diff continue already present in `run_harness_swe_one.py` (not re-implemented).

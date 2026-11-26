@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "window": {
+    "start": "2026-10-17T16:00:00+02:00",
+    "days": 30,
+    "history_days_available": 0,
+    "note": "Window started 2026-10-17. Complete calendar days before today stay 0 on day one. A real JSONL sample exists on the operator host (/var/lib/spockify/slo/slo-samples.jsonl); do not invent prior days. Targets are operator objectives, not a published SLA."
+  },
+  "targets": [
+    {
+      "id": "slo.local.chat_health",
+      "indicator": "availability",
+      "objective": 0.99,
+      "scrape": "http",
+      "path": "/health",
+      "env_url": "SPOCKIFY_SLO_CHAT_URL",
+      "skip_if_down": true,
+      "description": "Local chat UI /health when a stack is bound on loopback."
+    },
+    {
+      "id": "slo.local.router_health",
+      "indicator": "availability",
+      "objective": 0.99,
+      "scrape": "http",
+      "path": "/health",
+      "env_url": "SPOCKIFY_SLO_ROUTER_URL",
+      "skip_if_down": true,
+      "description": "Local router /health when a stack is bound on loopback."
+    },
+    {
+      "id": "slo.restore.rto",
+      "indicator": "latency_s",
+      "objective_s": 900,
+      "published_sla": false,
+      "scrape": "restore-report",
+      "description": "Throwaway compose restore drill. Local synthetic was ~1s; not a signed RTO."
+    },
+    {
+      "id": "slo.isolation.fail_closed",
+      "indicator": "boolean",
+      "objective": true,
+      "scrape": "isolation-unit",
+      "description": "Production without bwrap/podman must fail closed."
+    },
+    {
+      "id": "slo.sbom.inventory",
+      "indicator": "boolean",
+      "objective": true,
+      "scrape": "sbom-signed",
+      "description": "CycloneDX inventory plus cosign sidecar bundle. Not SLSA provenance."
+    },
+    {
+      "id": "slo.video.enabled",
+      "indicator": "expected_skip",
+      "scrape": "skip",
+      "description": "Video is operator-enabled (2026-10-17). Scrape must not POST /v1/videos or start gens."
+    }
+  ]
+}

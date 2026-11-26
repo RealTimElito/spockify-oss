@@ -1,0 +1,70 @@
+/* Hide navbar copy only; never hide the relocated toolbar copy. */
+nav .flex.flex-col.w-full.items-start:has(#model-selector-0-button):not(.spockify-input-model-selector) {
+  display: none !important;
+}
+
+/* Never hide the relocated copy even if OpenWebUI re-attaches it under nav briefly. */
+#message-input-container .spockify-input-model-selector,
+.spockify-input-model-selector[data-spockify-model-toolbar="1"] {
+  display: flex !important;
+}
+
+/* Compact model picker beside integrations/tools in the message input row. */
+.spockify-input-model-selector {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: auto !important;
+  max-width: min(240px, 46vw);
+  flex: 0 1 auto !important;
+  flex-shrink: 1;
+  min-width: 0;
+  align-self: center;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  margin-right: 0.375rem;
+  isolation: isolate;
+}
+
+/* Relocated root keeps navbar w-full; shrink so it does not cover integrations. */
+.spockify-input-model-selector.w-full {
+  width: auto !important;
+}
+
+.spockify-input-model-selector #model-selector-0-button {
+  border-radius: 9999px;
+  padding: 7px 10px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  max-width: 100%;
+  background: transparent;
+  color: rgb(75 85 99);
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.dark .spockify-input-model-selector #model-selector-0-button,
+html.dark .spockify-input-model-selector #model-selector-0-button {
+  color: rgb(209 213 219);
+}
+
+.spockify-input-model-selector #model-selector-0-button:hover {
+  background: rgb(249 250 251);
+}
+
+.dark .spockify-input-model-selector #model-selector-0-button:hover,
+html.dark .spockify-input-model-selector #model-selector-0-button:hover {
+  background: rgb(31 41 55);
+}
+
+/* "Set as default" does not belong in the compact input toolbar. */
+.spockify-input-model-selector .font-primary.text-\[0\.7rem\] {
+  display: none !important;
+}
+
+/* Active chat: model dropdown opens above the input toolbar. */
+.spockify-model-dropdown-up {
+  transform-origin: bottom center !important;
+}

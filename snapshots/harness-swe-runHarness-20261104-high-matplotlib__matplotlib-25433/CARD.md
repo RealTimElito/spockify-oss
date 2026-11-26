@@ -1,0 +1,24 @@
+# runHarness SWE — matplotlib__matplotlib-25433
+
+- Outcome: **not-resolved** (empty_patch)
+- Detail: swebench empty_patch / report not resolved
+- Driver: `@spockify/harness` `runHarness` via `lab-kernel-stdio` (not mini-SWE)
+- Harness version: `0.1.0`
+- Model: `gpt-oss-20b`
+- Think: high
+- Model digest (sha256/16 of /v1/models row): `e6c93479b976c181`
+- Workers: 1
+- Max turns: 48
+- Prompt/Eval: `SWE-bench/SWE-bench_Lite` test
+- Host: spock
+- Commit: `2b5b0657`
+- Traces: `/workspace/spockify/bench-out/harness-swe-runHarness-20261104-high-matplotlib__matplotlib-25433/events.jsonl`
+- Wall s: 541
+- Events: 12038
+- diff_meta: `{"source": "empty", "pass1_bytes": 0, "final_bytes": 0, "continue_used": true}`
+- Patch bytes: 0
+- N=1 freeze — not Lite board %
+- Unique B-04 **27/27 closed** unchanged
+- Historical Lite pass@1=0 unchanged
+- No B-05 (not harness-resolved)
+- Planning-steer smoke after `2b5b0657` (F2P-body + wrong-file early stop); continues fired; model-empty residual

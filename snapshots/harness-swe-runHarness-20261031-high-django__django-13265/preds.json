@@ -1,0 +1,7 @@
+{
+  "django__django-13265": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "django__django-13265",
+    "model_patch": "diff --git a/django/__init__.py b/django/__init__.py\nindex c6bda27510..4d02e6a71c 100644\n--- a/django/__init__.py\n+++ b/django/__init__.py\n@@ -2,6 +2,9 @@ from django.utils.version import get_version\n \n VERSION = (3, 2, 0, 'alpha', 0)\n \n+# Import get_version so it is available as ``django.get_version``.\n+from .utils.version import get_version\n+\n __version__ = get_version(VERSION)\n \n \n"
+  }
+}

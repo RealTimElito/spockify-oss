@@ -1,0 +1,7 @@
+@spockify/harness
+Copyright Spockify contributors.
+
+Control-plane contracts (loop detect, kill registry, TaskAgent isolation,
+atomic session JSONL) were designed against the public wiiha/wichy v0.5.0
+(MIT) tree as of 2026-09. No Wichy modules are vendored; reimplementations
+are original TypeScript under this package's MIT license.

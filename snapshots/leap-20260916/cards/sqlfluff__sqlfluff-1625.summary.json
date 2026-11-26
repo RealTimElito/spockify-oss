@@ -1,0 +1,26 @@
+{
+  "instance_id": "sqlfluff__sqlfluff-1625",
+  "exit_status": "Submitted",
+  "classification": "resolved",
+  "infra_fail": false,
+  "model": "gpt-oss-20b",
+  "harness": "mini-swe-agent==1.14.4+SpockifyLitellmModel+SpockifyDockerEnvironment",
+  "best_run": "q",
+  "runs": {
+    "o_leap023": {
+      "classification": "not-resolved",
+      "note": "near-miss description string"
+    },
+    "q_leap024": {
+      "api_calls": 13,
+      "exit_status": "Submitted",
+      "model_patch_len": 571,
+      "description": "Avoid aliases in from clauses and join conditions.",
+      "fail_to_pass": "test__cli__command_directed PASSED",
+      "cli_suite": "test/cli/commands_test.py 69 passed",
+      "classification": "resolved",
+      "wall_note": "~1m"
+    }
+  },
+  "leap_ticket": "LEAP-024"
+}

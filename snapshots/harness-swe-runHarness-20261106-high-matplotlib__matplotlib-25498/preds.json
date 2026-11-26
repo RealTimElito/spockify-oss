@@ -1,0 +1,7 @@
+{
+  "matplotlib__matplotlib-25498": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "matplotlib__matplotlib-25498",
+    "model_patch": "diff --git a/lib/mpl_toolkits/__init__.py b/lib/mpl_toolkits/__init__.py\nindex 02de4115d7..9c705b43f8 100644\n--- a/lib/mpl_toolkits/__init__.py\n+++ b/lib/mpl_toolkits/__init__.py\n@@ -1,4 +1,4 @@\n try:\n     __import__('pkg_resources').declare_namespace(__name__)\n except ImportError:\n-    pass  # must not have setuptools\n+    pass  # Test comment added must not have setuptools\n"
+  }
+}

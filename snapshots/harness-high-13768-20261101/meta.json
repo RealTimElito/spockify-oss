@@ -1,0 +1,15 @@
+{
+  "instance_id": "django__django-13768",
+  "model": "gpt-oss-20b",
+  "model_digest_sha256_16": "e6c93479b976c181",
+  "harness": "@spockify/harness",
+  "harness_version": "0.1.0",
+  "commit": "55ac638559a302fcc4407b4504e992b14deb1d3f",
+  "max_turns": 48,
+  "prompt_dataset": "SWE-bench/SWE-bench_Lite",
+  "prompt_split": "test",
+  "eval_dataset": "SWE-bench/SWE-bench_Lite",
+  "eval_split": "test",
+  "driver": "runHarness",
+  "workers": 1
+}

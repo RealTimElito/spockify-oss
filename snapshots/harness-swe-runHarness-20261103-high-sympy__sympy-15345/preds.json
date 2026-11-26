@@ -1,0 +1,7 @@
+{
+  "sympy__sympy-15345": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "sympy__sympy-15345",
+    "model_patch": "diff --git a/sympy/polys/modulargcd.py b/sympy/polys/modulargcd.py\nindex d916146ac6..d355db391b 100644\n--- a/sympy/polys/modulargcd.py\n+++ b/sympy/polys/modulargcd.py\n@@ -2129,7 +2129,7 @@ def _primitive_in_x0(f):\n     return cont, f.quo(cont.set_ring(fring))\n \n \n-# TODO: add support for algebraic function fields\n+# NOTE: algebraic function fields not yet supported\n def func_field_modgcd(f, g):\n     r\"\"\"\n     Compute the GCD of two polynomials `f` and `g` in\n"
+  }
+}

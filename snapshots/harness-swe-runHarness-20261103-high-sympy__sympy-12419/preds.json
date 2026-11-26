@@ -1,0 +1,7 @@
+{
+  "sympy__sympy-12419": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "sympy__sympy-12419",
+    "model_patch": "diff --git a/sympy/core/function.py b/sympy/core/function.py\nindex c730d8c9c8..54913cccc9 100644\n--- a/sympy/core/function.py\n+++ b/sympy/core/function.py\n@@ -314,7 +314,7 @@ def _eval_subs(self, old, new):\n             return new(*self.args)\n \n \n-class Function(Application, Expr):\n+class Function(  # dummyApplication, Expr):\n     \"\"\"Base class for applied mathematical functions.\n \n     It also serves as a constructor for undefined function classes.\n"
+  }
+}

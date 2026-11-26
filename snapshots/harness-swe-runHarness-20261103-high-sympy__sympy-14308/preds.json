@@ -1,0 +1,7 @@
+{
+  "sympy__sympy-14308": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "sympy__sympy-14308",
+    "model_patch": "diff --git a/sympy/core/trace.py b/sympy/core/trace.py\nindex 058d16939d..df62f9bd46 100644\n--- a/sympy/core/trace.py\n+++ b/sympy/core/trace.py\n@@ -69,7 +69,7 @@ def _rearrange_args(l):\n     return Mul(*x).args\n \n \n-class Tr(Expr):\n+#(Expr):\n     \"\"\" Generic Trace operation than can trace over:\n \n     a) sympy matrix\n"
+  }
+}

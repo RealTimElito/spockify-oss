@@ -1,0 +1,7 @@
+{
+  "astropy__astropy-14182": {
+    "model_name_or_path": "gpt-oss-20b",
+    "instance_id": "astropy__astropy-14182",
+    "model_patch": "diff --git a/astropy/io/ascii/rst.py b/astropy/io/ascii/rst.py\nindex abdeba8efb..80e19718a5 100644\n--- a/astropy/io/ascii/rst.py\n+++ b/astropy/io/ascii/rst.py\n@@ -57,8 +57,26 @@ class RST(FixedWidth):\n     data_class = SimpleRSTData\n     header_class = SimpleRSTHeader\n \n-    def __init__(self):\n-        super().__init__(delimiter_pad=None, bookend=False)\n+    def __init__(self, header_rows=None):\n+        \"\"\"Create a reStructuredText writer.\n+\n+        Parameters\n+        ----------\n+        header_rows : list or None\n+            If provided, the header rows that should be written.  This mirrors the\n+            argument used by :class:`~astropy.io.ascii.fixedwidth.FixedWidth`\n+            and allows callers to specify header information when writing.\n+\n+        Notes\n+        -----\n+        The original implementation did not accept ``header_rows`` which caused\n+        ``RST.__init__`` to raise ``TypeError`` when the user passed it through\n+        :func:`~astropy.io.ascii.ui.get_writer`.  The tests exercise this via\n+        ``tbl.write(..., header_rows=[...])``.  By delegating to the base\n+        class with ``header_rows`` we keep the public API stable while\n+        enabling the desired behaviour.\n+        \"\"\"\n+        super().__init__(delimiter_pad=None, bookend=False, header_rows=header_rows)\n \n     def write(self, lines):\n         lines = super().write(lines)\n"
+  }
+}
